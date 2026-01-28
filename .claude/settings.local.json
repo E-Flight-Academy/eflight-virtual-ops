@@ -9,7 +9,12 @@
       "Bash(brew install:*)",
       "Bash(brew link:*)",
       "Bash(npm run build:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nSet up Next.js chat interface with Gemini AI integration\n\n- Initialize Next.js 16 with TypeScript and Tailwind CSS v4\n- Add Google Gemini API integration for AI chat\n- Create chat UI component with message history\n- Add API route for Gemini conversations\n- Configure for Vercel deployment\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
+      "Bash(git push)",
+      "Bash(git commit:*)",
+      "WebFetch(domain:eflight-virtual-ops.vercel.app)",
+      "Bash(curl:*)"
     ]
   }
 }

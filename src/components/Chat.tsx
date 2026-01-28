@@ -8,6 +8,9 @@ interface Message {
 }
 
 export default function Chat() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [password, setPassword] = useState("");
+  const [authError, setAuthError] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -20,6 +23,25 @@ export default function Chat() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError("");
+    try {
+      const response = await fetch("/api/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+      if (response.ok) {
+        setIsAuthenticated(true);
+      } else {
+        setAuthError("Incorrect password");
+      }
+    } catch {
+      setAuthError("Failed to connect to the server.");
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,6 +79,35 @@ export default function Chat() {
       setIsLoading(false);
     }
   };
+
+  if (!isAuthenticated) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <form onSubmit={handleLogin} className="w-full max-w-sm p-8">
+          <h1 className="text-xl font-semibold text-center mb-2">E-Flight Virtual Ops</h1>
+          <p className="text-sm text-gray-500 text-center mb-6">Enter password to continue</p>
+          {authError && (
+            <p className="text-red-500 text-sm text-center mb-4">{authError}</p>
+          )}
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Password"
+            className="w-full rounded-lg border border-gray-300 dark:border-gray-700 px-4 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-900"
+            autoFocus
+          />
+          <button
+            type="submit"
+            disabled={!password}
+            className="w-full px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            Log in
+          </button>
+        </form>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-screen max-w-4xl mx-auto">

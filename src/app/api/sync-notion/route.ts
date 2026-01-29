@@ -30,7 +30,7 @@ async function handleSync(request: NextRequest) {
     return NextResponse.json({
       status: "synced",
       count: starters.length,
-      starters: starters.map((s) => s.text),
+      starters: starters.map((s) => s.question),
     });
   } catch (err) {
     console.error("Notion sync failed:", err);

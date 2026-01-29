@@ -1,8 +1,8 @@
 import { Client } from "@notionhq/client";
 
 export interface Starter {
-  text: string;
-  order: number;
+  question: string;
+  answer: string;
 }
 
 // In-memory cache
@@ -23,8 +23,10 @@ export async function fetchStartersFromNotion(): Promise<Starter[]> {
   const response = await notion.databases.query({
     database_id: databaseId,
     filter: {
-      property: "Show as Starter",
-      checkbox: { equals: true },
+      and: [
+        { property: "Starter Prompt", checkbox: { equals: true } },
+        { property: "Live", checkbox: { equals: true } },
+      ],
     },
     sorts: [
       { property: "Order", direction: "ascending" },
@@ -36,22 +38,21 @@ export async function fetchStartersFromNotion(): Promise<Starter[]> {
   for (const page of response.results) {
     if (!("properties" in page)) continue;
 
-    // Find the title property
     const props = page.properties;
-    let text = "";
-    let order = 0;
+    let question = "";
+    let answer = "";
 
-    for (const [, value] of Object.entries(props)) {
+    for (const [key, value] of Object.entries(props)) {
       if (value.type === "title" && value.title.length > 0) {
-        text = value.title.map((t: { plain_text: string }) => t.plain_text).join("");
+        question = value.title.map((t: { plain_text: string }) => t.plain_text).join("");
       }
-      if (value.type === "number" && value.number !== null) {
-        order = value.number;
+      if (key === "Answer" && value.type === "rich_text" && value.rich_text.length > 0) {
+        answer = value.rich_text.map((t: { plain_text: string }) => t.plain_text).join("");
       }
     }
 
-    if (text) {
-      starters.push({ text, order });
+    if (question) {
+      starters.push({ question, answer });
     }
   }
 

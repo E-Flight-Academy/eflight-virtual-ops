@@ -33,7 +33,7 @@ export default function Chat() {
   const [isLoading, setIsLoading] = useState(false);
   const [kbStatus, setKbStatus] = useState<KbStatus | null>(null);
   const [kbExpanded, setKbExpanded] = useState(false);
-  const [starters, setStarters] = useState<string[]>([]);
+  const [starters, setStarters] = useState<{ question: string; answer: string }[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -244,12 +244,12 @@ export default function Chat() {
               <button
                 key={i}
                 onClick={() => {
-                  setInput(starter);
+                  setInput(starter.question);
                   inputRef.current?.focus();
                 }}
                 className="text-sm px-3 py-1.5 rounded-full border border-e-indigo-light text-e-indigo hover:bg-e-indigo hover:text-white transition-colors"
               >
-                {starter}
+                {starter.question}
               </button>
             ))}
           </div>

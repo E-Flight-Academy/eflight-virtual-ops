@@ -3,6 +3,10 @@
     {
       "path": "/api/knowledge-base/warm",
       "schedule": "*/55 * * * *"
+    },
+    {
+      "path": "/api/sync-notion",
+      "schedule": "0 */6 * * *"
     }
   ]
 }

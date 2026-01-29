@@ -33,6 +33,7 @@ export default function Chat() {
   const [isLoading, setIsLoading] = useState(false);
   const [kbStatus, setKbStatus] = useState<KbStatus | null>(null);
   const [kbExpanded, setKbExpanded] = useState(false);
+  const [starters, setStarters] = useState<string[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -68,6 +69,11 @@ export default function Chat() {
       // Pre-warm knowledge base in the background
       fetch("/api/knowledge-base/warm", { method: "POST" })
         .then(() => fetchKbStatus())
+        .catch(() => {});
+      // Fetch conversation starters
+      fetch("/api/starters")
+        .then((res) => res.json())
+        .then((data) => setStarters(data))
         .catch(() => {});
     }
   }, [isAuthenticated, fetchKbStatus]);
@@ -231,26 +237,44 @@ export default function Chat() {
         <div ref={messagesEndRef} />
       </div>
 
-      <form onSubmit={handleSubmit} className="p-4 border-t border-e-pale dark:border-gray-800">
-        <div className="flex gap-2">
-          <input
-            ref={inputRef}
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Type your message..."
-            className="flex-1 rounded-lg border border-e-grey-light dark:border-gray-700 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-e-indigo bg-white dark:bg-gray-900"
-            disabled={isLoading}
-          />
-          <button
-            type="submit"
-            disabled={isLoading || !input.trim()}
-            className="px-6 py-2 bg-e-indigo text-white rounded-lg hover:bg-e-indigo-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            Send
-          </button>
-        </div>
-      </form>
+      <div className="border-t border-e-pale dark:border-gray-800">
+        {messages.length === 0 && starters.length > 0 && (
+          <div className="px-4 pt-3 flex flex-wrap gap-2">
+            {starters.map((starter, i) => (
+              <button
+                key={i}
+                onClick={() => {
+                  setInput(starter);
+                  inputRef.current?.focus();
+                }}
+                className="text-sm px-3 py-1.5 rounded-full border border-e-indigo-light text-e-indigo hover:bg-e-indigo hover:text-white transition-colors"
+              >
+                {starter}
+              </button>
+            ))}
+          </div>
+        )}
+        <form onSubmit={handleSubmit} className="p-4">
+          <div className="flex gap-2">
+            <input
+              ref={inputRef}
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Type your message..."
+              className="flex-1 rounded-lg border border-e-grey-light dark:border-gray-700 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-e-indigo bg-white dark:bg-gray-900"
+              disabled={isLoading}
+            />
+            <button
+              type="submit"
+              disabled={isLoading || !input.trim()}
+              className="px-6 py-2 bg-e-indigo text-white rounded-lg hover:bg-e-indigo-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Send
+            </button>
+          </div>
+        </form>
+      </div>
 
       {/* Knowledge base status bar */}
       <div className="border-t border-e-pale dark:border-gray-800">

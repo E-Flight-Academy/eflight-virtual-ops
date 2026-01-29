@@ -48,6 +48,24 @@ async function doFetchDocumentContext(): Promise<DocumentContext> {
   return context;
 }
 
+export function getKnowledgeBaseStatus() {
+  if (!cachedContext) {
+    return {
+      status: "not_synced" as const,
+      fileCount: 0,
+      fileNames: [] as string[],
+      lastSynced: null,
+    };
+  }
+
+  return {
+    status: "synced" as const,
+    fileCount: cachedContext.fileNames.length,
+    fileNames: cachedContext.fileNames,
+    lastSynced: new Date(cacheTimestamp).toISOString(),
+  };
+}
+
 export async function getDocumentContext(): Promise<DocumentContext> {
   if (cachedContext && Date.now() - cacheTimestamp < CACHE_TTL_MS) {
     return cachedContext;

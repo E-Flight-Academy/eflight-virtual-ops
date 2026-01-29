@@ -1,11 +1,27 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
+}
+
+interface KbStatus {
+  status: "synced" | "not_synced";
+  fileCount: number;
+  fileNames: string[];
+  lastSynced: string | null;
+}
+
+function timeAgo(isoDate: string): string {
+  const seconds = Math.floor((Date.now() - new Date(isoDate).getTime()) / 1000);
+  if (seconds < 60) return "just now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  return `${hours}h ago`;
 }
 
 export default function Chat() {
@@ -15,12 +31,25 @@ export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [kbStatus, setKbStatus] = useState<KbStatus | null>(null);
+  const [kbExpanded, setKbExpanded] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
+
+  const fetchKbStatus = useCallback(async () => {
+    try {
+      const res = await fetch("/api/knowledge-base/status");
+      if (res.ok) {
+        setKbStatus(await res.json());
+      }
+    } catch {
+      // Silently fail — status is informational
+    }
+  }, []);
 
   useEffect(() => {
     scrollToBottom();
@@ -35,8 +64,9 @@ export default function Chat() {
   useEffect(() => {
     if (isAuthenticated) {
       inputRef.current?.focus();
+      fetchKbStatus();
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, fetchKbStatus]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,6 +121,7 @@ export default function Chat() {
       ]);
     } finally {
       setIsLoading(false);
+      fetchKbStatus();
     }
   };
 
@@ -136,6 +167,8 @@ export default function Chat() {
             setIsAuthenticated(false);
             setPassword("");
             setMessages([]);
+            setKbStatus(null);
+            setKbExpanded(false);
           }}
           title="Log out"
           className="w-10 h-10 flex items-center justify-center rounded-lg text-e-grey hover:bg-e-pale dark:hover:bg-gray-800 transition-colors"
@@ -214,6 +247,68 @@ export default function Chat() {
           </button>
         </div>
       </form>
+
+      {/* Knowledge base status bar */}
+      <div className="border-t border-e-pale dark:border-gray-800">
+        <button
+          onClick={() => setKbExpanded(!kbExpanded)}
+          className="w-full px-4 py-2 flex items-center justify-center gap-2 text-xs text-e-grey hover:bg-e-pale-light dark:hover:bg-gray-900 transition-colors"
+        >
+          <span
+            className={`inline-block w-2 h-2 rounded-full ${
+              kbStatus?.status === "synced"
+                ? "bg-emerald-500"
+                : "bg-e-grey-light"
+            }`}
+          />
+          {kbStatus?.status === "synced" ? (
+            <span>
+              Knowledge base &middot; {kbStatus.fileCount} files
+              {kbStatus.lastSynced && <> &middot; Synced {timeAgo(kbStatus.lastSynced)}</>}
+            </span>
+          ) : (
+            <span>Knowledge base &middot; Not synced yet</span>
+          )}
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className={`transition-transform ${kbExpanded ? "rotate-180" : ""}`}
+          >
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </button>
+
+        {kbExpanded && kbStatus?.status === "synced" && (
+          <div className="px-4 pb-3 max-h-48 overflow-y-auto">
+            <ul className="text-xs text-e-grey space-y-1">
+              {kbStatus.fileNames.map((name, i) => (
+                <li key={i} className="flex items-center gap-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                  </svg>
+                  {name}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {kbExpanded && kbStatus?.status !== "synced" && (
+          <div className="px-4 pb-3">
+            <p className="text-xs text-e-grey">
+              Documents will be loaded from Google Drive on the first chat message.
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

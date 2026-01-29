@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/knowledge-base/warm",
+      "schedule": "*/55 * * * *"
+    }
+  ]
+}

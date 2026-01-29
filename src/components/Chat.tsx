@@ -65,6 +65,10 @@ export default function Chat() {
     if (isAuthenticated) {
       inputRef.current?.focus();
       fetchKbStatus();
+      // Pre-warm knowledge base in the background
+      fetch("/api/knowledge-base/warm", { method: "POST" })
+        .then(() => fetchKbStatus())
+        .catch(() => {});
     }
   }, [isAuthenticated, fetchKbStatus]);
 

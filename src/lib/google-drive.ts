@@ -33,7 +33,9 @@ function getDriveClient() {
   return google.drive({ version: "v3", auth });
 }
 
-async function listFolderFiles(folderId: string) {
+const FOLDER_MIME_TYPE = "application/vnd.google-apps.folder";
+
+async function listFolderFiles(folderId: string): Promise<{ id: string; name: string; mimeType: string }[]> {
   const drive = getDriveClient();
   const files: { id: string; name: string; mimeType: string }[] = [];
   let pageToken: string | undefined;
@@ -59,7 +61,16 @@ async function listFolderFiles(folderId: string) {
     pageToken = res.data.nextPageToken ?? undefined;
   } while (pageToken);
 
-  return files;
+  // Recursively list files in subfolders
+  const folders = files.filter((f) => f.mimeType === FOLDER_MIME_TYPE);
+  const nonFolders = files.filter((f) => f.mimeType !== FOLDER_MIME_TYPE);
+
+  for (const folder of folders) {
+    const subFiles = await listFolderFiles(folder.id);
+    nonFolders.push(...subFiles);
+  }
+
+  return nonFolders;
 }
 
 async function exportWorkspaceFile(

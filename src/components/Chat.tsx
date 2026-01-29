@@ -16,6 +16,7 @@ export default function Chat() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -24,6 +25,18 @@ export default function Chat() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    if (!isLoading) {
+      inputRef.current?.focus();
+    }
+  }, [isLoading]);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      inputRef.current?.focus();
+    }
+  }, [isAuthenticated]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,8 +98,8 @@ export default function Chat() {
     return (
       <div className="flex items-center justify-center h-screen">
         <form onSubmit={handleLogin} className="w-full max-w-sm p-8">
-          <h1 className="text-xl font-semibold text-center mb-2">E-Flight Virtual Ops</h1>
-          <p className="text-sm text-gray-500 text-center mb-6">Enter password to continue</p>
+          <h1 className="text-xl font-extrabold text-e-indigo text-center mb-2">E-Flight Virtual Ops</h1>
+          <p className="text-sm text-e-grey text-center mb-6">Enter password to continue</p>
           {authError && (
             <p className="text-red-500 text-sm text-center mb-4">{authError}</p>
           )}
@@ -95,13 +108,13 @@ export default function Chat() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Password"
-            className="w-full rounded-lg border border-gray-300 dark:border-gray-700 px-4 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-900"
+            className="w-full rounded-lg border border-e-grey-light dark:border-gray-700 px-4 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-e-indigo bg-white dark:bg-gray-900"
             autoFocus
           />
           <button
             type="submit"
             disabled={!password}
-            className="w-full px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="w-full px-6 py-2 bg-e-indigo text-white rounded-lg hover:bg-e-indigo-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             Log in
           </button>
@@ -112,11 +125,11 @@ export default function Chat() {
 
   return (
     <div className="flex flex-col h-screen max-w-4xl mx-auto">
-      <header className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800">
+      <header className="flex items-center justify-between p-4 border-b border-e-pale dark:border-gray-800">
         <div className="w-10" />
         <div className="text-center">
-          <h1 className="text-xl font-semibold">E-Flight Virtual Ops</h1>
-          <p className="text-sm text-gray-500">Your AI assistant for flight training questions</p>
+          <h1 className="text-xl font-extrabold text-e-indigo">E-Flight Virtual Ops</h1>
+          <p className="text-sm text-e-grey">Your AI assistant for flight training questions</p>
         </div>
         <button
           onClick={() => {
@@ -125,7 +138,7 @@ export default function Chat() {
             setMessages([]);
           }}
           title="Log out"
-          className="w-10 h-10 flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+          className="w-10 h-10 flex items-center justify-center rounded-lg text-e-grey hover:bg-e-pale dark:hover:bg-gray-800 transition-colors"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -137,7 +150,7 @@ export default function Chat() {
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 && (
-          <div className="text-center text-gray-500 mt-8">
+          <div className="text-center text-e-grey mt-8">
             <p>Welcome to E-Flight Virtual Ops!</p>
             <p className="text-sm mt-2">Ask me anything about flight training, scheduling, or academy operations.</p>
           </div>
@@ -151,14 +164,14 @@ export default function Chat() {
             <div
               className={`max-w-[80%] rounded-lg px-4 py-2 ${
                 message.role === "user"
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                  ? "bg-e-indigo text-white"
+                  : "bg-e-pale dark:bg-gray-800 text-foreground"
               }`}
             >
               {message.role === "user" ? (
                 <p className="whitespace-pre-wrap">{message.content}</p>
               ) : (
-                <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-headings:my-2">
+                <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-headings:my-2 prose-headings:text-e-indigo">
                   <ReactMarkdown>{message.content}</ReactMarkdown>
                 </div>
               )}
@@ -168,11 +181,11 @@ export default function Chat() {
 
         {isLoading && (
           <div className="flex justify-start">
-            <div className="bg-gray-100 dark:bg-gray-800 rounded-lg px-4 py-2">
+            <div className="bg-e-pale dark:bg-gray-800 rounded-lg px-4 py-2">
               <div className="flex space-x-2">
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" />
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:0.1s]" />
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce [animation-delay:0.2s]" />
+                <div className="w-2 h-2 bg-e-indigo-light rounded-full animate-bounce" />
+                <div className="w-2 h-2 bg-e-indigo-light rounded-full animate-bounce [animation-delay:0.1s]" />
+                <div className="w-2 h-2 bg-e-indigo-light rounded-full animate-bounce [animation-delay:0.2s]" />
               </div>
             </div>
           </div>
@@ -181,20 +194,21 @@ export default function Chat() {
         <div ref={messagesEndRef} />
       </div>
 
-      <form onSubmit={handleSubmit} className="p-4 border-t border-gray-200 dark:border-gray-800">
+      <form onSubmit={handleSubmit} className="p-4 border-t border-e-pale dark:border-gray-800">
         <div className="flex gap-2">
           <input
+            ref={inputRef}
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Type your message..."
-            className="flex-1 rounded-lg border border-gray-300 dark:border-gray-700 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-900"
+            className="flex-1 rounded-lg border border-e-grey-light dark:border-gray-700 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-e-indigo bg-white dark:bg-gray-900"
             disabled={isLoading}
           />
           <button
             type="submit"
             disabled={isLoading || !input.trim()}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="px-6 py-2 bg-e-indigo text-white rounded-lg hover:bg-e-indigo-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             Send
           </button>

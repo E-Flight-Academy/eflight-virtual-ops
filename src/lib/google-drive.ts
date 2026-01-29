@@ -35,6 +35,23 @@ function getDriveClient() {
 
 const FOLDER_MIME_TYPE = "application/vnd.google-apps.folder";
 
+// MIME types supported by the Gemini File API for binary upload
+const SUPPORTED_BINARY_TYPES = new Set([
+  "application/pdf",
+  "text/plain",
+  "text/html",
+  "text/css",
+  "text/csv",
+  "text/xml",
+  "text/markdown",
+  "application/rtf",
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "image/heic",
+  "image/heif",
+]);
+
 async function listFolderFiles(folderId: string): Promise<{ id: string; name: string; mimeType: string }[]> {
   const drive = getDriveClient();
   const files: { id: string; name: string; mimeType: string }[] = [];
@@ -117,8 +134,8 @@ export async function fetchAllFiles(): Promise<DriveFileContent[]> {
           content,
           isText: true,
         });
-      } else {
-        // Binary file — download raw bytes
+      } else if (SUPPORTED_BINARY_TYPES.has(file.mimeType)) {
+        // Supported binary file — download raw bytes
         const buffer = await downloadBinaryFile(file.id);
         results.push({
           id: file.id,
@@ -128,6 +145,8 @@ export async function fetchAllFiles(): Promise<DriveFileContent[]> {
           buffer,
           isText: false,
         });
+      } else {
+        console.warn(`Skipping unsupported file type "${file.name}" (${file.mimeType})`);
       }
     } catch (err) {
       console.warn(`Failed to fetch file "${file.name}" (${file.id}):`, err);

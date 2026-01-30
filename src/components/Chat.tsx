@@ -381,6 +381,10 @@ export default function Chat() {
             </p>
           </div>
         )}
+
+        <div className="px-4 pb-1 text-[10px] text-e-grey-light text-center select-none">
+          build {process.env.NEXT_PUBLIC_BUILD_ID}
+        </div>
       </div>
     </div>
   );

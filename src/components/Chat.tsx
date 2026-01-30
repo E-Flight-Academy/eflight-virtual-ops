@@ -13,6 +13,7 @@ interface KbStatus {
   fileCount: number;
   fileNames: string[];
   lastSynced: string | null;
+  faqCount?: number;
 }
 
 function timeAgo(isoDate: string): string {
@@ -327,6 +328,7 @@ export default function Chat() {
           {kbStatus?.status === "synced" ? (
             <span>
               Knowledge base &middot; {kbStatus.fileCount} files
+              {kbStatus.faqCount != null && <> &middot; {kbStatus.faqCount} FAQs</>}
               {kbStatus.lastSynced && <> &middot; Synced {timeAgo(kbStatus.lastSynced)}</>}
             </span>
           ) : kbStatus?.status === "loading" ? (

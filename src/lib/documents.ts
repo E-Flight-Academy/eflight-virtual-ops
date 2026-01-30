@@ -97,6 +97,8 @@ async function doFetchDocumentContext(): Promise<DocumentContext> {
   }
 
   try {
+    // Preserve faqCount from existing status (written by sync-notion)
+    const existingStatus = await getKvStatus();
     await Promise.all([
       setKvContext({
         systemInstructionText,
@@ -109,6 +111,7 @@ async function doFetchDocumentContext(): Promise<DocumentContext> {
         fileCount: fileNames.length,
         fileNames,
         lastSynced: new Date(cacheTimestamp).toISOString(),
+        faqCount: existingStatus?.faqCount,
       }),
     ]);
   } catch (err) {

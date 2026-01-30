@@ -36,6 +36,7 @@ export interface KvStatusData {
   fileNames: string[];
   lastSynced: string | null;
   warmStartedAt?: number;
+  faqCount?: number;
 }
 
 export interface KvConfigData {

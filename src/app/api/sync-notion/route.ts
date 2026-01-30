@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { syncStarters } from "@/lib/starters";
 import { syncFaqs } from "@/lib/faq";
+import { getKvStatus, setKvStatus } from "@/lib/kv-cache";
 
 function isAuthorized(request: NextRequest): boolean {
   const secret = process.env.SYNC_SECRET;
@@ -31,6 +32,17 @@ async function handleSync(request: NextRequest) {
       syncStarters(),
       syncFaqs(),
     ]);
+
+    // Update faqCount in KB status
+    try {
+      const currentStatus = await getKvStatus();
+      if (currentStatus) {
+        await setKvStatus({ ...currentStatus, faqCount: faqs.length });
+      }
+    } catch {
+      // Non-fatal
+    }
+
     return NextResponse.json({
       status: "synced",
       starters: { count: starters.length, questions: starters.map((s) => s.question) },

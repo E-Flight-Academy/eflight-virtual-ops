@@ -299,7 +299,19 @@ export default function Chat() {
       </div>
 
       <div className="border-t border-e-pale dark:border-gray-800">
-        {messages.length === 0 && starters.length > 0 && (
+        {faqSuggestions.length > 0 ? (
+          <div className="px-4 pt-2 flex flex-col gap-1">
+            {faqSuggestions.map((suggestion, i) => (
+              <button
+                key={i}
+                onClick={() => sendMessage(suggestion)}
+                className="text-left text-sm px-3 py-1.5 rounded-lg border border-e-indigo-light text-e-indigo hover:bg-e-indigo hover:text-white transition-colors"
+              >
+                {suggestion}
+              </button>
+            ))}
+          </div>
+        ) : messages.length === 0 && starters.length > 0 ? (
           <div className="px-4 pt-3 flex flex-wrap gap-2">
             {starters.map((starter, i) => (
               <button
@@ -311,20 +323,7 @@ export default function Chat() {
               </button>
             ))}
           </div>
-        )}
-        {faqSuggestions.length > 0 && (
-          <div className="px-4 pt-2 flex flex-wrap gap-2">
-            {faqSuggestions.map((suggestion, i) => (
-              <button
-                key={i}
-                onClick={() => sendMessage(suggestion)}
-                className="text-left text-sm px-3 py-1.5 rounded-full border border-e-indigo-light text-e-indigo hover:bg-e-indigo hover:text-white transition-colors"
-              >
-                {suggestion}
-              </button>
-            ))}
-          </div>
-        )}
+        ) : null}
         <form onSubmit={handleSubmit} className="p-4">
           <div className="flex gap-2">
             <input

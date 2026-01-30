@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
       ),
       withTimeout(
         getDocumentContext().catch((err) => { console.error("Failed to load document context:", err); return null; }),
-        30000, null
+        10000, null
       ),
     ]);
 
@@ -79,7 +79,8 @@ export async function POST(request: NextRequest) {
     instructionParts.push(
       "Follow this search order to answer questions:",
       ...searchSteps,
-      "Do not make up or infer information beyond what is explicitly stated in the provided sources."
+      "Do not make up or infer information beyond what is explicitly stated in the provided sources.",
+      "Keep answers concise."
     );
 
     // Append FAQ context
@@ -87,7 +88,7 @@ export async function POST(request: NextRequest) {
       instructionParts.push("", buildFaqContext(faqs));
     }
 
-    // Append Drive document context
+    // Append Drive document context (text only — in system instruction)
     if (searchOrder.includes("drive") && documentContext?.systemInstructionText) {
       instructionParts.push(
         "",
@@ -104,9 +105,11 @@ export async function POST(request: NextRequest) {
     });
 
     // Build chat history
-    // If we have binary file parts, inject them as the first exchange
+    // Only include binary file parts on the first message to avoid re-processing
+    // 21 PDFs on every exchange. On follow-up messages, text context suffices.
     const fileContextHistory: { role: string; parts: unknown[] }[] = [];
-    if (documentContext?.fileParts.length) {
+    const isFirstMessage = messages.length === 1;
+    if (isFirstMessage && documentContext?.fileParts.length) {
       fileContextHistory.push({
         role: "user",
         parts: [
@@ -137,11 +140,25 @@ export async function POST(request: NextRequest) {
     const chat = model.startChat({ history });
 
     const lastMessage = messages[messages.length - 1];
-    const result = await chat.sendMessage(lastMessage.content);
-    const response = await result.response;
-    const text = response.text();
 
-    return NextResponse.json({ message: text });
+    // Wrap Gemini call with timeout (leave margin for response)
+    const geminiResult = await withTimeout(
+      (async () => {
+        const result = await chat.sendMessage(lastMessage.content);
+        const response = await result.response;
+        return response.text();
+      })(),
+      50000,
+      null
+    );
+
+    if (geminiResult === null) {
+      return NextResponse.json({
+        message: "Sorry, the response took too long. Please try again or ask a simpler question.",
+      });
+    }
+
+    return NextResponse.json({ message: geminiResult });
   } catch (error) {
     console.error("Chat API error:", error);
     const message = error instanceof Error ? error.message : "Unknown error";

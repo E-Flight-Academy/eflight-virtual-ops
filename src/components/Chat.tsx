@@ -35,7 +35,7 @@ export default function Chat() {
   const [kbStatus, setKbStatus] = useState<KbStatus | null>(null);
   const [kbExpanded, setKbExpanded] = useState(false);
   const [starters, setStarters] = useState<{ question: string; answer: string }[]>([]);
-  const [faqQuestions, setFaqQuestions] = useState<string[]>([]);
+  const [faqs, setFaqs] = useState<{ question: string; answer: string }[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -111,7 +111,7 @@ export default function Chat() {
         .catch(() => {});
       fetch("/api/faqs")
         .then((res) => res.json())
-        .then((data) => setFaqQuestions(data))
+        .then((data) => setFaqs(data))
         .catch(() => {});
     }
     return () => stopPolling();
@@ -136,6 +136,17 @@ export default function Chat() {
     }
   };
 
+  const findInstantAnswer = (text: string): string | null => {
+    const q = text.trim().toLowerCase();
+    // Check starters first (exact match)
+    const starter = starters.find((s) => s.question.toLowerCase() === q);
+    if (starter?.answer) return starter.answer;
+    // Check all FAQs (exact match)
+    const faq = faqs.find((f) => f.question.toLowerCase() === q);
+    if (faq?.answer) return faq.answer;
+    return null;
+  };
+
   const sendMessage = async (text: string) => {
     if (!text.trim() || isLoading) return;
 
@@ -143,6 +154,15 @@ export default function Chat() {
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
     setInput("");
+
+    // Instant answer from FAQ/starter — no need for Gemini
+    const instantAnswer = findInstantAnswer(text);
+    if (instantAnswer) {
+      setMessages([...newMessages, { role: "assistant", content: instantAnswer }]);
+      return;
+    }
+
+    // No instant match — ask Gemini
     setIsLoading(true);
 
     try {
@@ -184,16 +204,15 @@ export default function Chat() {
     if (query.length < 2 || messages.length > 0) return [];
     // Check if input matches a starter exactly (user clicked a starter)
     if (starters.some((s) => s.question === input)) return [];
-    return faqQuestions
-      .filter((q) => {
-        const lower = q.toLowerCase();
-        // Match if any word in the question starts with the query,
-        // or if the query appears as a substring
+    return faqs
+      .filter((f) => {
+        const lower = f.question.toLowerCase();
         return lower.includes(query) ||
           lower.split(/\s+/).some((word) => word.startsWith(query));
       })
+      .map((f) => f.question)
       .slice(0, 5);
-  }, [input, faqQuestions, messages.length, starters]);
+  }, [input, faqs, messages.length, starters]);
 
   if (!isAuthenticated) {
     return (
@@ -239,7 +258,7 @@ export default function Chat() {
             setMessages([]);
             setKbStatus(null);
             setKbExpanded(false);
-            setFaqQuestions([]);
+            setFaqs([]);
           }}
           title="Log out"
           className="w-10 h-10 flex items-center justify-center rounded-lg text-e-grey hover:bg-e-pale dark:hover:bg-gray-800 transition-colors"

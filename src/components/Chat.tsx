@@ -9,7 +9,7 @@ interface Message {
 }
 
 interface KbStatus {
-  status: "synced" | "not_synced";
+  status: "synced" | "not_synced" | "loading";
   fileCount: number;
   fileNames: string[];
   lastSynced: string | null;
@@ -36,21 +36,51 @@ export default function Chat() {
   const [starters, setStarters] = useState<{ question: string; answer: string }[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollCountRef = useRef(0);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  const stopPolling = useCallback(() => {
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
+    pollCountRef.current = 0;
+  }, []);
+
   const fetchKbStatus = useCallback(async () => {
     try {
       const res = await fetch("/api/knowledge-base/status");
       if (res.ok) {
-        setKbStatus(await res.json());
+        const data: KbStatus = await res.json();
+        setKbStatus(data);
+        return data;
       }
     } catch {
       // Silently fail — status is informational
     }
+    return null;
   }, []);
+
+  const startPolling = useCallback(() => {
+    stopPolling();
+    pollCountRef.current = 0;
+
+    pollIntervalRef.current = setInterval(async () => {
+      pollCountRef.current += 1;
+      if (pollCountRef.current > 40) {
+        stopPolling();
+        return;
+      }
+      const data = await fetchKbStatus();
+      if (data?.status === "synced") {
+        stopPolling();
+      }
+    }, 3000);
+  }, [stopPolling, fetchKbStatus]);
 
   useEffect(() => {
     scrollToBottom();
@@ -65,18 +95,21 @@ export default function Chat() {
   useEffect(() => {
     if (isAuthenticated) {
       inputRef.current?.focus();
-      fetchKbStatus();
-      // Pre-warm knowledge base in the background
-      fetch("/api/knowledge-base/warm", { method: "POST" })
-        .then(() => fetchKbStatus())
-        .catch(() => {});
+      // Check initial status, then start polling + warm
+      fetchKbStatus().then((data) => {
+        if (data?.status !== "synced") {
+          startPolling();
+          fetch("/api/knowledge-base/warm", { method: "POST" }).catch(() => {});
+        }
+      });
       // Fetch conversation starters
       fetch("/api/starters")
         .then((res) => res.json())
         .then((data) => setStarters(data))
         .catch(() => {});
     }
-  }, [isAuthenticated, fetchKbStatus]);
+    return () => stopPolling();
+  }, [isAuthenticated, fetchKbStatus, startPolling, stopPolling]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -286,6 +319,8 @@ export default function Chat() {
             className={`inline-block w-2 h-2 rounded-full ${
               kbStatus?.status === "synced"
                 ? "bg-emerald-500"
+                : kbStatus?.status === "loading"
+                ? "bg-amber-400 animate-pulse"
                 : "bg-e-grey-light"
             }`}
           />
@@ -294,6 +329,8 @@ export default function Chat() {
               Knowledge base &middot; {kbStatus.fileCount} files
               {kbStatus.lastSynced && <> &middot; Synced {timeAgo(kbStatus.lastSynced)}</>}
             </span>
+          ) : kbStatus?.status === "loading" ? (
+            <span>Knowledge base &middot; Loading documents...</span>
           ) : (
             <span>Knowledge base &middot; Not synced yet</span>
           )}
@@ -329,7 +366,15 @@ export default function Chat() {
           </div>
         )}
 
-        {kbExpanded && kbStatus?.status !== "synced" && (
+        {kbExpanded && kbStatus?.status === "loading" && (
+          <div className="px-4 pb-3">
+            <p className="text-xs text-e-grey">
+              Loading documents from Google Drive. This may take a moment...
+            </p>
+          </div>
+        )}
+
+        {kbExpanded && kbStatus?.status === "not_synced" && (
           <div className="px-4 pb-3">
             <p className="text-xs text-e-grey">
               Documents will be loaded from Google Drive on the first chat message.

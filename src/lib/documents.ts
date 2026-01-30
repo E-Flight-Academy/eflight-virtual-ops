@@ -1,6 +1,12 @@
 import { Part } from "@google/generative-ai";
 import { fetchAllFiles } from "./google-drive";
-import { getOrUploadFile, buildFileParts } from "./gemini-files";
+import { getOrUploadFile, buildFileParts, getUploadedFilesMap } from "./gemini-files";
+import {
+  getKvContext, setKvContext,
+  getKvGeminiUris, setKvGeminiUris,
+  getKvStatus, setKvStatus,
+  type KvGeminiUris,
+} from "./kv-cache";
 
 interface DocumentContext {
   systemInstructionText: string;
@@ -8,13 +14,50 @@ interface DocumentContext {
   fileNames: string[];
 }
 
-// Module-level cache
+// L1: Module-level in-memory cache
 let cachedContext: DocumentContext | null = null;
 let cacheTimestamp = 0;
 let fetchInProgress: Promise<DocumentContext> | null = null;
 
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 
+// L2: Try to restore from KV
+async function tryRestoreFromKv(): Promise<DocumentContext | null> {
+  try {
+    const [kvContext, kvUris] = await Promise.all([
+      getKvContext(),
+      getKvGeminiUris(),
+    ]);
+
+    if (!kvContext) return null;
+    if (Date.now() - kvContext.cachedAt > CACHE_TTL_MS) return null;
+
+    // Reconstruct fileParts from persisted Gemini URIs
+    const validUris = kvUris
+      ? Object.values(kvUris).filter(
+          (u) => Date.now() - u.uploadedAt < 47 * 60 * 60 * 1000
+        )
+      : [];
+    const fileParts = buildFileParts(validUris);
+
+    const context: DocumentContext = {
+      systemInstructionText: kvContext.systemInstructionText,
+      fileParts,
+      fileNames: kvContext.fileNames,
+    };
+
+    // Populate L1
+    cachedContext = context;
+    cacheTimestamp = kvContext.cachedAt;
+
+    return context;
+  } catch (err) {
+    console.warn("KV restore failed, falling back to full fetch:", err);
+    return null;
+  }
+}
+
+// L3: Full fetch from Google Drive + Gemini upload
 async function doFetchDocumentContext(): Promise<DocumentContext> {
   const files = await fetchAllFiles();
 
@@ -42,31 +85,64 @@ async function doFetchDocumentContext(): Promise<DocumentContext> {
     fileNames,
   };
 
+  // Populate L1
   cachedContext = context;
   cacheTimestamp = Date.now();
+
+  // Write to L2 (KV) in parallel, non-blocking
+  const kvUrisMap: KvGeminiUris = {};
+  const uploadsMap = getUploadedFilesMap();
+  for (const [id, data] of uploadsMap.entries()) {
+    kvUrisMap[id] = data;
+  }
+
+  Promise.all([
+    setKvContext({
+      systemInstructionText,
+      fileNames,
+      cachedAt: cacheTimestamp,
+    }),
+    setKvGeminiUris(kvUrisMap),
+    setKvStatus({
+      status: "synced",
+      fileCount: fileNames.length,
+      fileNames,
+      lastSynced: new Date(cacheTimestamp).toISOString(),
+    }),
+  ]).catch((err) => console.warn("KV write failed:", err));
 
   return context;
 }
 
-export function getKnowledgeBaseStatus() {
-  if (!cachedContext) {
+export async function getKnowledgeBaseStatus() {
+  // L1: in-memory
+  if (cachedContext) {
     return {
-      status: "not_synced" as const,
-      fileCount: 0,
-      fileNames: [] as string[],
-      lastSynced: null,
+      status: "synced" as const,
+      fileCount: cachedContext.fileNames.length,
+      fileNames: cachedContext.fileNames,
+      lastSynced: new Date(cacheTimestamp).toISOString(),
     };
   }
 
+  // L2: KV
+  try {
+    const kvStatus = await getKvStatus();
+    if (kvStatus) return kvStatus;
+  } catch {
+    // Fall through
+  }
+
   return {
-    status: "synced" as const,
-    fileCount: cachedContext.fileNames.length,
-    fileNames: cachedContext.fileNames,
-    lastSynced: new Date(cacheTimestamp).toISOString(),
+    status: "not_synced" as const,
+    fileCount: 0,
+    fileNames: [] as string[],
+    lastSynced: null,
   };
 }
 
 export async function getDocumentContext(): Promise<DocumentContext> {
+  // L1: in-memory
   if (cachedContext && Date.now() - cacheTimestamp < CACHE_TTL_MS) {
     return cachedContext;
   }
@@ -76,6 +152,11 @@ export async function getDocumentContext(): Promise<DocumentContext> {
     return fetchInProgress;
   }
 
+  // L2: try KV before full fetch
+  const kvRestored = await tryRestoreFromKv();
+  if (kvRestored) return kvRestored;
+
+  // L3: full fetch from Drive + Gemini
   fetchInProgress = doFetchDocumentContext();
   try {
     return await fetchInProgress;

@@ -3,6 +3,7 @@ import { Part } from "@google/generative-ai";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
+import { getKvGeminiUris, setKvGeminiUris } from "./kv-cache";
 
 interface UploadedFile {
   uri: string;
@@ -16,6 +17,26 @@ const uploadedFilesCache = new Map<string, UploadedFile>();
 
 // Gemini File API uploads expire after 48 hours; re-upload after 47 hours
 const UPLOAD_MAX_AGE_MS = 47 * 60 * 60 * 1000;
+
+// Whether KV URIs have been restored into in-memory cache
+let kvUrisRestored = false;
+
+async function ensureUriCacheFromKv(): Promise<void> {
+  if (kvUrisRestored || uploadedFilesCache.size > 0) return;
+  kvUrisRestored = true;
+  try {
+    const kvUris = await getKvGeminiUris();
+    if (kvUris) {
+      for (const [id, data] of Object.entries(kvUris)) {
+        if (Date.now() - data.uploadedAt < UPLOAD_MAX_AGE_MS) {
+          uploadedFilesCache.set(id, data);
+        }
+      }
+    }
+  } catch {
+    // Non-fatal
+  }
+}
 
 function getFileManager(): GoogleAIFileManager {
   if (!process.env.GEMINI_API_KEY) {
@@ -76,6 +97,9 @@ export async function getOrUploadFile(
   fileName: string,
   mimeType: string
 ): Promise<UploadedFile> {
+  // Try restoring from KV first
+  await ensureUriCacheFromKv();
+
   const cached = uploadedFilesCache.get(driveFileId);
   if (cached && Date.now() - cached.uploadedAt < UPLOAD_MAX_AGE_MS) {
     return cached;
@@ -83,6 +107,14 @@ export async function getOrUploadFile(
 
   const uploaded = await uploadToGemini(buffer, fileName, mimeType);
   uploadedFilesCache.set(driveFileId, uploaded);
+
+  // Write updated map to KV (fire-and-forget)
+  const allUris: Record<string, UploadedFile> = {};
+  for (const [id, data] of uploadedFilesCache.entries()) {
+    allUris[id] = data;
+  }
+  setKvGeminiUris(allUris).catch(() => {});
+
   return uploaded;
 }
 
@@ -93,4 +125,8 @@ export function buildFileParts(uploadedFiles: UploadedFile[]): Part[] {
       mimeType: f.mimeType,
     },
   }));
+}
+
+export function getUploadedFilesMap(): Map<string, UploadedFile> {
+  return uploadedFilesCache;
 }

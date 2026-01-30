@@ -62,11 +62,12 @@ let redis: Redis | null = null;
 
 function getRedis(): Redis | null {
   if (redis) return redis;
-  const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
-  const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
-  if (!url || !token) return null;
-  redis = new Redis({ url, token });
-  return redis;
+  try {
+    redis = Redis.fromEnv();
+    return redis;
+  } catch {
+    return null;
+  }
 }
 
 // --- Context ---

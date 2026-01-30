@@ -1,20 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { syncStarters } from "@/lib/starters";
-import { syncFaqs } from "@/lib/faq";
+import { syncConfig } from "@/lib/config";
 
 function isAuthorized(request: NextRequest): boolean {
   const secret = process.env.SYNC_SECRET;
   if (!secret) return false;
 
-  // Check Authorization: Bearer <token>
   const authHeader = request.headers.get("authorization");
   if (authHeader === `Bearer ${secret}`) return true;
 
-  // Check ?secret=<token> query parameter
   const querySecret = request.nextUrl.searchParams.get("secret");
   if (querySecret === secret) return true;
 
-  // Accept Vercel CRON_SECRET (sent automatically by Vercel cron jobs)
   const cronSecret = process.env.CRON_SECRET;
   if (cronSecret && authHeader === `Bearer ${cronSecret}`) return true;
 
@@ -27,17 +23,15 @@ async function handleSync(request: NextRequest) {
   }
 
   try {
-    const [starters, faqs] = await Promise.all([
-      syncStarters(),
-      syncFaqs(),
-    ]);
+    const config = await syncConfig();
     return NextResponse.json({
       status: "synced",
-      starters: { count: starters.length, questions: starters.map((s) => s.question) },
-      faqs: { count: faqs.length },
+      search_order: config.search_order,
+      tone_of_voice: config.tone_of_voice,
+      company_context: config.company_context.slice(0, 100) + "...",
     });
   } catch (err) {
-    console.error("Notion sync failed:", err);
+    console.error("Config sync failed:", err);
     return NextResponse.json(
       { status: "error", error: err instanceof Error ? err.message : "Unknown error" },
       { status: 500 }
@@ -49,7 +43,6 @@ export async function POST(request: NextRequest) {
   return handleSync(request);
 }
 
-// GET: for Vercel cron
 export async function GET(request: NextRequest) {
   return handleSync(request);
 }

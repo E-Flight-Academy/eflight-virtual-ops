@@ -1,6 +1,8 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextRequest, NextResponse } from "next/server";
 import { getDocumentContext } from "@/lib/documents";
+import { getConfig } from "@/lib/config";
+import { getFaqs, buildFaqContext } from "@/lib/faq";
 
 export const maxDuration = 60;
 
@@ -15,27 +17,79 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Load knowledge base documents (cached)
-    let documentContext;
-    try {
-      documentContext = await getDocumentContext();
-    } catch (err) {
-      console.error("Failed to load document context:", err);
-      documentContext = null;
-    }
+    // Load config, FAQs, and Drive context in parallel
+    const [config, faqs, documentContext] = await Promise.all([
+      getConfig().catch((err) => {
+        console.error("Failed to load config:", err);
+        return null;
+      }),
+      getFaqs().catch((err) => {
+        console.error("Failed to load FAQs:", err);
+        return [];
+      }),
+      getDocumentContext().catch((err) => {
+        console.error("Failed to load document context:", err);
+        return null;
+      }),
+    ]);
+
+    const searchOrder = config?.search_order ?? ["faq", "drive"];
+    const toneOfVoice = config?.tone_of_voice ?? "professional, friendly, and helpful";
+    const companyContext = config?.company_context ?? "E-Flight Academy is a flight training academy.";
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-    const baseInstruction =
-      "You are the E-Flight Virtual Ops assistant for E-Flight Academy. " +
-      "You MUST answer questions ONLY based on the provided knowledge base documents. " +
-      "If the answer cannot be found in the documents, clearly state that you don't have that information. " +
-      "Do not make up or infer information beyond what is explicitly stated in the documents. " +
-      "Always be helpful and professional.";
+    // Build system instruction based on search_order
+    const instructionParts: string[] = [];
 
-    const systemInstruction = documentContext?.systemInstructionText
-      ? `${baseInstruction}\n\nKnowledge Base Documents:\n\n${documentContext.systemInstructionText}`
-      : baseInstruction;
+    instructionParts.push(
+      `You are the E-Flight Virtual Ops assistant. ${companyContext}`,
+      `Your tone of voice is: ${toneOfVoice}.`,
+    );
+
+    // Build search priority instructions
+    const searchSteps: string[] = [];
+    let stepNum = 1;
+
+    if (searchOrder.includes("faq") && faqs.length > 0) {
+      searchSteps.push(
+        `${stepNum}. FIRST check the FAQ section below. If a FAQ directly answers the question, use that answer.`
+      );
+      stepNum++;
+    }
+
+    if (searchOrder.includes("drive") && documentContext?.systemInstructionText) {
+      searchSteps.push(
+        `${stepNum}. Check the Knowledge Base Documents for relevant information.`
+      );
+      stepNum++;
+    }
+
+    searchSteps.push(
+      `${stepNum}. If the answer cannot be found in any of the provided sources, clearly state that you don't have that information and suggest the user contact E-Flight Academy directly.`
+    );
+
+    instructionParts.push(
+      "Follow this search order to answer questions:",
+      ...searchSteps,
+      "Do not make up or infer information beyond what is explicitly stated in the provided sources."
+    );
+
+    // Append FAQ context
+    if (searchOrder.includes("faq") && faqs.length > 0) {
+      instructionParts.push("", buildFaqContext(faqs));
+    }
+
+    // Append Drive document context
+    if (searchOrder.includes("drive") && documentContext?.systemInstructionText) {
+      instructionParts.push(
+        "",
+        "=== Knowledge Base Documents ===",
+        documentContext.systemInstructionText
+      );
+    }
+
+    const systemInstruction = instructionParts.join("\n");
 
     const model = genAI.getGenerativeModel({
       model: "gemini-2.0-flash-lite",

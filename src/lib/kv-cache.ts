@@ -4,11 +4,15 @@ import { Redis } from "@upstash/redis";
 const KB_CONTEXT_KEY = "kb:context";
 const KB_GEMINI_URIS_KEY = "kb:gemini-uris";
 const KB_STATUS_KEY = "kb:status";
+const KB_CONFIG_KEY = "kb:config";
+const KB_FAQS_KEY = "kb:faqs";
 
 // --- TTLs (seconds) ---
 const CONTEXT_TTL = 3600;       // 1 hour
 const GEMINI_URIS_TTL = 169200; // 47 hours
 const STATUS_TTL = 3600;        // 1 hour
+const CONFIG_TTL = 3600;        // 1 hour
+const FAQS_TTL = 3600;          // 1 hour
 
 // --- Types ---
 export interface KvContextData {
@@ -32,6 +36,24 @@ export interface KvStatusData {
   fileNames: string[];
   lastSynced: string | null;
   warmStartedAt?: number;
+}
+
+export interface KvConfigData {
+  tone_of_voice: string;
+  company_context: string;
+  search_order: string[];
+  cachedAt: number;
+  [key: string]: unknown;
+}
+
+export interface KvFaq {
+  question: string;
+  answer: string;
+}
+
+export interface KvFaqsData {
+  faqs: KvFaq[];
+  cachedAt: number;
 }
 
 // --- Redis client (lazy) ---
@@ -104,6 +126,48 @@ export async function setKvStatus(data: KvStatusData): Promise<void> {
     const r = getRedis();
     if (!r) return;
     await r.set(KB_STATUS_KEY, data, { ex: STATUS_TTL });
+  } catch {
+    // Non-fatal
+  }
+}
+
+// --- Config ---
+export async function getKvConfig(): Promise<KvConfigData | null> {
+  try {
+    const r = getRedis();
+    if (!r) return null;
+    return await r.get<KvConfigData>(KB_CONFIG_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export async function setKvConfig(data: KvConfigData): Promise<void> {
+  try {
+    const r = getRedis();
+    if (!r) return;
+    await r.set(KB_CONFIG_KEY, data, { ex: CONFIG_TTL });
+  } catch {
+    // Non-fatal
+  }
+}
+
+// --- FAQs ---
+export async function getKvFaqs(): Promise<KvFaqsData | null> {
+  try {
+    const r = getRedis();
+    if (!r) return null;
+    return await r.get<KvFaqsData>(KB_FAQS_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export async function setKvFaqs(data: KvFaqsData): Promise<void> {
+  try {
+    const r = getRedis();
+    if (!r) return;
+    await r.set(KB_FAQS_KEY, data, { ex: FAQS_TTL });
   } catch {
     // Non-fatal
   }

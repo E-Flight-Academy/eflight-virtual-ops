@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 
 interface Message {
@@ -35,6 +35,7 @@ export default function Chat() {
   const [kbStatus, setKbStatus] = useState<KbStatus | null>(null);
   const [kbExpanded, setKbExpanded] = useState(false);
   const [starters, setStarters] = useState<{ question: string; answer: string }[]>([]);
+  const [faqQuestions, setFaqQuestions] = useState<string[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -103,10 +104,14 @@ export default function Chat() {
           fetch("/api/knowledge-base/warm", { method: "POST" }).catch(() => {});
         }
       });
-      // Fetch conversation starters
+      // Fetch conversation starters and FAQ questions
       fetch("/api/starters")
         .then((res) => res.json())
         .then((data) => setStarters(data))
+        .catch(() => {});
+      fetch("/api/faqs")
+        .then((res) => res.json())
+        .then((data) => setFaqQuestions(data))
         .catch(() => {});
     }
     return () => stopPolling();
@@ -131,11 +136,10 @@ export default function Chat() {
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || isLoading) return;
+  const sendMessage = async (text: string) => {
+    if (!text.trim() || isLoading) return;
 
-    const userMessage: Message = { role: "user", content: input };
+    const userMessage: Message = { role: "user", content: text };
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
     setInput("");
@@ -168,6 +172,28 @@ export default function Chat() {
       fetchKbStatus();
     }
   };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    sendMessage(input);
+  };
+
+  // Fuzzy search: match FAQ questions when user types 2+ characters
+  const faqSuggestions = useMemo(() => {
+    const query = input.trim().toLowerCase();
+    if (query.length < 2 || messages.length > 0) return [];
+    // Check if input matches a starter exactly (user clicked a starter)
+    if (starters.some((s) => s.question === input)) return [];
+    return faqQuestions
+      .filter((q) => {
+        const lower = q.toLowerCase();
+        // Match if any word in the question starts with the query,
+        // or if the query appears as a substring
+        return lower.includes(query) ||
+          lower.split(/\s+/).some((word) => word.startsWith(query));
+      })
+      .slice(0, 5);
+  }, [input, faqQuestions, messages.length, starters]);
 
   if (!isAuthenticated) {
     return (
@@ -213,6 +239,7 @@ export default function Chat() {
             setMessages([]);
             setKbStatus(null);
             setKbExpanded(false);
+            setFaqQuestions([]);
           }}
           title="Log out"
           className="w-10 h-10 flex items-center justify-center rounded-lg text-e-grey hover:bg-e-pale dark:hover:bg-gray-800 transition-colors"
@@ -277,13 +304,23 @@ export default function Chat() {
             {starters.map((starter, i) => (
               <button
                 key={i}
-                onClick={() => {
-                  setInput(starter.question);
-                  inputRef.current?.focus();
-                }}
+                onClick={() => sendMessage(starter.question)}
                 className="text-sm px-3 py-1.5 rounded-full border border-e-indigo-light text-e-indigo hover:bg-e-indigo hover:text-white transition-colors"
               >
                 {starter.question}
+              </button>
+            ))}
+          </div>
+        )}
+        {faqSuggestions.length > 0 && (
+          <div className="px-4 pt-2 flex flex-wrap gap-2">
+            {faqSuggestions.map((suggestion, i) => (
+              <button
+                key={i}
+                onClick={() => sendMessage(suggestion)}
+                className="text-left text-sm px-3 py-1.5 rounded-full border border-e-indigo-light text-e-indigo hover:bg-e-indigo hover:text-white transition-colors"
+              >
+                {suggestion}
               </button>
             ))}
           </div>

@@ -5,6 +5,7 @@ import {
   getKvContext, setKvContext,
   getKvGeminiUris, setKvGeminiUris,
   getKvStatus, setKvStatus,
+  getKvFaqs,
   type KvGeminiUris,
 } from "./kv-cache";
 
@@ -122,6 +123,15 @@ async function doFetchDocumentContext(): Promise<DocumentContext> {
 }
 
 export async function getKnowledgeBaseStatus() {
+  // Try to get faqCount from KV FAQs cache
+  let faqCount: number | undefined;
+  try {
+    const kvFaqs = await getKvFaqs();
+    if (kvFaqs) faqCount = kvFaqs.faqs.length;
+  } catch {
+    // Non-fatal
+  }
+
   // L1: in-memory
   if (cachedContext) {
     return {
@@ -129,13 +139,14 @@ export async function getKnowledgeBaseStatus() {
       fileCount: cachedContext.fileNames.length,
       fileNames: cachedContext.fileNames,
       lastSynced: new Date(cacheTimestamp).toISOString(),
+      faqCount,
     };
   }
 
   // L2: KV
   try {
     const kvStatus = await getKvStatus();
-    if (kvStatus) return kvStatus;
+    if (kvStatus) return { ...kvStatus, faqCount: kvStatus.faqCount ?? faqCount };
   } catch {
     // Fall through
   }

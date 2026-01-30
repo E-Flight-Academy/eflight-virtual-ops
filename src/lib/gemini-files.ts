@@ -108,12 +108,12 @@ export async function getOrUploadFile(
   const uploaded = await uploadToGemini(buffer, fileName, mimeType);
   uploadedFilesCache.set(driveFileId, uploaded);
 
-  // Write updated map to KV (fire-and-forget)
+  // Write updated map to KV
   const allUris: Record<string, UploadedFile> = {};
   for (const [id, data] of uploadedFilesCache.entries()) {
     allUris[id] = data;
   }
-  setKvGeminiUris(allUris).catch(() => {});
+  await setKvGeminiUris(allUris).catch(() => {});
 
   return uploaded;
 }

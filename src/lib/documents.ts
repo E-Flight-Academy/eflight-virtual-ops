@@ -89,27 +89,31 @@ async function doFetchDocumentContext(): Promise<DocumentContext> {
   cachedContext = context;
   cacheTimestamp = Date.now();
 
-  // Write to L2 (KV) in parallel, non-blocking
+  // Write to L2 (KV) — must await so writes complete before serverless function exits
   const kvUrisMap: KvGeminiUris = {};
   const uploadsMap = getUploadedFilesMap();
   for (const [id, data] of uploadsMap.entries()) {
     kvUrisMap[id] = data;
   }
 
-  Promise.all([
-    setKvContext({
-      systemInstructionText,
-      fileNames,
-      cachedAt: cacheTimestamp,
-    }),
-    setKvGeminiUris(kvUrisMap),
-    setKvStatus({
-      status: "synced",
-      fileCount: fileNames.length,
-      fileNames,
-      lastSynced: new Date(cacheTimestamp).toISOString(),
-    }),
-  ]).catch((err) => console.warn("KV write failed:", err));
+  try {
+    await Promise.all([
+      setKvContext({
+        systemInstructionText,
+        fileNames,
+        cachedAt: cacheTimestamp,
+      }),
+      setKvGeminiUris(kvUrisMap),
+      setKvStatus({
+        status: "synced",
+        fileCount: fileNames.length,
+        fileNames,
+        lastSynced: new Date(cacheTimestamp).toISOString(),
+      }),
+    ]);
+  } catch (err) {
+    console.warn("KV write failed:", err);
+  }
 
   return context;
 }

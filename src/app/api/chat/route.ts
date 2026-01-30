@@ -6,6 +6,13 @@ import { getFaqs, buildFaqContext } from "@/lib/faq";
 
 export const maxDuration = 60;
 
+function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((resolve) => setTimeout(() => resolve(fallback), ms)),
+  ]);
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { messages } = await request.json();
@@ -17,20 +24,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Load config, FAQs, and Drive context in parallel
+    // Load config, FAQs, and Drive context in parallel (with timeouts)
     const [config, faqs, documentContext] = await Promise.all([
-      getConfig().catch((err) => {
-        console.error("Failed to load config:", err);
-        return null;
-      }),
-      getFaqs().catch((err) => {
-        console.error("Failed to load FAQs:", err);
-        return [];
-      }),
-      getDocumentContext().catch((err) => {
-        console.error("Failed to load document context:", err);
-        return null;
-      }),
+      withTimeout(
+        getConfig().catch((err) => { console.error("Failed to load config:", err); return null; }),
+        5000, null
+      ),
+      withTimeout(
+        getFaqs().catch((err) => { console.error("Failed to load FAQs:", err); return [] as never[]; }),
+        5000, []
+      ),
+      withTimeout(
+        getDocumentContext().catch((err) => { console.error("Failed to load document context:", err); return null; }),
+        30000, null
+      ),
     ]);
 
     const searchOrder = config?.search_order ?? ["faq", "drive"];

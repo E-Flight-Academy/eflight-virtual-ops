@@ -21,18 +21,36 @@ const DEFAULT_PAGES = [
 let cachedWebsite: KvWebsiteData | null = null;
 let cacheTimestamp = 0;
 
-async function fetchPage(url: string): Promise<KvWebsitePage | null> {
+async function doFetch(url: string): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-
-    const response = await fetch(url, {
+    return await fetch(url, {
       signal: controller.signal,
       headers: {
         "User-Agent": "EFlightVirtualOps/1.0 (internal knowledge base)",
       },
     });
+  } finally {
     clearTimeout(timeout);
+  }
+}
+
+async function fetchPage(url: string): Promise<KvWebsitePage | null> {
+  try {
+    let response: Response;
+    try {
+      response = await doFetch(url);
+    } catch {
+      // HTTPS may fail due to invalid SSL cert — retry with HTTP
+      if (url.startsWith("https://")) {
+        const httpUrl = url.replace("https://", "http://");
+        console.warn(`HTTPS failed for ${url}, retrying with HTTP`);
+        response = await doFetch(httpUrl);
+      } else {
+        throw new Error(`Fetch failed for ${url}`);
+      }
+    }
 
     if (!response.ok) {
       console.warn(`Website fetch failed for ${url}: HTTP ${response.status}`);

@@ -173,15 +173,19 @@ export default function Chat() {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: newMessages, lang: lang !== "en" ? lang : undefined }),
+        body: JSON.stringify({ messages: newMessages, lang: lang || "en" }),
       });
 
       const data = await response.json();
 
       if (response.ok) {
         setMessages([...newMessages, { role: "assistant", content: data.message }]);
-        if (data.lang && data.translations) {
-          setTranslations(data.lang, data.translations as UiLabels);
+        if (data.lang) {
+          if (data.translations) {
+            setTranslations(data.lang, data.translations as UiLabels);
+          } else if (data.lang === "en") {
+            resetLanguage();
+          }
         }
       } else {
         setMessages([

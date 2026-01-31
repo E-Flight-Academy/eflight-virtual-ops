@@ -147,11 +147,13 @@ export async function POST(request: NextRequest) {
     const chat = model.startChat({ history });
 
     const lastMessage = messages[messages.length - 1];
-    const isFirstMessage = messages.length === 1;
 
-    // On first message, detect language in parallel with the chat response
-    const langPromise = isFirstMessage && !clientLang
-      ? withTimeout(detectLanguage(lastMessage.content), 5000, "en")
+    // Detect language on every message (in parallel with chat), but only for
+    // messages long enough to be unambiguous (≥10 chars). Short messages like
+    // "ok" or "ja" keep the current language.
+    const shouldDetect = lastMessage.content.trim().length >= 10;
+    const langPromise = shouldDetect
+      ? withTimeout(detectLanguage(lastMessage.content), 5000, clientLang || "en")
       : Promise.resolve(clientLang || "en");
 
     // Wrap Gemini call with timeout (leave margin for response)
@@ -174,17 +176,20 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // If a non-English language was detected on the first message, include translations
+    // Include translations when detected language differs from what the frontend has
     const response: Record<string, unknown> = { message: geminiResult };
-    if (isFirstMessage && detectedLang !== "en") {
+    const langChanged = detectedLang !== (clientLang || "en");
+    if (langChanged) {
       try {
-        const translations = await withTimeout(getTranslations(detectedLang), 8000, null);
+        const translations = detectedLang === "en"
+          ? null  // Frontend already has English defaults
+          : await withTimeout(getTranslations(detectedLang), 8000, null);
+        response.lang = detectedLang;
         if (translations) {
-          response.lang = detectedLang;
           response.translations = translations;
         }
       } catch {
-        // Non-fatal — UI stays in English
+        // Non-fatal — UI stays in current language
       }
     }
 

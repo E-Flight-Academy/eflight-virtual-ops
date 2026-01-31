@@ -1,4 +1,5 @@
 import { google } from "googleapis";
+import { PDFParse } from "pdf-parse";
 
 export interface DriveFileContent {
   id: string;
@@ -134,8 +135,41 @@ export async function fetchAllFiles(): Promise<DriveFileContent[]> {
           content,
           isText: true,
         });
+      } else if (file.mimeType === "application/pdf") {
+        // PDF — download and extract text
+        const buffer = await downloadBinaryFile(file.id);
+        let extractedText = "";
+        try {
+          const parser = new PDFParse({ data: new Uint8Array(buffer) });
+          const result = await parser.getText();
+          extractedText = result.text?.trim() ?? "";
+          await parser.destroy();
+        } catch (parseErr) {
+          console.warn(`Failed to parse PDF "${file.name}":`, parseErr);
+        }
+
+        if (extractedText.length > 0) {
+          // Text extracted successfully — treat as text document
+          results.push({
+            id: file.id,
+            name: file.name,
+            mimeType: "application/pdf",
+            content: extractedText,
+            isText: true,
+          });
+        } else {
+          // No text (e.g. scanned image PDF) — keep as binary for Gemini File API
+          results.push({
+            id: file.id,
+            name: file.name,
+            mimeType: file.mimeType,
+            content: "",
+            buffer,
+            isText: false,
+          });
+        }
       } else if (SUPPORTED_BINARY_TYPES.has(file.mimeType)) {
-        // Supported binary file — download raw bytes
+        // Other supported binary file — download raw bytes
         const buffer = await downloadBinaryFile(file.id);
         results.push({
           id: file.id,

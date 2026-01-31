@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { syncStarters } from "@/lib/starters";
 import { syncFaqs } from "@/lib/faq";
 import { syncWebsite } from "@/lib/website";
+import { syncFlows } from "@/lib/guided-flows";
 import { getConfig } from "@/lib/config";
 import { getKvStatus, setKvStatus } from "@/lib/kv-cache";
 
@@ -31,11 +32,15 @@ async function handleSync(request: NextRequest) {
 
   try {
     const config = await getConfig().catch(() => null);
-    const [starters, faqs, websitePages] = await Promise.all([
+    const [starters, faqs, websitePages, flowSteps] = await Promise.all([
       syncStarters(),
       syncFaqs(),
       syncWebsite(config?.website_pages).catch((err) => {
         console.warn("Website sync failed:", err);
+        return [];
+      }),
+      syncFlows().catch((err) => {
+        console.warn("Flows sync failed:", err);
         return [];
       }),
     ]);
@@ -55,6 +60,7 @@ async function handleSync(request: NextRequest) {
       starters: { count: starters.length, questions: starters.map((s) => s.question) },
       faqs: { count: faqs.length },
       website: { count: websitePages.length, urls: websitePages.map((p) => p.url) },
+      flows: { count: flowSteps.length, names: flowSteps.map((s) => s.name) },
     });
   } catch (err) {
     console.error("Notion sync failed:", err);

@@ -15,6 +15,8 @@ const CONFIG_TTL = 3600;        // 1 hour
 const FAQS_TTL = 3600;          // 1 hour
 const KB_WEBSITE_KEY = "kb:website";
 const WEBSITE_TTL = 21600;      // 6 hours
+const KB_FLOWS_KEY = "kb:flows";
+const FLOWS_TTL = 3600;         // 1 hour
 const I18N_KEY_PREFIX = "i18n:";
 const I18N_TTL = 2592000;       // 30 days
 
@@ -72,6 +74,21 @@ export interface KvFaq {
 
 export interface KvFaqsData {
   faqs: KvFaq[];
+  cachedAt: number;
+}
+
+export interface KvFlowStep {
+  name: string;
+  message: string;
+  options: string[];
+  nextFlow: Record<string, string>;
+  endAction: "Continue Flow" | "Start AI Chat";
+  contextKey: string;
+  order: number;
+}
+
+export interface KvFlowsData {
+  steps: KvFlowStep[];
   cachedAt: number;
 }
 
@@ -215,6 +232,27 @@ export async function setKvWebsite(data: KvWebsiteData): Promise<void> {
     const r = getRedis();
     if (!r) return;
     await r.set(KB_WEBSITE_KEY, data, { ex: WEBSITE_TTL });
+  } catch {
+    // Non-fatal
+  }
+}
+
+// --- Guided Flows ---
+export async function getKvFlows(): Promise<KvFlowsData | null> {
+  try {
+    const r = getRedis();
+    if (!r) return null;
+    return await r.get<KvFlowsData>(KB_FLOWS_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export async function setKvFlows(data: KvFlowsData): Promise<void> {
+  try {
+    const r = getRedis();
+    if (!r) return;
+    await r.set(KB_FLOWS_KEY, data, { ex: FLOWS_TTL });
   } catch {
     // Non-fatal
   }

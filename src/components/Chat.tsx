@@ -10,6 +10,18 @@ interface Message {
   content: string;
 }
 
+interface FlowStep {
+  name: string;
+  message: string;
+  options: string[];
+  nextFlow: Record<string, string>;
+  endAction: "Continue Flow" | "Start AI Chat";
+  contextKey: string;
+  order: number;
+}
+
+type FlowPhase = "loading" | "active" | "completed" | "skipped";
+
 interface KbStatus {
   status: "synced" | "not_synced" | "loading";
   fileCount: number;
@@ -42,6 +54,10 @@ export default function Chat() {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [phIndex, setPhIndex] = useState(0);
   const [phVisible, setPhVisible] = useState(true);
+  const [flowSteps, setFlowSteps] = useState<FlowStep[]>([]);
+  const [flowPhase, setFlowPhase] = useState<FlowPhase>("loading");
+  const [flowContext, setFlowContext] = useState<Record<string, string>>({});
+  const [currentFlowStep, setCurrentFlowStep] = useState<FlowStep | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -119,6 +135,27 @@ export default function Chat() {
         .then((res) => res.json())
         .then((data) => setFaqs(data))
         .catch(() => {});
+      // Fetch guided flows
+      fetch("/api/guided-flows")
+        .then((res) => res.json())
+        .then((data: FlowStep[]) => {
+          setFlowSteps(data);
+          if (data.length > 0) {
+            const welcome = data.find((s) => s.name.toLowerCase() === "welcome");
+            if (welcome) {
+              setCurrentFlowStep(welcome);
+              setFlowPhase("active");
+              setMessages([{ role: "assistant", content: welcome.message }]);
+            } else {
+              setFlowPhase("skipped");
+            }
+          } else {
+            setFlowPhase("skipped");
+          }
+        })
+        .catch(() => {
+          setFlowPhase("skipped");
+        });
     }
     return () => stopPolling();
   }, [isAuthenticated, fetchKbStatus, startPolling, stopPolling]);
@@ -136,7 +173,7 @@ export default function Chat() {
 
   useEffect(() => {
     // Only cycle when on initial screen with no messages and no input
-    if (messages.length > 0 || input) return;
+    if (messages.length > 0 || input || flowPhase !== "skipped") return;
 
     const interval = setInterval(() => {
       setPhVisible(false);
@@ -147,7 +184,7 @@ export default function Chat() {
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [messages.length, input, cyclingPlaceholders]);
+  }, [messages.length, input, flowPhase, cyclingPlaceholders]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -179,6 +216,55 @@ export default function Chat() {
     return null;
   };
 
+  const handleFlowOption = (option: string) => {
+    if (!currentFlowStep) return;
+
+    // Store the user's choice
+    const newContext = { ...flowContext };
+    if (currentFlowStep.contextKey) {
+      newContext[currentFlowStep.contextKey] = option;
+    }
+    setFlowContext(newContext);
+
+    // Add user's choice as a message
+    const userMsg: Message = { role: "user", content: option };
+
+    // Check if flow should end after this step
+    if (currentFlowStep.endAction === "Start AI Chat") {
+      setFlowPhase("completed");
+      setCurrentFlowStep(null);
+      setMessages((prev) => [...prev, userMsg]);
+      return;
+    }
+
+    // Find next step
+    const nextStepName = currentFlowStep.nextFlow?.[option];
+    if (!nextStepName) {
+      console.warn(`No next flow mapping for option "${option}", ending flow`);
+      setFlowPhase("completed");
+      setCurrentFlowStep(null);
+      setMessages((prev) => [...prev, userMsg]);
+      return;
+    }
+
+    const nextStep = flowSteps.find((s) => s.name === nextStepName);
+    if (!nextStep) {
+      console.warn(`Flow step "${nextStepName}" not found, ending flow`);
+      setFlowPhase("completed");
+      setCurrentFlowStep(null);
+      setMessages((prev) => [...prev, userMsg]);
+      return;
+    }
+
+    // Show next step
+    setCurrentFlowStep(nextStep);
+    setMessages((prev) => [
+      ...prev,
+      userMsg,
+      { role: "assistant", content: nextStep.message },
+    ]);
+  };
+
   const sendMessage = async (text: string) => {
     if (!text.trim() || isLoading) return;
 
@@ -201,7 +287,7 @@ export default function Chat() {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: newMessages, lang: lang || "en" }),
+        body: JSON.stringify({ messages: newMessages, lang: lang || "en", flowContext }),
       });
 
       const data = await response.json();
@@ -244,10 +330,21 @@ export default function Chat() {
   };
 
   const confirmNewChat = () => {
-    setMessages([]);
     setInput("");
     setShowResetConfirm(false);
     resetLanguage();
+    setFlowContext({});
+    // Restart flow from welcome if available
+    const welcome = flowSteps.find((s) => s.name.toLowerCase() === "welcome");
+    if (welcome) {
+      setCurrentFlowStep(welcome);
+      setFlowPhase("active");
+      setMessages([{ role: "assistant", content: welcome.message }]);
+    } else {
+      setCurrentFlowStep(null);
+      setFlowPhase("skipped");
+      setMessages([]);
+    }
     inputRef.current?.focus();
   };
 
@@ -324,6 +421,10 @@ export default function Chat() {
             setKbStatus(null);
             setKbExpanded(false);
             setFaqs([]);
+            setFlowSteps([]);
+            setFlowPhase("loading");
+            setFlowContext({});
+            setCurrentFlowStep(null);
             resetLanguage();
           }}
           title={t("header.logout")}
@@ -362,7 +463,7 @@ export default function Chat() {
       )}
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.length === 0 && (
+        {messages.length === 0 && flowPhase === "skipped" && (
           <div className="text-center text-e-grey mt-8">
             <p>{t("chat.welcome")}</p>
             <p className="text-sm mt-2">{t("chat.welcomeSub")}</p>
@@ -408,7 +509,19 @@ export default function Chat() {
       </div>
 
       <div className="border-t border-e-pale dark:border-gray-800">
-        {faqSuggestions.length > 0 ? (
+        {flowPhase === "active" && currentFlowStep ? (
+          <div className="px-4 pt-3 flex flex-wrap gap-2">
+            {currentFlowStep.options.map((option, i) => (
+              <button
+                key={i}
+                onClick={() => handleFlowOption(option)}
+                className="text-sm px-3 py-1.5 rounded-full border border-e-indigo-light text-e-indigo hover:bg-e-indigo hover:text-white transition-colors"
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+        ) : faqSuggestions.length > 0 ? (
           <div className="px-4 pt-2 flex flex-col gap-1">
             {faqSuggestions.map((suggestion, i) => (
               <button
@@ -420,7 +533,7 @@ export default function Chat() {
               </button>
             ))}
           </div>
-        ) : messages.length === 0 && starters.length > 0 ? (
+        ) : messages.length === 0 && starters.length > 0 && flowPhase === "skipped" ? (
           <div className="px-4 pt-3 flex flex-wrap gap-2">
             {starters.map((starter, i) => (
               <button
@@ -443,9 +556,9 @@ export default function Chat() {
                 onChange={(e) => setInput(e.target.value)}
                 placeholder={messages.length > 0 ? t("chat.placeholder") : undefined}
                 className="w-full rounded-lg border border-e-grey-light dark:border-gray-700 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-e-indigo bg-white dark:bg-gray-900"
-                disabled={isLoading}
+                disabled={isLoading || flowPhase === "active"}
               />
-              {!input && messages.length === 0 && (
+              {!input && messages.length === 0 && flowPhase === "skipped" && (
                 <span
                   className={`absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 transition-opacity duration-400 ${phVisible ? "opacity-70" : "opacity-0"}`}
                 >
@@ -455,7 +568,7 @@ export default function Chat() {
             </div>
             <button
               type="submit"
-              disabled={isLoading || !input.trim()}
+              disabled={isLoading || !input.trim() || flowPhase === "active"}
               className="px-6 py-2 bg-e-indigo text-white rounded-lg hover:bg-e-indigo-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {t("chat.send")}

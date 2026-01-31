@@ -18,7 +18,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T
 
 export async function POST(request: NextRequest) {
   try {
-    const { messages, lang: clientLang } = await request.json();
+    const { messages, lang: clientLang, flowContext } = await request.json();
 
     if (!process.env.GEMINI_API_KEY) {
       return NextResponse.json(
@@ -105,6 +105,19 @@ export async function POST(request: NextRequest) {
     if (clientLang && clientLang !== "en") {
       instructionParts.push(
         `IMPORTANT: Always respond in the same language as the user. The user's preferred language code is: ${clientLang}.`
+      );
+    }
+
+    // Append guided flow context if present
+    if (flowContext && typeof flowContext === "object" && Object.keys(flowContext).length > 0) {
+      const contextEntries = Object.entries(flowContext)
+        .map(([key, value]) => `${key}: ${value}`)
+        .join(", ");
+      instructionParts.push(
+        "",
+        "=== User Intake Context ===",
+        `The user completed a guided intake with the following information: ${contextEntries}`,
+        "Use this context to personalize your responses."
       );
     }
 

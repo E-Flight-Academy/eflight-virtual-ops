@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { syncStarters } from "@/lib/starters";
 import { syncFaqs } from "@/lib/faq";
+import { syncWebsite } from "@/lib/website";
+import { getConfig } from "@/lib/config";
 import { getKvStatus, setKvStatus } from "@/lib/kv-cache";
 
 function isAuthorized(request: NextRequest): boolean {
@@ -28,9 +30,14 @@ async function handleSync(request: NextRequest) {
   }
 
   try {
-    const [starters, faqs] = await Promise.all([
+    const config = await getConfig().catch(() => null);
+    const [starters, faqs, websitePages] = await Promise.all([
       syncStarters(),
       syncFaqs(),
+      syncWebsite(config?.website_pages).catch((err) => {
+        console.warn("Website sync failed:", err);
+        return [];
+      }),
     ]);
 
     // Update faqCount in KB status
@@ -47,6 +54,7 @@ async function handleSync(request: NextRequest) {
       status: "synced",
       starters: { count: starters.length, questions: starters.map((s) => s.question) },
       faqs: { count: faqs.length },
+      website: { count: websitePages.length, urls: websitePages.map((p) => p.url) },
     });
   } catch (err) {
     console.error("Notion sync failed:", err);

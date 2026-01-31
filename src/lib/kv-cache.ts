@@ -13,6 +13,8 @@ const GEMINI_URIS_TTL = 169200; // 47 hours
 const STATUS_TTL = 3600;        // 1 hour
 const CONFIG_TTL = 3600;        // 1 hour
 const FAQS_TTL = 3600;          // 1 hour
+const KB_WEBSITE_KEY = "kb:website";
+const WEBSITE_TTL = 21600;      // 6 hours
 const I18N_KEY_PREFIX = "i18n:";
 const I18N_TTL = 2592000;       // 30 days
 
@@ -45,8 +47,22 @@ export interface KvConfigData {
   tone_of_voice: string;
   company_context: string;
   search_order: string[];
+  fallback_instruction: string;
+  website_pages?: string[];
   cachedAt: number;
   [key: string]: unknown;
+}
+
+export interface KvWebsitePage {
+  url: string;
+  title: string;
+  content: string;
+  fetchedAt: number;
+}
+
+export interface KvWebsiteData {
+  pages: KvWebsitePage[];
+  cachedAt: number;
 }
 
 export interface KvFaq {
@@ -178,6 +194,27 @@ export async function setKvFaqs(data: KvFaqsData): Promise<void> {
     const r = getRedis();
     if (!r) return;
     await r.set(KB_FAQS_KEY, data, { ex: FAQS_TTL });
+  } catch {
+    // Non-fatal
+  }
+}
+
+// --- Website ---
+export async function getKvWebsite(): Promise<KvWebsiteData | null> {
+  try {
+    const r = getRedis();
+    if (!r) return null;
+    return await r.get<KvWebsiteData>(KB_WEBSITE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export async function setKvWebsite(data: KvWebsiteData): Promise<void> {
+  try {
+    const r = getRedis();
+    if (!r) return;
+    await r.set(KB_WEBSITE_KEY, data, { ex: WEBSITE_TTL });
   } catch {
     // Non-fatal
   }

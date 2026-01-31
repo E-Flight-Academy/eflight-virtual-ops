@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getDocumentContext } from "@/lib/documents";
 import { getKvStatus, setKvStatus } from "@/lib/kv-cache";
+import { getWebsiteContent } from "@/lib/website";
+import { getConfig } from "@/lib/config";
 
 export const maxDuration = 120;
 
@@ -33,11 +35,19 @@ async function warmUp() {
   }
 
   try {
-    const context = await getDocumentContext();
+    const config = await getConfig().catch(() => null);
+    const [context, websitePages] = await Promise.all([
+      getDocumentContext(),
+      getWebsiteContent(config?.website_pages).catch((err) => {
+        console.warn("Website warm-up failed:", err);
+        return [];
+      }),
+    ]);
     // getDocumentContext already writes "synced" status to KV
     return NextResponse.json({
       status: "ready",
       fileCount: context.fileNames.length,
+      websitePageCount: websitePages.length,
     });
   } catch (err) {
     console.error("Knowledge base warm-up failed:", err);

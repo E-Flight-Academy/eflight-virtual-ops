@@ -10,6 +10,8 @@ const DEFAULT_CONFIG: KvConfigData = {
   tone_of_voice: "professional, friendly, and helpful",
   company_context: "E-Flight Academy is a flight training academy.",
   search_order: ["faq", "drive"],
+  fallback_instruction: "If the answer cannot be found in any of the provided sources, you may use your general knowledge to answer, but clearly state that the information does not come from E-Flight Academy's official documents or FAQs.",
+  website_pages: undefined,
   cachedAt: 0,
 };
 
@@ -65,10 +67,19 @@ export async function fetchConfigFromNotion(): Promise<KvConfigData> {
     .map((s) => s.trim().toLowerCase())
     .filter(Boolean);
 
+  // Parse website_pages (comma-separated URLs)
+  const websitePagesRaw = config["website_pages"] || "";
+  const websitePages = websitePagesRaw
+    .split(",")
+    .map((s) => s.trim())
+    .filter((s) => s.startsWith("http"));
+
   const result: KvConfigData = {
     tone_of_voice: config["tone_of_voice"] || DEFAULT_CONFIG.tone_of_voice,
     company_context: config["company_context"] || DEFAULT_CONFIG.company_context,
     search_order: searchOrder,
+    fallback_instruction: config["fallback_instruction"] || DEFAULT_CONFIG.fallback_instruction,
+    website_pages: websitePages.length > 0 ? websitePages : undefined,
     cachedAt: Date.now(),
   };
 

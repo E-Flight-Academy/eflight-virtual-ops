@@ -13,6 +13,8 @@ const GEMINI_URIS_TTL = 169200; // 47 hours
 const STATUS_TTL = 3600;        // 1 hour
 const CONFIG_TTL = 3600;        // 1 hour
 const FAQS_TTL = 3600;          // 1 hour
+const I18N_KEY_PREFIX = "i18n:";
+const I18N_TTL = 2592000;       // 30 days
 
 // --- Types ---
 export interface KvContextData {
@@ -55,6 +57,12 @@ export interface KvFaq {
 export interface KvFaqsData {
   faqs: KvFaq[];
   cachedAt: number;
+}
+
+export interface KvTranslation {
+  lang: string;
+  labels: Record<string, string>;
+  generatedAt: number;
 }
 
 // --- Redis client (lazy) ---
@@ -170,6 +178,27 @@ export async function setKvFaqs(data: KvFaqsData): Promise<void> {
     const r = getRedis();
     if (!r) return;
     await r.set(KB_FAQS_KEY, data, { ex: FAQS_TTL });
+  } catch {
+    // Non-fatal
+  }
+}
+
+// --- i18n Translations ---
+export async function getKvTranslation(lang: string): Promise<KvTranslation | null> {
+  try {
+    const r = getRedis();
+    if (!r) return null;
+    return await r.get<KvTranslation>(`${I18N_KEY_PREFIX}${lang}`);
+  } catch {
+    return null;
+  }
+}
+
+export async function setKvTranslation(data: KvTranslation): Promise<void> {
+  try {
+    const r = getRedis();
+    if (!r) return;
+    await r.set(`${I18N_KEY_PREFIX}${data.lang}`, data, { ex: I18N_TTL });
   } catch {
     // Non-fatal
   }

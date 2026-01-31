@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDocumentContext } from "@/lib/documents";
 import { getConfig } from "@/lib/config";
 import { getFaqs, buildFaqContext } from "@/lib/faq";
+import { detectLanguage } from "@/lib/i18n/detect";
+import { getTranslations } from "@/lib/i18n/translate";
 
 export const maxDuration = 60;
 
@@ -15,7 +17,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T
 
 export async function POST(request: NextRequest) {
   try {
-    const { messages } = await request.json();
+    const { messages, lang: clientLang } = await request.json();
 
     if (!process.env.GEMINI_API_KEY) {
       return NextResponse.json(
@@ -83,6 +85,12 @@ export async function POST(request: NextRequest) {
       "Keep answers concise."
     );
 
+    if (clientLang && clientLang !== "en") {
+      instructionParts.push(
+        `IMPORTANT: Always respond in the same language as the user. The user's preferred language code is: ${clientLang}.`
+      );
+    }
+
     // Append FAQ context
     if (searchOrder.includes("faq") && faqs.length > 0) {
       instructionParts.push("", buildFaqContext(faqs));
@@ -108,8 +116,7 @@ export async function POST(request: NextRequest) {
     // Only include binary file parts on the first message to avoid re-processing
     // 21 PDFs on every exchange. On follow-up messages, text context suffices.
     const fileContextHistory: { role: string; parts: unknown[] }[] = [];
-    const isFirstMessage = messages.length === 1;
-    if (isFirstMessage && documentContext?.fileParts.length) {
+    if (messages.length === 1 && documentContext?.fileParts.length) {
       fileContextHistory.push({
         role: "user",
         parts: [
@@ -140,17 +147,26 @@ export async function POST(request: NextRequest) {
     const chat = model.startChat({ history });
 
     const lastMessage = messages[messages.length - 1];
+    const isFirstMessage = messages.length === 1;
+
+    // On first message, detect language in parallel with the chat response
+    const langPromise = isFirstMessage && !clientLang
+      ? withTimeout(detectLanguage(lastMessage.content), 5000, "en")
+      : Promise.resolve(clientLang || "en");
 
     // Wrap Gemini call with timeout (leave margin for response)
-    const geminiResult = await withTimeout(
-      (async () => {
-        const result = await chat.sendMessage(lastMessage.content);
-        const response = await result.response;
-        return response.text();
-      })(),
-      50000,
-      null
-    );
+    const [geminiResult, detectedLang] = await Promise.all([
+      withTimeout(
+        (async () => {
+          const result = await chat.sendMessage(lastMessage.content);
+          const response = await result.response;
+          return response.text();
+        })(),
+        50000,
+        null
+      ),
+      langPromise,
+    ]);
 
     if (geminiResult === null) {
       return NextResponse.json({
@@ -158,7 +174,21 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    return NextResponse.json({ message: geminiResult });
+    // If a non-English language was detected on the first message, include translations
+    const response: Record<string, unknown> = { message: geminiResult };
+    if (isFirstMessage && detectedLang !== "en") {
+      try {
+        const translations = await withTimeout(getTranslations(detectedLang), 8000, null);
+        if (translations) {
+          response.lang = detectedLang;
+          response.translations = translations;
+        }
+      } catch {
+        // Non-fatal — UI stays in English
+      }
+    }
+
+    return NextResponse.json(response);
   } catch (error) {
     console.error("Chat API error:", error);
     const message = error instanceof Error ? error.message : "Unknown error";

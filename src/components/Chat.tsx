@@ -2,6 +2,8 @@
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
+import { useI18n } from "@/lib/i18n/context";
+import type { UiLabels } from "@/lib/i18n/labels";
 
 interface Message {
   role: "user" | "assistant";
@@ -26,6 +28,7 @@ function timeAgo(isoDate: string): string {
 }
 
 export default function Chat() {
+  const { t, lang, setTranslations, resetLanguage } = useI18n();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState("");
   const [authError, setAuthError] = useState("");
@@ -130,10 +133,10 @@ export default function Chat() {
       if (response.ok) {
         setIsAuthenticated(true);
       } else {
-        setAuthError("Incorrect password");
+        setAuthError(t("login.error.incorrect"));
       }
     } catch {
-      setAuthError("Failed to connect to the server.");
+      setAuthError(t("login.error.connection"));
     }
   };
 
@@ -170,13 +173,16 @@ export default function Chat() {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: newMessages }),
+        body: JSON.stringify({ messages: newMessages, lang: lang !== "en" ? lang : undefined }),
       });
 
       const data = await response.json();
 
       if (response.ok) {
         setMessages([...newMessages, { role: "assistant", content: data.message }]);
+        if (data.lang && data.translations) {
+          setTranslations(data.lang, data.translations as UiLabels);
+        }
       } else {
         setMessages([
           ...newMessages,
@@ -186,7 +192,7 @@ export default function Chat() {
     } catch {
       setMessages([
         ...newMessages,
-        { role: "assistant", content: "Failed to connect to the server." },
+        { role: "assistant", content: t("chat.error") },
       ]);
     } finally {
       setIsLoading(false);
@@ -209,6 +215,7 @@ export default function Chat() {
     setMessages([]);
     setInput("");
     setShowResetConfirm(false);
+    resetLanguage();
     inputRef.current?.focus();
   };
 
@@ -233,7 +240,7 @@ export default function Chat() {
       <div className="flex items-center justify-center h-screen">
         <form onSubmit={handleLogin} className="w-full max-w-sm p-8">
           <h1 className="text-xl font-extrabold text-e-indigo text-center mb-2">E-Flight Virtual Ops</h1>
-          <p className="text-sm text-e-grey text-center mb-6">Enter password to continue</p>
+          <p className="text-sm text-e-grey text-center mb-6">{t("login.subtitle")}</p>
           {authError && (
             <p className="text-red-500 text-sm text-center mb-4">{authError}</p>
           )}
@@ -241,7 +248,7 @@ export default function Chat() {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Password"
+            placeholder={t("login.placeholder")}
             className="w-full rounded-lg border border-e-grey-light dark:border-gray-700 px-4 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-e-indigo bg-white dark:bg-gray-900"
             autoFocus
           />
@@ -250,7 +257,7 @@ export default function Chat() {
             disabled={!password}
             className="w-full px-6 py-2 bg-e-indigo text-white rounded-lg hover:bg-e-indigo-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
-            Log in
+            {t("login.button")}
           </button>
         </form>
       </div>
@@ -263,7 +270,7 @@ export default function Chat() {
         <button
           onClick={handleNewChat}
           disabled={messages.length === 0}
-          title="Nieuw gesprek"
+          title={t("header.newChat")}
           className="h-10 flex items-center gap-1.5 rounded-lg text-e-grey hover:bg-e-pale dark:hover:bg-gray-800 transition-colors disabled:opacity-30 disabled:cursor-not-allowed px-2 sm:pr-3"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -271,11 +278,11 @@ export default function Chat() {
             <path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.855z" />
             <path d="m15 5 3 3" />
           </svg>
-          <span className="hidden sm:inline text-sm">Nieuw gesprek</span>
+          <span className="hidden sm:inline text-sm">{t("header.newChat")}</span>
         </button>
         <div className="text-center">
           <h1 className="text-xl font-extrabold text-e-indigo">E-Flight Virtual Ops</h1>
-          <p className="text-sm text-e-grey">Your AI assistant for flight training questions</p>
+          <p className="text-sm text-e-grey">{t("header.subtitle")}</p>
         </div>
         <button
           onClick={() => {
@@ -285,8 +292,9 @@ export default function Chat() {
             setKbStatus(null);
             setKbExpanded(false);
             setFaqs([]);
+            resetLanguage();
           }}
-          title="Log out"
+          title={t("header.logout")}
           className="w-10 h-10 flex items-center justify-center rounded-lg text-e-grey hover:bg-e-pale dark:hover:bg-gray-800 transition-colors"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -301,20 +309,20 @@ export default function Chat() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg p-6 mx-4 max-w-sm w-full">
             <p className="text-sm text-foreground mb-4">
-              Weet je zeker dat je een nieuw gesprek wilt starten?
+              {t("reset.confirm")}
             </p>
             <div className="flex gap-2 justify-end">
               <button
                 onClick={() => setShowResetConfirm(false)}
                 className="px-4 py-2 text-sm rounded-lg border border-e-grey-light dark:border-gray-700 text-e-grey hover:bg-e-pale dark:hover:bg-gray-800 transition-colors"
               >
-                Annuleren
+                {t("reset.cancel")}
               </button>
               <button
                 onClick={confirmNewChat}
                 className="px-4 py-2 text-sm rounded-lg bg-e-indigo text-white hover:bg-e-indigo-hover transition-colors"
               >
-                Nieuw gesprek
+                {t("reset.confirmButton")}
               </button>
             </div>
           </div>
@@ -324,8 +332,8 @@ export default function Chat() {
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 && (
           <div className="text-center text-e-grey mt-8">
-            <p>Welcome to E-Flight Virtual Ops!</p>
-            <p className="text-sm mt-2">Ask me anything about flight training, scheduling, or academy operations.</p>
+            <p>{t("chat.welcome")}</p>
+            <p className="text-sm mt-2">{t("chat.welcomeSub")}</p>
           </div>
         )}
 
@@ -400,7 +408,7 @@ export default function Chat() {
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Type your message..."
+              placeholder={t("chat.placeholder")}
               className="flex-1 rounded-lg border border-e-grey-light dark:border-gray-700 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-e-indigo bg-white dark:bg-gray-900"
               disabled={isLoading}
             />
@@ -409,7 +417,7 @@ export default function Chat() {
               disabled={isLoading || !input.trim()}
               className="px-6 py-2 bg-e-indigo text-white rounded-lg hover:bg-e-indigo-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              Send
+              {t("chat.send")}
             </button>
           </div>
         </form>
@@ -432,14 +440,14 @@ export default function Chat() {
           />
           {kbStatus?.status === "synced" ? (
             <span>
-              Knowledge base &middot; {kbStatus.fileCount} files
-              {kbStatus.faqCount != null && <> &middot; {kbStatus.faqCount} FAQs</>}
-              {kbStatus.lastSynced && <> &middot; Synced {timeAgo(kbStatus.lastSynced)}</>}
+              {t("kb.label")} &middot; {kbStatus.fileCount} {t("kb.files")}
+              {kbStatus.faqCount != null && <> &middot; {kbStatus.faqCount} {t("kb.faqs")}</>}
+              {kbStatus.lastSynced && <> &middot; {t("kb.synced")} {timeAgo(kbStatus.lastSynced)}</>}
             </span>
           ) : kbStatus?.status === "loading" ? (
-            <span>Knowledge base &middot; Loading documents...</span>
+            <span>{t("kb.label")} &middot; {t("kb.loading")}</span>
           ) : (
-            <span>Knowledge base &middot; Not synced yet</span>
+            <span>{t("kb.label")} &middot; {t("kb.notSynced")}</span>
           )}
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -476,7 +484,7 @@ export default function Chat() {
         {kbExpanded && kbStatus?.status === "loading" && (
           <div className="px-4 pb-3">
             <p className="text-xs text-e-grey">
-              Loading documents from Google Drive. This may take a moment...
+              {t("kb.loadingDetail")}
             </p>
           </div>
         )}
@@ -484,7 +492,7 @@ export default function Chat() {
         {kbExpanded && kbStatus?.status === "not_synced" && (
           <div className="px-4 pb-3">
             <p className="text-xs text-e-grey">
-              Documents will be loaded from Google Drive on the first chat message.
+              {t("kb.notSyncedDetail")}
             </p>
           </div>
         )}

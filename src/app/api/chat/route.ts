@@ -170,12 +170,18 @@ export async function POST(request: NextRequest) {
     }
 
     // Convert user messages to Gemini format
-    const userHistory = messages
+    const allHistory = messages
       .slice(0, -1)
       .map((msg: { role: string; content: string }) => ({
         role: msg.role === "assistant" ? "model" : "user",
         parts: [{ text: msg.content }],
       }));
+
+    // Gemini requires the first message to be from "user". Drop leading
+    // "model" messages (e.g. guided-flow welcome) — that context is already
+    // captured in the system instruction via flowContext.
+    const firstUserIdx = allHistory.findIndex((m: { role: string }) => m.role === "user");
+    const userHistory = firstUserIdx > 0 ? allHistory.slice(firstUserIdx) : allHistory;
 
     const history = [...fileContextHistory, ...userHistory];
 

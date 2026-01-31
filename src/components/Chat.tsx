@@ -173,7 +173,7 @@ export default function Chat() {
 
   useEffect(() => {
     // Only cycle when on initial screen with no messages and no input
-    if (messages.length > 0 || input || flowPhase !== "skipped") return;
+    if (messages.some((m) => m.role === "user") || input) return;
 
     const interval = setInterval(() => {
       setPhVisible(false);
@@ -184,7 +184,7 @@ export default function Chat() {
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [messages.length, input, flowPhase, cyclingPlaceholders]);
+  }, [messages, input, cyclingPlaceholders]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -268,6 +268,12 @@ export default function Chat() {
   const sendMessage = async (text: string) => {
     if (!text.trim() || isLoading) return;
 
+    // If user types during active flow, end flow gracefully
+    if (flowPhase === "active") {
+      setFlowPhase("completed");
+      setCurrentFlowStep(null);
+    }
+
     const userMessage: Message = { role: "user", content: text };
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
@@ -349,9 +355,10 @@ export default function Chat() {
   };
 
   // Fuzzy search: match FAQ questions when user types 2+ characters
+  const hasUserMessages = useMemo(() => messages.some((m) => m.role === "user"), [messages]);
   const faqSuggestions = useMemo(() => {
     const query = input.trim().toLowerCase();
-    if (query.length < 2 || messages.length > 0) return [];
+    if (query.length < 2 || hasUserMessages) return [];
     // Check if input matches a starter exactly (user clicked a starter)
     if (starters.some((s) => s.question === input)) return [];
     return faqs
@@ -362,7 +369,7 @@ export default function Chat() {
       })
       .map((f) => f.question)
       .slice(0, 5);
-  }, [input, faqs, messages.length, starters]);
+  }, [input, faqs, hasUserMessages, starters]);
 
   if (!isAuthenticated) {
     return (
@@ -463,7 +470,7 @@ export default function Chat() {
       )}
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.length === 0 && flowPhase === "skipped" && (
+        {messages.length === 0 && (
           <div className="text-center text-e-grey mt-8">
             <p>{t("chat.welcome")}</p>
             <p className="text-sm mt-2">{t("chat.welcomeSub")}</p>
@@ -493,6 +500,20 @@ export default function Chat() {
           </div>
         ))}
 
+        {flowPhase === "active" && currentFlowStep && !isLoading && (
+          <div className="flex flex-wrap gap-2 pl-1">
+            {currentFlowStep.options.map((option, i) => (
+              <button
+                key={i}
+                onClick={() => handleFlowOption(option)}
+                className="text-sm px-3 py-1.5 rounded-full border border-e-indigo-light text-e-indigo hover:bg-e-indigo hover:text-white transition-colors"
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+        )}
+
         {isLoading && (
           <div className="flex justify-start">
             <div className="bg-e-pale dark:bg-gray-800 rounded-lg px-4 py-2">
@@ -509,19 +530,7 @@ export default function Chat() {
       </div>
 
       <div className="border-t border-e-pale dark:border-gray-800">
-        {flowPhase === "active" && currentFlowStep ? (
-          <div className="px-4 pt-3 flex flex-wrap gap-2">
-            {currentFlowStep.options.map((option, i) => (
-              <button
-                key={i}
-                onClick={() => handleFlowOption(option)}
-                className="text-sm px-3 py-1.5 rounded-full border border-e-indigo-light text-e-indigo hover:bg-e-indigo hover:text-white transition-colors"
-              >
-                {option}
-              </button>
-            ))}
-          </div>
-        ) : faqSuggestions.length > 0 ? (
+        {faqSuggestions.length > 0 ? (
           <div className="px-4 pt-2 flex flex-col gap-1">
             {faqSuggestions.map((suggestion, i) => (
               <button
@@ -533,7 +542,7 @@ export default function Chat() {
               </button>
             ))}
           </div>
-        ) : messages.length === 0 && starters.length > 0 && flowPhase === "skipped" ? (
+        ) : !messages.some((m) => m.role === "user") && starters.length > 0 ? (
           <div className="px-4 pt-3 flex flex-wrap gap-2">
             {starters.map((starter, i) => (
               <button
@@ -556,9 +565,9 @@ export default function Chat() {
                 onChange={(e) => setInput(e.target.value)}
                 placeholder={messages.length > 0 ? t("chat.placeholder") : undefined}
                 className="w-full rounded-lg border border-e-grey-light dark:border-gray-700 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-e-indigo bg-white dark:bg-gray-900"
-                disabled={isLoading || flowPhase === "active"}
+                disabled={isLoading}
               />
-              {!input && messages.length === 0 && flowPhase === "skipped" && (
+              {!input && !messages.some((m) => m.role === "user") && (
                 <span
                   className={`absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 transition-opacity duration-400 ${phVisible ? "opacity-70" : "opacity-0"}`}
                 >
@@ -568,7 +577,7 @@ export default function Chat() {
             </div>
             <button
               type="submit"
-              disabled={isLoading || !input.trim() || flowPhase === "active"}
+              disabled={isLoading || !input.trim()}
               className="px-6 py-2 bg-e-indigo text-white rounded-lg hover:bg-e-indigo-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {t("chat.send")}

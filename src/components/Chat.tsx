@@ -40,6 +40,8 @@ export default function Chat() {
   const [starters, setStarters] = useState<{ question: string; answer: string }[]>([]);
   const [faqs, setFaqs] = useState<{ question: string; answer: string }[]>([]);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [phIndex, setPhIndex] = useState(0);
+  const [phVisible, setPhVisible] = useState(true);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -120,6 +122,32 @@ export default function Chat() {
     }
     return () => stopPolling();
   }, [isAuthenticated, fetchKbStatus, startPolling, stopPolling]);
+
+  // Cycling multilingual placeholder for the initial empty state
+  const cyclingPlaceholders = useMemo(() => [
+    "Type your question in English...",
+    "Stel je vraag in het Nederlands...",
+    "Stelle deine Frage auf Deutsch...",
+    "Posez votre question en français...",
+    "Escribe tu pregunta en español...",
+    "用中文输入您的问题...",
+    "Ketik pertanyaan Anda dalam Bahasa Indonesia...",
+  ], []);
+
+  useEffect(() => {
+    // Only cycle when on initial screen with no messages and no input
+    if (messages.length > 0 || input) return;
+
+    const interval = setInterval(() => {
+      setPhVisible(false);
+      setTimeout(() => {
+        setPhIndex((i) => (i + 1) % cyclingPlaceholders.length);
+        setPhVisible(true);
+      }, 400);
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [messages.length, input, cyclingPlaceholders]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -407,15 +435,24 @@ export default function Chat() {
         ) : null}
         <form onSubmit={handleSubmit} className="p-4">
           <div className="flex gap-2">
-            <input
-              ref={inputRef}
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder={t("chat.placeholder")}
-              className="flex-1 rounded-lg border border-e-grey-light dark:border-gray-700 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-e-indigo bg-white dark:bg-gray-900"
-              disabled={isLoading}
-            />
+            <div className="relative flex-1">
+              <input
+                ref={inputRef}
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder={messages.length > 0 ? t("chat.placeholder") : undefined}
+                className="w-full rounded-lg border border-e-grey-light dark:border-gray-700 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-e-indigo bg-white dark:bg-gray-900"
+                disabled={isLoading}
+              />
+              {!input && messages.length === 0 && (
+                <span
+                  className={`absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 transition-opacity duration-400 ${phVisible ? "opacity-70" : "opacity-0"}`}
+                >
+                  {cyclingPlaceholders[phIndex]}
+                </span>
+              )}
+            </div>
             <button
               type="submit"
               disabled={isLoading || !input.trim()}

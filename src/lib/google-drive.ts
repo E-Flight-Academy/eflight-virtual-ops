@@ -1,5 +1,7 @@
 import { google } from "googleapis";
-import { PDFParse } from "pdf-parse";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore — import from lib/ directly to bypass pdf-parse's test-file loader
+import pdfParse from "pdf-parse/lib/pdf-parse.js";
 
 export interface DriveFileContent {
   id: string;
@@ -140,10 +142,8 @@ export async function fetchAllFiles(): Promise<DriveFileContent[]> {
         const buffer = await downloadBinaryFile(file.id);
         let extractedText = "";
         try {
-          const parser = new PDFParse({ data: new Uint8Array(buffer) });
-          const result = await parser.getText();
-          extractedText = result.text?.trim() ?? "";
-          await parser.destroy();
+          const parsed = await pdfParse(buffer);
+          extractedText = parsed.text?.trim() ?? "";
         } catch (parseErr) {
           console.warn(`Failed to parse PDF "${file.name}":`, parseErr);
         }

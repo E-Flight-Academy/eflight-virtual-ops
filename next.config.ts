@@ -28,7 +28,6 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_BUILD_ID: getBuildId(),
     NEXT_PUBLIC_VERSION: getVersion(),
   },
-  serverExternalPackages: ["pdf-parse", "pdfjs-dist"],
 };
 
 export default nextConfig;

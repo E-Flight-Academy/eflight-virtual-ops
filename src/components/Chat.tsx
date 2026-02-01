@@ -563,7 +563,7 @@ export default function Chat() {
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder={messages.length > 0 ? t("chat.placeholder") : undefined}
+                placeholder={messages.some((m) => m.role === "user") ? t("chat.placeholder") : undefined}
                 className="w-full rounded-lg border border-e-grey-light dark:border-gray-700 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-e-indigo bg-white dark:bg-gray-900"
                 disabled={isLoading}
               />

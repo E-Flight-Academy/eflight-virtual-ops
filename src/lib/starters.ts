@@ -2,13 +2,25 @@ import { Client } from "@notionhq/client";
 
 export interface Starter {
   question: string;
+  questionNl: string;
+  questionDe: string;
   answer: string;
+  answerNl: string;
+  answerDe: string;
 }
 
 // In-memory cache
 let cachedStarters: Starter[] | null = null;
 let cacheTimestamp = 0;
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+function getRichText(props: Record<string, unknown>, key: string): string {
+  const prop = props[key] as { type: string; rich_text: { plain_text: string }[] } | undefined;
+  if (prop?.type === "rich_text" && prop.rich_text.length > 0) {
+    return prop.rich_text.map((t) => t.plain_text).join("");
+  }
+  return "";
+}
 
 export async function fetchStartersFromNotion(): Promise<Starter[]> {
   const apiKey = process.env.NOTION_API_KEY;
@@ -38,21 +50,26 @@ export async function fetchStartersFromNotion(): Promise<Starter[]> {
   for (const page of response.results) {
     if (!("properties" in page)) continue;
 
-    const props = page.properties;
-    let question = "";
-    let answer = "";
+    const props = page.properties as Record<string, unknown>;
 
-    for (const [key, value] of Object.entries(props)) {
-      if (value.type === "title" && value.title.length > 0) {
-        question = value.title.map((t: { plain_text: string }) => t.plain_text).join("");
-      }
-      if (key === "Answer" && value.type === "rich_text" && value.rich_text.length > 0) {
-        answer = value.rich_text.map((t: { plain_text: string }) => t.plain_text).join("");
+    // Title property = Question (EN)
+    let question = "";
+    for (const value of Object.values(props)) {
+      const v = value as { type: string; title: { plain_text: string }[] };
+      if (v.type === "title" && v.title.length > 0) {
+        question = v.title.map((t) => t.plain_text).join("");
+        break;
       }
     }
 
+    const questionNl = getRichText(props, "Question (NL)");
+    const questionDe = getRichText(props, "Question (DE)");
+    const answer = getRichText(props, "Answer (EN)");
+    const answerNl = getRichText(props, "Answer (NL)");
+    const answerDe = getRichText(props, "Answer (DE)");
+
     if (question) {
-      starters.push({ question, answer });
+      starters.push({ question, questionNl, questionDe, answer, answerNl, answerDe });
     }
   }
 

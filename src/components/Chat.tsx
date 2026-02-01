@@ -49,8 +49,8 @@ export default function Chat() {
   const [isLoading, setIsLoading] = useState(false);
   const [kbStatus, setKbStatus] = useState<KbStatus | null>(null);
   const [kbExpanded, setKbExpanded] = useState(false);
-  const [starters, setStarters] = useState<{ question: string; answer: string }[]>([]);
-  const [faqs, setFaqs] = useState<{ question: string; answer: string }[]>([]);
+  const [starters, setStarters] = useState<{ question: string; questionNl: string; questionDe: string; answer: string; answerNl: string; answerDe: string }[]>([]);
+  const [faqs, setFaqs] = useState<{ question: string; questionNl: string; questionDe: string; answer: string; answerNl: string; answerDe: string }[]>([]);
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [phIndex, setPhIndex] = useState(0);
   const [phVisible, setPhVisible] = useState(true);
@@ -205,14 +205,34 @@ export default function Chat() {
     }
   };
 
+  const getQ = useCallback((item: { question: string; questionNl: string; questionDe: string }) => {
+    if (lang === "nl" && item.questionNl) return item.questionNl;
+    if (lang === "de" && item.questionDe) return item.questionDe;
+    return item.question;
+  }, [lang]);
+
+  const getA = useCallback((item: { answer: string; answerNl: string; answerDe: string }) => {
+    if (lang === "nl" && item.answerNl) return item.answerNl;
+    if (lang === "de" && item.answerDe) return item.answerDe;
+    return item.answer;
+  }, [lang]);
+
   const findInstantAnswer = (text: string): string | null => {
     const q = text.trim().toLowerCase();
-    // Check starters first (exact match)
-    const starter = starters.find((s) => s.question.toLowerCase() === q);
-    if (starter?.answer) return starter.answer;
-    // Check all FAQs (exact match)
-    const faq = faqs.find((f) => f.question.toLowerCase() === q);
-    if (faq?.answer) return faq.answer;
+    // Check starters (match any language version)
+    const starter = starters.find((s) =>
+      s.question.toLowerCase() === q ||
+      s.questionNl.toLowerCase() === q ||
+      s.questionDe.toLowerCase() === q
+    );
+    if (starter) { const a = getA(starter); if (a) return a; }
+    // Check all FAQs (match any language version)
+    const faq = faqs.find((f) =>
+      f.question.toLowerCase() === q ||
+      f.questionNl.toLowerCase() === q ||
+      f.questionDe.toLowerCase() === q
+    );
+    if (faq) { const a = getA(faq); if (a) return a; }
     return null;
   };
 
@@ -360,16 +380,16 @@ export default function Chat() {
     const query = input.trim().toLowerCase();
     if (query.length < 2 || hasUserMessages) return [];
     // Check if input matches a starter exactly (user clicked a starter)
-    if (starters.some((s) => s.question === input)) return [];
+    if (starters.some((s) => getQ(s) === input)) return [];
     return faqs
       .filter((f) => {
-        const lower = f.question.toLowerCase();
+        const lower = getQ(f).toLowerCase();
         return lower.includes(query) ||
           lower.split(/\s+/).some((word) => word.startsWith(query));
       })
-      .map((f) => f.question)
+      .map((f) => getQ(f))
       .slice(0, 5);
-  }, [input, faqs, hasUserMessages, starters]);
+  }, [input, faqs, hasUserMessages, starters, getQ]);
 
   if (!isAuthenticated) {
     return (
@@ -560,7 +580,7 @@ export default function Chat() {
         ) : !messages.some((m) => m.role === "user") && starters.length > 0 ? (
           <div className="px-4 pt-3 flex flex-wrap gap-2">
             {starters.map((starter, i) => {
-              const displayText = translatedStarters[i] || starter.question;
+              const displayText = getQ(starter);
               return (
                 <button
                   key={i}

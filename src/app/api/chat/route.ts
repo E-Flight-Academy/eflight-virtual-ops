@@ -123,7 +123,7 @@ export async function POST(request: NextRequest) {
 
     // Append FAQ context
     if (searchOrder.includes("faq") && faqs.length > 0) {
-      instructionParts.push("", buildFaqContext(faqs));
+      instructionParts.push("", buildFaqContext(faqs, clientLang || "nl"));
     }
 
     // Append Drive document context (text only — in system instruction)

@@ -71,7 +71,11 @@ export interface KvWebsiteData {
 
 export interface KvFaq {
   question: string;
+  questionNl: string;
+  questionDe: string;
   answer: string;
+  answerNl: string;
+  answerDe: string;
 }
 
 export interface KvFaqsData {

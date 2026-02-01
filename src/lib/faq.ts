@@ -11,6 +11,14 @@ let cachedFaqs: KvFaqsData | null = null;
 let cacheTimestamp = 0;
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 
+function getRichText(props: Record<string, unknown>, key: string): string {
+  const prop = props[key] as { type: string; rich_text: { plain_text: string }[] } | undefined;
+  if (prop?.type === "rich_text" && prop.rich_text.length > 0) {
+    return prop.rich_text.map((t) => t.plain_text).join("");
+  }
+  return "";
+}
+
 export async function fetchFaqsFromNotion(): Promise<KvFaq[]> {
   const apiKey = process.env.NOTION_API_KEY;
   const databaseId = process.env.NOTION_DATABASE_ID;
@@ -21,7 +29,6 @@ export async function fetchFaqsFromNotion(): Promise<KvFaq[]> {
 
   const notion = new Client({ auth: apiKey });
 
-  // Fetch ALL Live FAQs (not just starters)
   const response = await notion.databases.query({
     database_id: databaseId,
     filter: {
@@ -36,29 +43,27 @@ export async function fetchFaqsFromNotion(): Promise<KvFaq[]> {
   for (const page of response.results) {
     if (!("properties" in page)) continue;
 
-    const props = page.properties;
-    let question = "";
-    let answer = "";
+    const props = page.properties as Record<string, unknown>;
 
-    for (const [key, value] of Object.entries(props)) {
-      if (value.type === "title" && value.title.length > 0) {
-        question = value.title
-          .map((t: { plain_text: string }) => t.plain_text)
-          .join("");
-      }
-      if (
-        key === "Answer" &&
-        value.type === "rich_text" &&
-        value.rich_text.length > 0
-      ) {
-        answer = value.rich_text
-          .map((t: { plain_text: string }) => t.plain_text)
-          .join("");
+    // Title property = Question (EN)
+    let question = "";
+    for (const value of Object.values(props)) {
+      const v = value as { type: string; title: { plain_text: string }[] };
+      if (v.type === "title" && v.title.length > 0) {
+        question = v.title.map((t) => t.plain_text).join("");
+        break;
       }
     }
 
-    if (question && answer) {
-      faqs.push({ question, answer });
+    const questionNl = getRichText(props, "Question (NL)");
+    const questionDe = getRichText(props, "Question (DE)");
+    const answer = getRichText(props, "Answer (EN)");
+    const answerNl = getRichText(props, "Answer (NL)");
+    const answerDe = getRichText(props, "Answer (DE)");
+
+    // Include if at least one Q+A pair exists
+    if (question && (answer || answerNl || answerDe)) {
+      faqs.push({ question, questionNl, questionDe, answer, answerNl, answerDe });
     }
   }
 
@@ -96,10 +101,23 @@ export async function getFaqs(): Promise<KvFaq[]> {
   return syncFaqs();
 }
 
-export function buildFaqContext(faqs: KvFaq[]): string {
+function getFaqQuestion(faq: KvFaq, lang: string): string {
+  if (lang === "nl" && faq.questionNl) return faq.questionNl;
+  if (lang === "de" && faq.questionDe) return faq.questionDe;
+  return faq.question;
+}
+
+function getFaqAnswer(faq: KvFaq, lang: string): string {
+  if (lang === "nl" && faq.answerNl) return faq.answerNl;
+  if (lang === "de" && faq.answerDe) return faq.answerDe;
+  return faq.answer;
+}
+
+export function buildFaqContext(faqs: KvFaq[], lang = "en"): string {
   if (faqs.length === 0) return "";
   const entries = faqs
-    .map((f) => `Q: ${f.question}\nA: ${f.answer}`)
+    .filter((f) => getFaqAnswer(f, lang))
+    .map((f) => `Q: ${getFaqQuestion(f, lang)}\nA: ${getFaqAnswer(f, lang)}`)
     .join("\n\n");
   return `=== Frequently Asked Questions ===\n${entries}`;
 }

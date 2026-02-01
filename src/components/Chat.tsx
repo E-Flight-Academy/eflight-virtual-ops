@@ -40,7 +40,7 @@ function timeAgo(isoDate: string): string {
 }
 
 export default function Chat() {
-  const { t, lang, setTranslations, resetLanguage } = useI18n();
+  const { t, lang, translatedStarters, setTranslations, resetLanguage, switchLanguage } = useI18n();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState("");
   const [authError, setAuthError] = useState("");
@@ -419,6 +419,21 @@ export default function Chat() {
         <div className="text-center">
           <h1 className="text-xl font-extrabold text-e-indigo">E-Flight Virtual Ops</h1>
           <p className="text-sm text-e-grey">{t("header.subtitle")}</p>
+          <div className="flex justify-center gap-1 mt-1">
+            {(["en", "nl", "de"] as const).map((code) => (
+              <button
+                key={code}
+                onClick={() => switchLanguage(code)}
+                className={`px-2 py-0.5 text-xs rounded font-medium transition-colors ${
+                  lang === code
+                    ? "bg-e-indigo text-white"
+                    : "text-e-grey hover:bg-e-pale dark:hover:bg-gray-800"
+                }`}
+              >
+                {code.toUpperCase()}
+              </button>
+            ))}
+          </div>
         </div>
         <button
           onClick={() => {
@@ -544,15 +559,18 @@ export default function Chat() {
           </div>
         ) : !messages.some((m) => m.role === "user") && starters.length > 0 ? (
           <div className="px-4 pt-3 flex flex-wrap gap-2">
-            {starters.map((starter, i) => (
-              <button
-                key={i}
-                onClick={() => sendMessage(starter.question)}
-                className="text-sm px-3 py-1.5 rounded-full border border-e-indigo-light text-e-indigo hover:bg-e-indigo hover:text-white transition-colors"
-              >
-                {starter.question}
-              </button>
-            ))}
+            {starters.map((starter, i) => {
+              const displayText = translatedStarters[i] || starter.question;
+              return (
+                <button
+                  key={i}
+                  onClick={() => sendMessage(displayText)}
+                  className="text-sm px-3 py-1.5 rounded-full border border-e-indigo-light text-e-indigo hover:bg-e-indigo hover:text-white transition-colors"
+                >
+                  {displayText}
+                </button>
+              );
+            })}
           </div>
         ) : null}
         <form onSubmit={handleSubmit} className="p-4">

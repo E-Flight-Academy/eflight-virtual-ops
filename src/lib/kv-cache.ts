@@ -19,6 +19,8 @@ const KB_FLOWS_KEY = "kb:flows";
 const FLOWS_TTL = 3600;         // 1 hour
 const I18N_KEY_PREFIX = "i18n:";
 const I18N_TTL = 2592000;       // 30 days
+const I18N_STARTERS_KEY_PREFIX = "i18n:starters:";
+const I18N_STARTERS_TTL = 2592000; // 30 days
 
 // --- Types ---
 export interface KvContextData {
@@ -95,6 +97,12 @@ export interface KvFlowsData {
 export interface KvTranslation {
   lang: string;
   labels: Record<string, string>;
+  generatedAt: number;
+}
+
+export interface KvStarterTranslation {
+  lang: string;
+  questions: string[];
   generatedAt: number;
 }
 
@@ -274,6 +282,27 @@ export async function setKvTranslation(data: KvTranslation): Promise<void> {
     const r = getRedis();
     if (!r) return;
     await r.set(`${I18N_KEY_PREFIX}${data.lang}`, data, { ex: I18N_TTL });
+  } catch {
+    // Non-fatal
+  }
+}
+
+// --- i18n Starter Translations ---
+export async function getKvStarterTranslation(lang: string): Promise<KvStarterTranslation | null> {
+  try {
+    const r = getRedis();
+    if (!r) return null;
+    return await r.get<KvStarterTranslation>(`${I18N_STARTERS_KEY_PREFIX}${lang}`);
+  } catch {
+    return null;
+  }
+}
+
+export async function setKvStarterTranslation(data: KvStarterTranslation): Promise<void> {
+  try {
+    const r = getRedis();
+    if (!r) return;
+    await r.set(`${I18N_STARTERS_KEY_PREFIX}${data.lang}`, data, { ex: I18N_STARTERS_TTL });
   } catch {
     // Non-fatal
   }

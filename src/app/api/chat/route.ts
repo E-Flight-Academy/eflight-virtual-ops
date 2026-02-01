@@ -181,7 +181,7 @@ export async function POST(request: NextRequest) {
     // "model" messages (e.g. guided-flow welcome) — that context is already
     // captured in the system instruction via flowContext.
     const firstUserIdx = allHistory.findIndex((m: { role: string }) => m.role === "user");
-    const userHistory = firstUserIdx > 0 ? allHistory.slice(firstUserIdx) : allHistory;
+    const userHistory = firstUserIdx >= 0 ? allHistory.slice(firstUserIdx) : [];
 
     const history = [...fileContextHistory, ...userHistory];
 

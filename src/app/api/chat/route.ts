@@ -146,6 +146,7 @@ export async function POST(request: NextRequest) {
     const model = genAI.getGenerativeModel({
       model: "gemini-2.0-flash-lite",
       systemInstruction,
+      generationConfig: { temperature: 0.5 },
     });
 
     // Build chat history

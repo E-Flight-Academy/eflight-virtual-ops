@@ -99,7 +99,8 @@ export async function POST(request: NextRequest) {
     instructionParts.push(
       "Follow this search order to answer questions:",
       ...searchSteps,
-      "Keep answers concise."
+      "Keep answers concise.",
+      "At the very end of every response, on a new line, add a small source tag in this exact format: [source: X] where X is one of: FAQ, Website, Knowledge Base, General Knowledge. Pick the primary source you used for the answer."
     );
 
     if (clientLang && clientLang !== "en") {

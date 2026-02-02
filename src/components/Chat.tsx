@@ -526,11 +526,21 @@ export default function Chat() {
             >
               {message.role === "user" ? (
                 <p className="whitespace-pre-wrap">{message.content}</p>
-              ) : (
-                <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-headings:my-2 prose-headings:text-e-indigo">
-                  <ReactMarkdown>{message.content}</ReactMarkdown>
-                </div>
-              )}
+              ) : (() => {
+                const sourceMatch = message.content.match(/\n?\[source:\s*(.+?)\]\s*$/i);
+                const body = sourceMatch ? message.content.slice(0, sourceMatch.index).trimEnd() : message.content;
+                const source = sourceMatch?.[1];
+                return (
+                  <>
+                    <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-headings:my-2 prose-headings:text-e-indigo">
+                      <ReactMarkdown>{body}</ReactMarkdown>
+                    </div>
+                    {source && (
+                      <p className="text-[10px] text-gray-400 dark:text-gray-600 mt-1 select-none">{source}</p>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           </div>
         ))}

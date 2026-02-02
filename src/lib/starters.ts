@@ -22,6 +22,34 @@ function getRichText(props: Record<string, unknown>, key: string): string {
   return "";
 }
 
+function getRichTextMd(props: Record<string, unknown>, key: string): string {
+  const prop = props[key] as {
+    type: string;
+    rich_text: {
+      plain_text: string;
+      annotations: { bold: boolean; italic: boolean; strikethrough: boolean; code: boolean };
+    }[];
+  } | undefined;
+  if (prop?.type !== "rich_text" || prop.rich_text.length === 0) return "";
+
+  let md = prop.rich_text
+    .map((t) => {
+      let text = t.plain_text;
+      if (t.annotations.code) text = `\`${text}\``;
+      if (t.annotations.bold) text = `**${text}**`;
+      if (t.annotations.italic) text = `*${text}*`;
+      if (t.annotations.strikethrough) text = `~~${text}~~`;
+      return text;
+    })
+    .join("");
+
+  md = md.replace(/^• /gm, "- ");
+  md = md.replace(/\n/g, "\n\n");
+  md = md.replace(/\n{3,}/g, "\n\n");
+
+  return md;
+}
+
 export async function fetchStartersFromNotion(): Promise<Starter[]> {
   const apiKey = process.env.NOTION_API_KEY;
   const databaseId = process.env.NOTION_DATABASE_ID;
@@ -64,9 +92,9 @@ export async function fetchStartersFromNotion(): Promise<Starter[]> {
 
     const questionNl = getRichText(props, "Question (NL)");
     const questionDe = getRichText(props, "Question (DE)");
-    const answer = getRichText(props, "Answer (EN)");
-    const answerNl = getRichText(props, "Answer (NL)");
-    const answerDe = getRichText(props, "Answer (DE)");
+    const answer = getRichTextMd(props, "Answer (EN)");
+    const answerNl = getRichTextMd(props, "Answer (NL)");
+    const answerDe = getRichTextMd(props, "Answer (DE)");
 
     if (question) {
       starters.push({ question, questionNl, questionDe, answer, answerNl, answerDe });

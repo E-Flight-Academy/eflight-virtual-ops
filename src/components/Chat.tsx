@@ -17,6 +17,7 @@ interface FlowStep {
   nextFlow: Record<string, string>;
   endAction: "Continue Flow" | "Start AI Chat";
   contextKey: string;
+  endPrompt: string;
   order: number;
 }
 
@@ -251,9 +252,14 @@ export default function Chat() {
 
     // Check if flow should end after this step
     if (currentFlowStep.endAction === "Start AI Chat") {
+      const prompt = currentFlowStep.endPrompt;
       setFlowPhase("completed");
       setCurrentFlowStep(null);
       setMessages((prev) => [...prev, userMsg]);
+      // Auto-send end prompt to Gemini if configured
+      if (prompt) {
+        setTimeout(() => sendMessage(prompt), 100);
+      }
       return;
     }
 

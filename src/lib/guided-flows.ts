@@ -42,6 +42,7 @@ export async function fetchFlowsFromNotion(): Promise<KvFlowStep[]> {
     let nextFlowRaw = "";
     let endAction: "Continue Flow" | "Start AI Chat" = "Continue Flow";
     let contextKey = "";
+    let endPrompt = "";
     let order = 0;
 
     for (const [key, value] of Object.entries(props)) {
@@ -88,6 +89,15 @@ export async function fetchFlowsFromNotion(): Promise<KvFlowStep[]> {
           .map((t: { plain_text: string }) => t.plain_text)
           .join("");
       }
+      if (
+        key === "End Prompt" &&
+        value.type === "rich_text" &&
+        value.rich_text.length > 0
+      ) {
+        endPrompt = value.rich_text
+          .map((t: { plain_text: string }) => t.plain_text)
+          .join("");
+      }
       if (key === "Order" && value.type === "number") {
         order = value.number ?? 0;
       }
@@ -104,7 +114,7 @@ export async function fetchFlowsFromNotion(): Promise<KvFlowStep[]> {
     }
 
     if (name && message) {
-      steps.push({ name, message, options, nextFlow, endAction, contextKey, order });
+      steps.push({ name, message, options, nextFlow, endAction, contextKey, endPrompt, order });
     }
   }
 

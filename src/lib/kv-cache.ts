@@ -90,6 +90,7 @@ export interface KvFlowStep {
   nextFlow: Record<string, string>;
   endAction: "Continue Flow" | "Start AI Chat";
   contextKey: string;
+  endPrompt: string;
   order: number;
 }
 

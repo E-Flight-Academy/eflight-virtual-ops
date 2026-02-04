@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { useSearchParams } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import { useI18n } from "@/lib/i18n/context";
 import type { UiLabels } from "@/lib/i18n/labels";
@@ -42,6 +43,7 @@ function timeAgo(isoDate: string): string {
 
 export default function Chat() {
   const { t, lang, translatedStarters, setTranslations, resetLanguage, switchLanguage } = useI18n();
+  const searchParams = useSearchParams();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [password, setPassword] = useState("");
   const [authError, setAuthError] = useState("");
@@ -59,6 +61,7 @@ export default function Chat() {
   const [flowPhase, setFlowPhase] = useState<FlowPhase>("loading");
   const [flowContext, setFlowContext] = useState<Record<string, string>>({});
   const [currentFlowStep, setCurrentFlowStep] = useState<FlowStep | null>(null);
+  const [shareStatus, setShareStatus] = useState<"idle" | "sharing" | "copied" | "error">("idle");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -137,30 +140,66 @@ export default function Chat() {
         .then((res) => res.json())
         .then((data) => setFaqs(data))
         .catch(() => {});
-      // Fetch guided flows
-      fetch("/api/guided-flows")
-        .then((res) => res.json())
-        .then((data: FlowStep[]) => {
-          setFlowSteps(data);
-          if (data.length > 0) {
-            const welcome = data.find((s) => s.name.toLowerCase() === "welcome");
-            if (welcome) {
-              setCurrentFlowStep(welcome);
-              setFlowPhase("active");
-              setMessages([{ role: "assistant", content: welcome.message }]);
+      // Fetch guided flows (skip if loading a shared chat)
+      if (searchParams.get("chat")) {
+        setFlowPhase("completed");
+      } else {
+        fetch("/api/guided-flows")
+          .then((res) => res.json())
+          .then((data: FlowStep[]) => {
+            setFlowSteps(data);
+            if (data.length > 0) {
+              const welcome = data.find((s) => s.name.toLowerCase() === "welcome");
+              if (welcome) {
+                setCurrentFlowStep(welcome);
+                setFlowPhase("active");
+                setMessages([{ role: "assistant", content: welcome.message }]);
+              } else {
+                setFlowPhase("skipped");
+              }
             } else {
               setFlowPhase("skipped");
             }
-          } else {
+          })
+          .catch(() => {
             setFlowPhase("skipped");
-          }
-        })
-        .catch(() => {
-          setFlowPhase("skipped");
-        });
+          });
+      }
     }
     return () => stopPolling();
-  }, [isAuthenticated, fetchKbStatus, startPolling, stopPolling]);
+  }, [isAuthenticated, fetchKbStatus, startPolling, stopPolling, searchParams]);
+
+  // Load shared chat from URL parameter
+  useEffect(() => {
+    const chatId = searchParams.get("chat");
+    if (!chatId || !isAuthenticated) return;
+
+    fetch(`/api/chat/share/${encodeURIComponent(chatId)}`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Chat not found");
+        return res.json();
+      })
+      .then((data) => {
+        if (data.messages && Array.isArray(data.messages)) {
+          setMessages(data.messages);
+          if (data.flowContext) setFlowContext(data.flowContext);
+          if (data.lang && data.lang !== "en") {
+            switchLanguage(data.lang);
+          }
+          setFlowPhase("completed");
+          setCurrentFlowStep(null);
+        }
+      })
+      .catch(() => {
+        // Chat not found or expired — start fresh
+      })
+      .finally(() => {
+        // Clear URL parameter
+        const url = new URL(window.location.href);
+        url.searchParams.delete("chat");
+        window.history.replaceState({}, "", url.toString());
+      });
+  }, [isAuthenticated, searchParams, switchLanguage]);
 
   // Cycling multilingual placeholder for the initial empty state
   const cyclingPlaceholders = useMemo(() => [
@@ -376,6 +415,29 @@ export default function Chat() {
     }
   };
 
+  const handleShare = async () => {
+    if (messages.length === 0 || shareStatus === "sharing") return;
+    setShareStatus("sharing");
+    try {
+      const res = await fetch("/api/chat/share", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages, flowContext, lang }),
+      });
+      if (!res.ok) throw new Error("Failed to share");
+      const { id } = await res.json();
+      const url = new URL(window.location.href);
+      url.search = "";
+      url.searchParams.set("chat", id);
+      await navigator.clipboard.writeText(url.toString());
+      setShareStatus("copied");
+      setTimeout(() => setShareStatus("idle"), 3000);
+    } catch {
+      setShareStatus("error");
+      setTimeout(() => setShareStatus("idle"), 3000);
+    }
+  };
+
   const confirmNewChat = () => {
     setInput("");
     setShowResetConfirm(false);
@@ -444,19 +506,46 @@ export default function Chat() {
   return (
     <div className="flex flex-col h-screen max-w-4xl mx-auto">
       <header className="flex items-center justify-between p-4 border-b border-e-pale dark:border-gray-800">
-        <button
-          onClick={handleNewChat}
-          disabled={messages.length === 0}
-          title={t("header.newChat")}
-          className="h-10 flex items-center gap-1.5 rounded-lg text-e-grey hover:bg-e-pale dark:hover:bg-gray-800 transition-colors disabled:opacity-30 disabled:cursor-not-allowed px-2 sm:pr-3"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 20h9" />
-            <path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.855z" />
-            <path d="m15 5 3 3" />
-          </svg>
-          <span className="hidden sm:inline text-sm">{t("header.newChat")}</span>
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={handleNewChat}
+            disabled={messages.length === 0}
+            title={t("header.newChat")}
+            className="h-10 flex items-center gap-1.5 rounded-lg text-e-grey hover:bg-e-pale dark:hover:bg-gray-800 transition-colors disabled:opacity-30 disabled:cursor-not-allowed px-2 sm:pr-3"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 20h9" />
+              <path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.855z" />
+              <path d="m15 5 3 3" />
+            </svg>
+            <span className="hidden sm:inline text-sm">{t("header.newChat")}</span>
+          </button>
+          <button
+            onClick={handleShare}
+            disabled={messages.length === 0 || shareStatus === "sharing"}
+            title={shareStatus === "copied" ? "Link copied!" : shareStatus === "error" ? "Failed to share" : t("header.share")}
+            className="h-10 flex items-center gap-1.5 rounded-lg text-e-grey hover:bg-e-pale dark:hover:bg-gray-800 transition-colors disabled:opacity-30 disabled:cursor-not-allowed px-2 sm:pr-3"
+          >
+            {shareStatus === "copied" ? (
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-500">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            ) : shareStatus === "error" ? (
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-500">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+              </svg>
+            )}
+            <span className="hidden sm:inline text-sm">
+              {shareStatus === "copied" ? "Copied!" : shareStatus === "error" ? "Failed" : t("header.share")}
+            </span>
+          </button>
+        </div>
         <div className="text-center">
           <h1 className="text-xl font-extrabold text-e-indigo">E-Flight Virtual Ops</h1>
           <p className="text-sm text-e-grey">{t("header.subtitle")}</p>

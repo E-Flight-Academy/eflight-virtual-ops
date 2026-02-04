@@ -24,6 +24,7 @@ export interface UiLabels {
   "kb.notSynced": string;
   "kb.loadingDetail": string;
   "kb.notSyncedDetail": string;
+  "header.share": string;
 }
 
 export const DEFAULT_LABELS: UiLabels = {
@@ -52,4 +53,5 @@ export const DEFAULT_LABELS: UiLabels = {
   "kb.notSynced": "Not synced yet",
   "kb.loadingDetail": "Loading documents from Google Drive. This may take a moment...",
   "kb.notSyncedDetail": "Documents will be loaded from Google Drive on the first chat message.",
+  "header.share": "Share chat",
 };

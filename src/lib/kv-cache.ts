@@ -21,6 +21,8 @@ const I18N_KEY_PREFIX = "i18n:";
 const I18N_TTL = 2592000;       // 30 days
 const I18N_STARTERS_KEY_PREFIX = "i18n:starters:";
 const I18N_STARTERS_TTL = 2592000; // 30 days
+const SHARED_CHAT_KEY_PREFIX = "chat:";
+const SHARED_CHAT_TTL = 2592000;   // 30 days
 
 // --- Types ---
 export interface KvContextData {
@@ -109,6 +111,13 @@ export interface KvStarterTranslation {
   lang: string;
   questions: string[];
   generatedAt: number;
+}
+
+export interface KvSharedChat {
+  messages: { role: "user" | "assistant"; content: string }[];
+  flowContext: Record<string, string>;
+  lang: string;
+  sharedAt: number;
 }
 
 // --- Redis client (lazy) ---
@@ -310,5 +319,27 @@ export async function setKvStarterTranslation(data: KvStarterTranslation): Promi
     await r.set(`${I18N_STARTERS_KEY_PREFIX}${data.lang}`, data, { ex: I18N_STARTERS_TTL });
   } catch {
     // Non-fatal
+  }
+}
+
+// --- Shared Chats ---
+export async function getKvSharedChat(id: string): Promise<KvSharedChat | null> {
+  try {
+    const r = getRedis();
+    if (!r) return null;
+    return await r.get<KvSharedChat>(`${SHARED_CHAT_KEY_PREFIX}${id}`);
+  } catch {
+    return null;
+  }
+}
+
+export async function setKvSharedChat(id: string, data: KvSharedChat): Promise<boolean> {
+  try {
+    const r = getRedis();
+    if (!r) return false;
+    await r.set(`${SHARED_CHAT_KEY_PREFIX}${id}`, data, { ex: SHARED_CHAT_TTL });
+    return true;
+  } catch {
+    return false;
   }
 }

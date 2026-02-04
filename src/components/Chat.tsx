@@ -62,6 +62,7 @@ export default function Chat() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const pollCountRef = useRef(0);
 
   const scrollToBottom = () => {
@@ -292,7 +293,13 @@ export default function Chat() {
   };
 
   const sendMessage = async (text: string) => {
-    if (!text.trim() || isLoading) return;
+    if (!text.trim()) return;
+
+    // Abort any in-flight request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
 
     // If user types during active flow, end flow gracefully
     if (flowPhase === "active") {
@@ -314,12 +321,15 @@ export default function Chat() {
 
     // No instant match — ask Gemini
     setIsLoading(true);
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
     try {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ messages: newMessages, lang: lang || "en", flowContext }),
+        signal: controller.signal,
       });
 
       const data = await response.json();
@@ -339,12 +349,17 @@ export default function Chat() {
           { role: "assistant", content: `Error: ${data.error}` },
         ]);
       }
-    } catch {
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") {
+        // Request was aborted by a new message — don't show error
+        return;
+      }
       setMessages([
         ...newMessages,
         { role: "assistant", content: t("chat.error") },
       ]);
     } finally {
+      abortControllerRef.current = null;
       setIsLoading(false);
       fetchKbStatus();
     }
@@ -619,7 +634,6 @@ export default function Chat() {
                 onChange={(e) => setInput(e.target.value)}
                 placeholder={messages.some((m) => m.role === "user") ? t("chat.placeholder") : undefined}
                 className="w-full rounded-lg border border-e-grey-light dark:border-gray-700 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-e-indigo bg-white dark:bg-gray-900"
-                disabled={isLoading}
               />
               {!input && !messages.some((m) => m.role === "user") && (
                 <span
@@ -631,7 +645,7 @@ export default function Chat() {
             </div>
             <button
               type="submit"
-              disabled={isLoading || !input.trim()}
+              disabled={!input.trim()}
               className="px-6 py-2 bg-e-indigo text-white rounded-lg hover:bg-e-indigo-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               {t("chat.send")}

@@ -14,7 +14,7 @@ const openSans = Open_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "E-Flight Virtual Ops",
+  title: "Steward",
   description: "AI-powered assistant for E-Flight Academy",
 };
 

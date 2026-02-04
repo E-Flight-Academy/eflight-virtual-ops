@@ -39,7 +39,7 @@ export const DEFAULT_LABELS: UiLabels = {
   "reset.confirm": "Are you sure you want to start a new conversation?",
   "reset.cancel": "Cancel",
   "reset.confirmButton": "New conversation",
-  "chat.welcome": "Welcome to E-Flight Virtual Ops!",
+  "chat.welcome": "Welcome to Steward!",
   "chat.welcomeSub": "Ask me anything about flight training, scheduling, or academy operations.",
   "chat.placeholder": "Type your message...",
   "chat.send": "Send",

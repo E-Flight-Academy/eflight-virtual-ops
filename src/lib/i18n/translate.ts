@@ -47,7 +47,7 @@ async function generateTranslation(lang: string): Promise<UiLabels> {
   const prompt = `Translate the following UI labels from English to the language with ISO 639-1 code "${lang}".
 
 Return ONLY a valid JSON object with the same keys and translated values.
-Keep brand names like "E-Flight Virtual Ops", "E-Flight Academy", "Google Drive", "FAQs" unchanged.
+Keep brand names like "Steward", "E-Flight Academy", "Google Drive", "FAQs" unchanged.
 Keep the translations concise and natural for a UI context.
 Do not add any explanation, markdown, or code fences — just the raw JSON object.
 

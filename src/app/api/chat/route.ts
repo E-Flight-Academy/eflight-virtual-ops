@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
     const instructionParts: string[] = [];
 
     instructionParts.push(
-      `You are the E-Flight Virtual Ops assistant. ${companyContext}`,
+      `You are the Steward assistant. ${companyContext}`,
       `Your tone of voice is: ${toneOfVoice}.`,
     );
 

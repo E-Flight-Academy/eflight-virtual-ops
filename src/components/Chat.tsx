@@ -66,6 +66,7 @@ export default function Chat() {
   const inputRef = useRef<HTMLInputElement>(null);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const sharedChatIdRef = useRef(searchParams.get("chat"));
   const pollCountRef = useRef(0);
 
   const scrollToBottom = () => {
@@ -141,7 +142,7 @@ export default function Chat() {
         .then((data) => setFaqs(data))
         .catch(() => {});
       // Fetch guided flows (skip if loading a shared chat)
-      if (searchParams.get("chat")) {
+      if (sharedChatIdRef.current) {
         setFlowPhase("completed");
       } else {
         fetch("/api/guided-flows")
@@ -167,11 +168,12 @@ export default function Chat() {
       }
     }
     return () => stopPolling();
-  }, [isAuthenticated, fetchKbStatus, startPolling, stopPolling, searchParams]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, fetchKbStatus, startPolling, stopPolling]);
 
   // Load shared chat from URL parameter
   useEffect(() => {
-    const chatId = searchParams.get("chat");
+    const chatId = sharedChatIdRef.current;
     if (!chatId || !isAuthenticated) return;
 
     fetch(`/api/chat/share/${encodeURIComponent(chatId)}`)
@@ -194,12 +196,14 @@ export default function Chat() {
         // Chat not found or expired — start fresh
       })
       .finally(() => {
+        sharedChatIdRef.current = null;
         // Clear URL parameter
         const url = new URL(window.location.href);
         url.searchParams.delete("chat");
         window.history.replaceState({}, "", url.toString());
       });
-  }, [isAuthenticated, searchParams, switchLanguage]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
 
   // Cycling multilingual placeholder for the initial empty state
   const cyclingPlaceholders = useMemo(() => [
@@ -478,7 +482,7 @@ export default function Chat() {
     return (
       <div className="flex items-center justify-center h-screen">
         <form onSubmit={handleLogin} className="w-full max-w-sm p-8">
-          <h1 className="text-xl font-extrabold text-e-indigo text-center mb-2">E-Flight Virtual Ops</h1>
+          <h1 className="text-xl font-extrabold text-e-indigo text-center mb-2">Steward</h1>
           <p className="text-sm text-e-grey text-center mb-6">{t("login.subtitle")}</p>
           {authError && (
             <p className="text-red-500 text-sm text-center mb-4">{authError}</p>
@@ -547,7 +551,7 @@ export default function Chat() {
           </button>
         </div>
         <div className="text-center">
-          <h1 className="text-xl font-extrabold text-e-indigo">E-Flight Virtual Ops</h1>
+          <h1 className="text-xl font-extrabold text-e-indigo">Steward</h1>
           <p className="text-sm text-e-grey">{t("header.subtitle")}</p>
           <div className="flex justify-center gap-1 mt-1">
             {(["en", "nl", "de"] as const).map((code) => (

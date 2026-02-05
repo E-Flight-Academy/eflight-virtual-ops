@@ -170,8 +170,14 @@ export default function FaqModal({ faqs, lang, onClose, onSelectFaq }: FaqModalP
         {/* FAQ List */}
         <div className="flex-1 overflow-y-auto px-6 py-4">
           {filtered.length === 0 ? (
-            <div className="text-center py-12 text-[#ABABAB]">
-              No matching questions found
+            <div className="text-center py-12">
+              <p className="text-[#ABABAB] mb-4">No matching questions found</p>
+              <button
+                onClick={onClose}
+                className="px-6 py-2.5 rounded-full bg-[#1515F5] text-white font-medium hover:bg-[#1212D0] transition-colors"
+              >
+                Ask Steward!
+              </button>
             </div>
           ) : (
             <div className="space-y-3">

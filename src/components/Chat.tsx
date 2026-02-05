@@ -17,16 +17,22 @@ interface Message {
 interface FlowOption {
   name: string;
   label: string;
+  labelNl: string;
+  labelDe: string;
   icon: string | null;
 }
 
 interface FlowStep {
   name: string;
   message: string;
+  messageNl: string;
+  messageDe: string;
   nextDialogFlow: FlowOption[];
   endAction: "Continue Flow" | "Start AI Chat";
   contextKey: string;
   endPrompt: string;
+  endPromptNl: string;
+  endPromptDe: string;
   order: number;
 }
 
@@ -165,7 +171,7 @@ export default function Chat() {
               if (welcome) {
                 setCurrentFlowStep(welcome);
                 setFlowPhase("active");
-                setMessages([{ role: "assistant", content: welcome.message }]);
+                setMessages([{ role: "assistant", content: getFlowMessage(welcome) }]);
               } else {
                 setFlowPhase("skipped");
               }
@@ -273,6 +279,24 @@ export default function Chat() {
     return item.answer;
   }, [lang]);
 
+  const getFlowMessage = useCallback((step: FlowStep) => {
+    if (lang === "nl" && step.messageNl) return step.messageNl;
+    if (lang === "de" && step.messageDe) return step.messageDe;
+    return step.message;
+  }, [lang]);
+
+  const getFlowLabel = useCallback((option: FlowOption) => {
+    if (lang === "nl" && option.labelNl) return option.labelNl;
+    if (lang === "de" && option.labelDe) return option.labelDe;
+    return option.label;
+  }, [lang]);
+
+  const getFlowEndPrompt = useCallback((step: FlowStep) => {
+    if (lang === "nl" && step.endPromptNl) return step.endPromptNl;
+    if (lang === "de" && step.endPromptDe) return step.endPromptDe;
+    return step.endPrompt;
+  }, [lang]);
+
   const findInstantAnswer = (text: string): string | null => {
     const q = text.trim().toLowerCase();
     // Check starters (match any language version)
@@ -307,7 +331,7 @@ export default function Chat() {
 
     // Check if flow should end after this step
     if (currentFlowStep.endAction === "Start AI Chat") {
-      const prompt = currentFlowStep.endPrompt;
+      const prompt = getFlowEndPrompt(currentFlowStep);
       setFlowPhase("completed");
       setCurrentFlowStep(null);
       const updatedMessages = [...messages, userMsg];
@@ -330,11 +354,12 @@ export default function Chat() {
 
     // If the next step immediately ends the flow, trigger its endPrompt
     if (nextStep.endAction === "Start AI Chat") {
-      const prompt = nextStep.endPrompt;
+      const prompt = getFlowEndPrompt(nextStep);
       setFlowPhase("completed");
       setCurrentFlowStep(null);
-      const updatedMessages = nextStep.message
-        ? [...messages, userMsg, { role: "assistant" as const, content: nextStep.message }]
+      const nextMsg = getFlowMessage(nextStep);
+      const updatedMessages = nextMsg
+        ? [...messages, userMsg, { role: "assistant" as const, content: nextMsg }]
         : [...messages, userMsg];
       setMessages(updatedMessages);
       if (prompt) {
@@ -347,7 +372,7 @@ export default function Chat() {
     setMessages((prev) => [
       ...prev,
       userMsg,
-      { role: "assistant", content: nextStep.message },
+      { role: "assistant", content: getFlowMessage(nextStep) },
     ]);
   };
 
@@ -521,7 +546,7 @@ export default function Chat() {
     if (welcome) {
       setCurrentFlowStep(welcome);
       setFlowPhase("active");
-      setMessages([{ role: "assistant", content: welcome.message }]);
+      setMessages([{ role: "assistant", content: getFlowMessage(welcome) }]);
     } else {
       setCurrentFlowStep(null);
       setFlowPhase("skipped");
@@ -743,7 +768,7 @@ export default function Chat() {
                 {(currentFlowStep.nextDialogFlow || []).map((option, i) => (
                   <button
                     key={i}
-                    onClick={() => handleFlowOption(option.name, option.label)}
+                    onClick={() => handleFlowOption(option.name, getFlowLabel(option))}
                     className="text-base font-semibold px-4 py-2 rounded-full border border-[#ECECEC] bg-[#F7F7F7] text-[#030213] hover:bg-[#1515F5] hover:text-white hover:border-[#1515F5] transition-colors flex items-center gap-1.5"
                   >
                     {option.icon && (
@@ -753,7 +778,7 @@ export default function Chat() {
                         <span>{option.icon}</span>
                       )
                     )}
-                    {option.label}
+                    {getFlowLabel(option)}
                   </button>
                 ))}
               </div>
@@ -921,7 +946,7 @@ export default function Chat() {
             {(currentFlowStep.nextDialogFlow || []).map((option, i) => (
               <button
                 key={i}
-                onClick={() => handleFlowOption(option.name, option.label)}
+                onClick={() => handleFlowOption(option.name, getFlowLabel(option))}
                 className="text-base font-semibold px-4 py-2 rounded-full border border-[#ECECEC] bg-[#F7F7F7] text-[#030213] hover:bg-[#1515F5] hover:text-white hover:border-[#1515F5] transition-colors flex items-center gap-1.5"
               >
                 {option.icon && (
@@ -931,7 +956,7 @@ export default function Chat() {
                     <span>{option.icon}</span>
                   )
                 )}
-                {option.label}
+                {getFlowLabel(option)}
               </button>
             ))}
           </div>

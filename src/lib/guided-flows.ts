@@ -1,4 +1,5 @@
 import { Client } from "@notionhq/client";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import {
   getKvFlows,
   setKvFlows,
@@ -133,7 +134,7 @@ export async function fetchFlowsFromNotion(): Promise<KvFlowStep[]> {
         }
 
         if (relName && displayLabel) {
-          nextDialogFlow.push({ name: relName, label: displayLabel, icon });
+          nextDialogFlow.push({ name: relName, label: displayLabel, labelNl: "", labelDe: "", icon });
         }
       } catch (err) {
         console.warn(`Failed to fetch related flow page ${pageId}:`, err);
@@ -141,11 +142,96 @@ export async function fetchFlowsFromNotion(): Promise<KvFlowStep[]> {
     }
 
     if (name && (message || endAction === "Start AI Chat")) {
-      steps.push({ name, message, nextDialogFlow, endAction, contextKey, endPrompt, order });
+      steps.push({ name, message, messageNl: "", messageDe: "", nextDialogFlow, endAction, contextKey, endPrompt, endPromptNl: "", endPromptDe: "", order });
     }
   }
 
+  // Auto-translate flow strings via Gemini
+  await translateFlowSteps(steps);
+
   return steps;
+}
+
+async function translateFlowStrings(
+  strings: string[],
+  targetLang: string
+): Promise<string[]> {
+  if (strings.length === 0) return [];
+
+  const geminiKey = process.env.GEMINI_API_KEY;
+  if (!geminiKey) return strings.map(() => "");
+
+  try {
+    const genAI = new GoogleGenerativeAI(geminiKey);
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-lite" });
+
+    const numbered = strings.map((s, i) => `${i + 1}. ${s}`).join("\n");
+    const prompt = `Translate each numbered line below to ${targetLang}. Return ONLY the translations, one per line, in the same numbered format (e.g. "1. translation"). Keep the same numbering. Do not add explanations.\n\n${numbered}`;
+
+    const result = await model.generateContent(prompt);
+    const text = result.response.text();
+
+    // Parse numbered lines back
+    const lines = text.split("\n").filter((l) => l.trim());
+    const translations: string[] = new Array(strings.length).fill("");
+    for (const line of lines) {
+      const match = line.match(/^(\d+)\.\s*(.+)/);
+      if (match) {
+        const idx = parseInt(match[1], 10) - 1;
+        if (idx >= 0 && idx < strings.length) {
+          translations[idx] = match[2].trim();
+        }
+      }
+    }
+    return translations;
+  } catch (err) {
+    console.warn(`Flow translation to ${targetLang} failed:`, err);
+    return strings.map(() => "");
+  }
+}
+
+async function translateFlowSteps(steps: KvFlowStep[]): Promise<void> {
+  // Collect all strings to translate with their source mapping
+  const entries: { text: string; stepIdx: number; field: string; optionIdx?: number }[] = [];
+
+  for (let i = 0; i < steps.length; i++) {
+    const s = steps[i];
+    if (s.message) entries.push({ text: s.message, stepIdx: i, field: "message" });
+    if (s.endPrompt) entries.push({ text: s.endPrompt, stepIdx: i, field: "endPrompt" });
+    for (let j = 0; j < s.nextDialogFlow.length; j++) {
+      const o = s.nextDialogFlow[j];
+      if (o.label) entries.push({ text: o.label, stepIdx: i, field: "label", optionIdx: j });
+    }
+  }
+
+  if (entries.length === 0) return;
+
+  const strings = entries.map((e) => e.text);
+
+  const [nlResults, deResults] = await Promise.all([
+    translateFlowStrings(strings, "Dutch"),
+    translateFlowStrings(strings, "German"),
+  ]);
+
+  // Map translations back
+  for (let i = 0; i < entries.length; i++) {
+    const e = entries[i];
+    const nl = nlResults[i] || "";
+    const de = deResults[i] || "";
+
+    if (e.field === "message") {
+      steps[e.stepIdx].messageNl = nl;
+      steps[e.stepIdx].messageDe = de;
+    } else if (e.field === "endPrompt") {
+      steps[e.stepIdx].endPromptNl = nl;
+      steps[e.stepIdx].endPromptDe = de;
+    } else if (e.field === "label" && e.optionIdx !== undefined) {
+      steps[e.stepIdx].nextDialogFlow[e.optionIdx].labelNl = nl;
+      steps[e.stepIdx].nextDialogFlow[e.optionIdx].labelDe = de;
+    }
+  }
+
+  console.log(`Translated ${entries.length} flow strings to NL and DE`);
 }
 
 export async function syncFlows(): Promise<KvFlowStep[]> {

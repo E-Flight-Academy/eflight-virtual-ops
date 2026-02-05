@@ -90,16 +90,22 @@ export interface KvFaqsData {
 export interface FlowOption {
   name: string;
   label: string;
+  labelNl: string;
+  labelDe: string;
   icon: string | null;
 }
 
 export interface KvFlowStep {
   name: string;
   message: string;
+  messageNl: string;
+  messageDe: string;
   nextDialogFlow: FlowOption[];
   endAction: "Continue Flow" | "Start AI Chat";
   contextKey: string;
   endPrompt: string;
+  endPromptNl: string;
+  endPromptDe: string;
   order: number;
 }
 

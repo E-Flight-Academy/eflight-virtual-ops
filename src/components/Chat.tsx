@@ -578,7 +578,6 @@ export default function Chat() {
       <header className="flex items-center justify-between p-4 border-b border-e-pale dark:border-gray-800">
         <div>
           <h1 className="text-2xl font-extrabold text-e-indigo">Steward</h1>
-          <p className="text-sm text-e-grey">{t("header.subtitle")}</p>
         </div>
         <div className="flex items-center gap-4">
           <div className="relative">
@@ -690,8 +689,8 @@ export default function Chat() {
                 key={index}
                 className="flex justify-start items-start gap-3"
               >
-                <img src="/avatar.png" alt="Steward" className="w-8 h-8 rounded-full shrink-0 mt-0.5" />
-                <div className="max-w-[85%] text-foreground">
+                <img src="/avatar.png" alt="Steward" className="w-8 h-8 rounded-full shrink-0 mt-0.5 transition-transform duration-200 hover:scale-150" />
+                <div className="max-w-[85%] bg-white dark:bg-gray-900 px-4 py-3 rounded-2xl rounded-tl-sm text-foreground">
                   <div className="prose dark:prose-invert max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-headings:my-2 prose-headings:text-e-indigo">
                     <ReactMarkdown>{message.content}</ReactMarkdown>
                   </div>
@@ -804,7 +803,7 @@ export default function Chat() {
             className={`flex max-w-4xl mx-auto w-full ${message.role === "user" ? "justify-end" : "justify-start items-start gap-3"}`}
           >
             {message.role === "assistant" && (
-              <img src="/avatar.png" alt="Steward" className="w-8 h-8 rounded-full shrink-0 mt-0.5" />
+              <img src="/avatar.png" alt="Steward" className="w-8 h-8 rounded-full shrink-0 mt-0.5 transition-transform duration-200 hover:scale-150" />
             )}
             {message.role === "user" ? (
               <div className="max-w-[70%] bg-[#1515F5] text-white px-4 py-3 rounded-2xl" style={{ borderTopRightRadius: "2px" }}>
@@ -881,7 +880,7 @@ export default function Chat() {
 
         {isLoading && (
           <div className="flex items-start gap-3 max-w-4xl mx-auto w-full">
-            <img src="/avatar.png" alt="Steward" className="w-8 h-8 rounded-full shrink-0" />
+            <img src="/avatar.png" alt="Steward" className="w-8 h-8 rounded-full shrink-0 transition-transform duration-200 hover:scale-150" />
             <div className="flex space-x-2 pt-2">
               <div className="w-2 h-2 bg-e-indigo-light rounded-full animate-bounce" />
               <div className="w-2 h-2 bg-e-indigo-light rounded-full animate-bounce [animation-delay:0.1s]" />

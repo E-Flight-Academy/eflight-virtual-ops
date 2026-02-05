@@ -815,7 +815,7 @@ export default function Chat() {
               const body = sourceMatch ? message.content.slice(0, sourceMatch.index).trimEnd() : message.content;
               const source = sourceMatch?.[1];
               return (
-                <div className="max-w-[85%] text-foreground group/msg">
+                <div className="max-w-[85%] bg-white dark:bg-gray-900 px-4 py-3 rounded-2xl rounded-tl-sm text-foreground group/msg">
                   <div className="prose dark:prose-invert max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-headings:my-2 prose-headings:text-e-indigo">
                     <ReactMarkdown>{body}</ReactMarkdown>
                   </div>

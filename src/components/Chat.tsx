@@ -13,11 +13,16 @@ interface Message {
   rating?: "👍" | "👎";
 }
 
+interface FlowOption {
+  name: string;
+  label: string;
+  icon: string | null;
+}
+
 interface FlowStep {
   name: string;
   message: string;
-  options: string[];
-  nextFlow: Record<string, string>;
+  nextDialogFlow: FlowOption[];
   endAction: "Continue Flow" | "Start AI Chat";
   contextKey: string;
   endPrompt: string;
@@ -285,18 +290,18 @@ export default function Chat() {
     return null;
   };
 
-  const handleFlowOption = (option: string) => {
+  const handleFlowOption = (stepName: string, displayLabel: string) => {
     if (!currentFlowStep) return;
 
     // Store the user's choice
     const newContext = { ...flowContext };
     if (currentFlowStep.contextKey) {
-      newContext[currentFlowStep.contextKey] = option;
+      newContext[currentFlowStep.contextKey] = displayLabel;
     }
     setFlowContext(newContext);
 
     // Add user's choice as a message
-    const userMsg: Message = { role: "user", content: option };
+    const userMsg: Message = { role: "user", content: displayLabel };
 
     // Check if flow should end after this step
     if (currentFlowStep.endAction === "Start AI Chat") {
@@ -304,33 +309,22 @@ export default function Chat() {
       setFlowPhase("completed");
       setCurrentFlowStep(null);
       setMessages((prev) => [...prev, userMsg]);
-      // Auto-send end prompt to Gemini if configured
       if (prompt) {
         setTimeout(() => sendMessage(prompt), 100);
       }
       return;
     }
 
-    // Find next step
-    const nextStepName = currentFlowStep.nextFlow?.[option];
-    if (!nextStepName) {
-      console.warn(`No next flow mapping for option "${option}", ending flow`);
-      setFlowPhase("completed");
-      setCurrentFlowStep(null);
-      setMessages((prev) => [...prev, userMsg]);
-      return;
-    }
-
-    const nextStep = flowSteps.find((s) => s.name === nextStepName);
+    // Find next step directly by name
+    const nextStep = flowSteps.find((s) => s.name === stepName);
     if (!nextStep) {
-      console.warn(`Flow step "${nextStepName}" not found, ending flow`);
+      console.warn(`Flow step "${stepName}" not found, ending flow`);
       setFlowPhase("completed");
       setCurrentFlowStep(null);
       setMessages((prev) => [...prev, userMsg]);
       return;
     }
 
-    // Show next step
     setCurrentFlowStep(nextStep);
     setMessages((prev) => [
       ...prev,
@@ -707,13 +701,20 @@ export default function Chat() {
 
             {flowPhase === "active" && currentFlowStep && !isLoading && (
               <div className="flex flex-wrap gap-2 ml-11">
-                {currentFlowStep.options.map((option, i) => (
+                {currentFlowStep.nextDialogFlow.map((option, i) => (
                   <button
                     key={i}
-                    onClick={() => handleFlowOption(option)}
-                    className="text-sm px-3 py-1.5 rounded-full border border-e-indigo-light text-e-indigo hover:bg-e-indigo hover:text-white transition-colors"
+                    onClick={() => handleFlowOption(option.name, option.label)}
+                    className="text-sm px-3 py-1.5 rounded-full border border-e-indigo-light text-e-indigo hover:bg-e-indigo hover:text-white transition-colors flex items-center gap-1.5"
                   >
-                    {option}
+                    {option.icon && (
+                      option.icon.startsWith("http") ? (
+                        <img src={option.icon} alt="" className="w-4 h-4" />
+                      ) : (
+                        <span>{option.icon}</span>
+                      )
+                    )}
+                    {option.label}
                   </button>
                 ))}
               </div>
@@ -859,13 +860,20 @@ export default function Chat() {
 
         {hasUserMessages && flowPhase === "active" && currentFlowStep && !isLoading && (
           <div className="flex flex-wrap gap-2 ml-11 max-w-4xl mx-auto w-full">
-            {currentFlowStep.options.map((option, i) => (
+            {currentFlowStep.nextDialogFlow.map((option, i) => (
               <button
                 key={i}
-                onClick={() => handleFlowOption(option)}
-                className="text-sm px-3 py-1.5 rounded-full border border-e-indigo-light text-e-indigo hover:bg-e-indigo hover:text-white transition-colors"
+                onClick={() => handleFlowOption(option.name, option.label)}
+                className="text-sm px-3 py-1.5 rounded-full border border-e-indigo-light text-e-indigo hover:bg-e-indigo hover:text-white transition-colors flex items-center gap-1.5"
               >
-                {option}
+                {option.icon && (
+                  option.icon.startsWith("http") ? (
+                    <img src={option.icon} alt="" className="w-4 h-4" />
+                  ) : (
+                    <span>{option.icon}</span>
+                  )
+                )}
+                {option.label}
               </button>
             ))}
           </div>

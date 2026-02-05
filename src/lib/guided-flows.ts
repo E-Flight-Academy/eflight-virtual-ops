@@ -2,6 +2,7 @@ import { Client } from "@notionhq/client";
 import {
   getKvFlows,
   setKvFlows,
+  type FlowOption,
   type KvFlowStep,
   type KvFlowsData,
 } from "./kv-cache";
@@ -38,12 +39,11 @@ export async function fetchFlowsFromNotion(): Promise<KvFlowStep[]> {
     const props = page.properties;
     let name = "";
     let message = "";
-    let options: string[] = [];
-    let nextFlowRaw = "";
     let endAction: "Continue Flow" | "Start AI Chat" = "Continue Flow";
     let contextKey = "";
     let endPrompt = "";
     let order = 0;
+    let relationIds: string[] = [];
 
     for (const [key, value] of Object.entries(props)) {
       if (value.type === "title" && value.title.length > 0) {
@@ -60,19 +60,8 @@ export async function fetchFlowsFromNotion(): Promise<KvFlowStep[]> {
           .map((t: { plain_text: string }) => t.plain_text)
           .join("");
       }
-      if (key === "Options" && value.type === "multi_select") {
-        options = value.multi_select.map(
-          (opt: { name: string }) => opt.name
-        );
-      }
-      if (
-        key === "Next Flow" &&
-        value.type === "rich_text" &&
-        value.rich_text.length > 0
-      ) {
-        nextFlowRaw = value.rich_text
-          .map((t: { plain_text: string }) => t.plain_text)
-          .join("");
+      if (key === "Next Dialog Flow" && value.type === "relation") {
+        relationIds = (value.relation as { id: string }[]).map((r) => r.id);
       }
       if (key === "End Action" && value.type === "select" && value.select) {
         const val = value.select.name;
@@ -103,18 +92,45 @@ export async function fetchFlowsFromNotion(): Promise<KvFlowStep[]> {
       }
     }
 
-    // Parse nextFlow JSON safely
-    let nextFlow: Record<string, string> = {};
-    if (nextFlowRaw) {
+    // Resolve related pages for Next Dialog Flow
+    const nextDialogFlow: FlowOption[] = [];
+    for (const pageId of relationIds) {
       try {
-        nextFlow = JSON.parse(nextFlowRaw);
+        const relatedPage = await notion.pages.retrieve({ page_id: pageId });
+        if (!("properties" in relatedPage)) continue;
+
+        // Extract label from the title property
+        let label = "";
+        for (const [, val] of Object.entries(relatedPage.properties)) {
+          if (val.type === "title" && val.title.length > 0) {
+            label = val.title
+              .map((t: { plain_text: string }) => t.plain_text)
+              .join("");
+            break;
+          }
+        }
+
+        // Extract icon (emoji or image URL)
+        let icon: string | null = null;
+        const pageIcon = (relatedPage as { icon?: { type: string; emoji?: string; external?: { url: string }; file?: { url: string } } }).icon;
+        if (pageIcon?.type === "emoji" && pageIcon.emoji) {
+          icon = pageIcon.emoji;
+        } else if (pageIcon?.type === "external" && pageIcon.external?.url) {
+          icon = pageIcon.external.url;
+        } else if (pageIcon?.type === "file" && pageIcon.file?.url) {
+          icon = pageIcon.file.url;
+        }
+
+        if (label) {
+          nextDialogFlow.push({ name: label, label, icon });
+        }
       } catch (err) {
-        console.warn(`Invalid Next Flow JSON for step "${name}":`, err);
+        console.warn(`Failed to fetch related flow page ${pageId}:`, err);
       }
     }
 
     if (name && message) {
-      steps.push({ name, message, options, nextFlow, endAction, contextKey, endPrompt, order });
+      steps.push({ name, message, nextDialogFlow, endAction, contextKey, endPrompt, order });
     }
   }
 

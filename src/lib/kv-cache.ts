@@ -85,11 +85,16 @@ export interface KvFaqsData {
   cachedAt: number;
 }
 
+export interface FlowOption {
+  name: string;
+  label: string;
+  icon: string | null;
+}
+
 export interface KvFlowStep {
   name: string;
   message: string;
-  options: string[];
-  nextFlow: Record<string, string>;
+  nextDialogFlow: FlowOption[];
   endAction: "Continue Flow" | "Start AI Chat";
   contextKey: string;
   endPrompt: string;

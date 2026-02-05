@@ -50,3 +50,9 @@ body {
 h1, h2 {
   font-family: var(--font-ruda), Arial, Helvetica, sans-serif;
 }
+
+.prose {
+  --tw-prose-body: var(--foreground);
+  font-size: 16px;
+  line-height: 1.625;
+}

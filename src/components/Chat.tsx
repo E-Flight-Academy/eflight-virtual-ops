@@ -56,7 +56,6 @@ export default function Chat() {
   const [kbExpanded, setKbExpanded] = useState(false);
   const [starters, setStarters] = useState<{ question: string; questionNl: string; questionDe: string; answer: string; answerNl: string; answerDe: string }[]>([]);
   const [faqs, setFaqs] = useState<{ question: string; questionNl: string; questionDe: string; answer: string; answerNl: string; answerDe: string }[]>([]);
-  const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [phIndex, setPhIndex] = useState(0);
   const [phVisible, setPhVisible] = useState(true);
   const [flowSteps, setFlowSteps] = useState<FlowStep[]>([]);
@@ -455,9 +454,21 @@ export default function Chat() {
   };
 
   const handleNewChat = () => {
-    if (messages.length > 0) {
-      setShowResetConfirm(true);
+    if (messages.length === 0) return;
+    setInput("");
+    resetLanguage();
+    setFlowContext({});
+    const welcome = flowSteps.find((s) => s.name.toLowerCase() === "welcome");
+    if (welcome) {
+      setCurrentFlowStep(welcome);
+      setFlowPhase("active");
+      setMessages([{ role: "assistant", content: welcome.message }]);
+    } else {
+      setCurrentFlowStep(null);
+      setFlowPhase("skipped");
+      setMessages([]);
     }
+    inputRef.current?.focus();
   };
 
   const handleShare = async () => {
@@ -483,24 +494,7 @@ export default function Chat() {
     }
   };
 
-  const confirmNewChat = () => {
-    setInput("");
-    setShowResetConfirm(false);
-    resetLanguage();
-    setFlowContext({});
-    // Restart flow from welcome if available
-    const welcome = flowSteps.find((s) => s.name.toLowerCase() === "welcome");
-    if (welcome) {
-      setCurrentFlowStep(welcome);
-      setFlowPhase("active");
-      setMessages([{ role: "assistant", content: welcome.message }]);
-    } else {
-      setCurrentFlowStep(null);
-      setFlowPhase("skipped");
-      setMessages([]);
-    }
-    inputRef.current?.focus();
-  };
+
 
   // Fuzzy search: match FAQ questions when user types 2+ characters
   const hasUserMessages = useMemo(() => messages.some((m) => m.role === "user"), [messages]);
@@ -655,30 +649,6 @@ export default function Chat() {
           </button>
         </div>
       </header>
-
-      {showResetConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg p-6 mx-4 max-w-sm w-full">
-            <p className="text-sm text-foreground mb-4">
-              {t("reset.confirm")}
-            </p>
-            <div className="flex gap-2 justify-end">
-              <button
-                onClick={() => setShowResetConfirm(false)}
-                className="px-4 py-2 text-sm rounded-lg border border-e-grey-light dark:border-gray-700 text-e-grey hover:bg-e-pale dark:hover:bg-gray-800 transition-colors"
-              >
-                {t("reset.cancel")}
-              </button>
-              <button
-                onClick={confirmNewChat}
-                className="px-4 py-2 text-sm rounded-lg bg-e-indigo text-white hover:bg-e-indigo-hover transition-colors"
-              >
-                {t("reset.confirmButton")}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       <div className={`flex-1 overflow-y-auto p-4 bg-e-pale-light dark:bg-gray-950 ${hasUserMessages ? "space-y-6" : "flex flex-col items-center justify-center"}`}>
         {!hasUserMessages && (

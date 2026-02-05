@@ -3,7 +3,7 @@
 
 :root {
   --background: #FAFAFA;
-  --foreground: #1a1a1a;
+  --foreground: #030213;
   --e-indigo: #1515F5;
   --e-indigo-light: #A1A1FB;
   --e-indigo-hover: #0000DC;
@@ -43,6 +43,8 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-open-sans), Arial, Helvetica, sans-serif;
+  font-size: 16px;
+  line-height: 1.625;
 }
 
 h1, h2 {

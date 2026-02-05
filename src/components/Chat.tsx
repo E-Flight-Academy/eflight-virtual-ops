@@ -9,6 +9,8 @@ import type { UiLabels } from "@/lib/i18n/labels";
 interface Message {
   role: "user" | "assistant";
   content: string;
+  logId?: string;
+  rating?: "👍" | "👎";
 }
 
 interface FlowStep {
@@ -62,6 +64,7 @@ export default function Chat() {
   const [flowContext, setFlowContext] = useState<Record<string, string>>({});
   const [currentFlowStep, setCurrentFlowStep] = useState<FlowStep | null>(null);
   const [shareStatus, setShareStatus] = useState<"idle" | "sharing" | "copied" | "error">("idle");
+  const [sessionId] = useState(() => crypto.randomUUID().slice(0, 8));
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -335,6 +338,40 @@ export default function Chat() {
     ]);
   };
 
+  const logChat = useCallback((question: string, answer: string) => {
+    const sourceMatch = answer.match(/\[source:\s*(.+?)\]\s*$/i);
+    const source = sourceMatch?.[1] || null;
+    fetch("/api/chat/log", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question, answer, source, lang, sessionId }),
+    })
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        if (data?.logId) {
+          setMessages((prev) =>
+            prev.map((m, i) =>
+              i === prev.length - 1 && m.role === "assistant"
+                ? { ...m, logId: data.logId }
+                : m
+            )
+          );
+        }
+      })
+      .catch(() => {}); // Non-fatal
+  }, [lang, sessionId]);
+
+  const rateMessage = useCallback((logId: string, rating: "👍" | "👎") => {
+    setMessages((prev) =>
+      prev.map((m) => (m.logId === logId ? { ...m, rating } : m))
+    );
+    fetch(`/api/chat/log/${encodeURIComponent(logId)}/rate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ rating }),
+    }).catch(() => {}); // Non-fatal
+  }, []);
+
   const sendMessage = async (text: string) => {
     if (!text.trim()) return;
 
@@ -359,6 +396,7 @@ export default function Chat() {
     const instantAnswer = findInstantAnswer(text);
     if (instantAnswer) {
       setMessages([...newMessages, { role: "assistant", content: instantAnswer }]);
+      logChat(text, instantAnswer);
       return;
     }
 
@@ -379,6 +417,7 @@ export default function Chat() {
 
       if (response.ok) {
         setMessages([...newMessages, { role: "assistant", content: data.message }]);
+        logChat(text, data.message);
         if (data.lang) {
           if (data.translations) {
             setTranslations(data.lang, data.translations as UiLabels);
@@ -649,9 +688,35 @@ export default function Chat() {
                     <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-headings:my-2 prose-headings:text-e-indigo">
                       <ReactMarkdown>{body}</ReactMarkdown>
                     </div>
-                    {source && (
-                      <p className="text-[10px] text-gray-400 dark:text-gray-600 mt-1 select-none">{source}</p>
-                    )}
+                    <div className="flex items-center gap-2 mt-1">
+                      {source && (
+                        <span className="text-[10px] text-gray-400 dark:text-gray-600 select-none">{source}</span>
+                      )}
+                      {message.logId && (
+                        <span className="flex gap-0.5 ml-auto">
+                          <button
+                            onClick={() => rateMessage(message.logId!, "👍")}
+                            className={`text-xs px-1 rounded transition-colors ${
+                              message.rating === "👍"
+                                ? "text-emerald-500"
+                                : "text-gray-300 dark:text-gray-600 hover:text-emerald-400"
+                            }`}
+                          >
+                            👍
+                          </button>
+                          <button
+                            onClick={() => rateMessage(message.logId!, "👎")}
+                            className={`text-xs px-1 rounded transition-colors ${
+                              message.rating === "👎"
+                                ? "text-red-500"
+                                : "text-gray-300 dark:text-gray-600 hover:text-red-400"
+                            }`}
+                          >
+                            👎
+                          </button>
+                        </span>
+                      )}
+                    </div>
                   </>
                 );
               })()}

@@ -78,6 +78,8 @@ export interface KvFaq {
   answer: string;
   answerNl: string;
   answerDe: string;
+  category: string;
+  audience: string[];
 }
 
 export interface KvFaqsData {

@@ -91,9 +91,19 @@ export async function fetchFaqsFromNotion(): Promise<KvFaq[]> {
     const answerNl = getRichTextMd(props, "Answer (NL)");
     const answerDe = getRichTextMd(props, "Answer (DE)");
 
+    // Category (select)
+    const catProp = props["Category"] as { type: string; select?: { name: string } | null } | undefined;
+    const category = catProp?.type === "select" && catProp.select?.name ? catProp.select.name : "";
+
+    // Audience (multi_select)
+    const audProp = props["Audience"] as { type: string; multi_select?: { name: string }[] } | undefined;
+    const audience = audProp?.type === "multi_select" && audProp.multi_select
+      ? audProp.multi_select.map((s) => s.name)
+      : [];
+
     // Include if at least one Q+A pair exists
     if (question && (answer || answerNl || answerDe)) {
-      faqs.push({ question, questionNl, questionDe, answer, answerNl, answerDe });
+      faqs.push({ question, questionNl, questionDe, answer, answerNl, answerDe, category, audience });
     }
   }
 

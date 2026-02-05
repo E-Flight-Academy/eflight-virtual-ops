@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import ReactMarkdown from "react-markdown";
 import { useI18n } from "@/lib/i18n/context";
 import type { UiLabels } from "@/lib/i18n/labels";
+import FaqModal from "./FaqModal";
 
 interface Message {
   role: "user" | "assistant";
@@ -60,7 +61,8 @@ export default function Chat() {
   const [kbStatus, setKbStatus] = useState<KbStatus | null>(null);
   const [kbExpanded, setKbExpanded] = useState(false);
   const [starters, setStarters] = useState<{ question: string; questionNl: string; questionDe: string; answer: string; answerNl: string; answerDe: string }[]>([]);
-  const [faqs, setFaqs] = useState<{ question: string; questionNl: string; questionDe: string; answer: string; answerNl: string; answerDe: string }[]>([]);
+  const [faqs, setFaqs] = useState<{ question: string; questionNl: string; questionDe: string; answer: string; answerNl: string; answerDe: string; category: string; audience: string[] }[]>([]);
+  const [showFaqModal, setShowFaqModal] = useState(false);
   const [phIndex, setPhIndex] = useState(0);
   const [phVisible, setPhVisible] = useState(true);
   const [flowSteps, setFlowSteps] = useState<FlowStep[]>([]);
@@ -506,6 +508,11 @@ export default function Chat() {
     sendMessage(input);
   };
 
+  const handleFaqSelect = (question: string) => {
+    setShowFaqModal(false);
+    sendMessage(question);
+  };
+
   const handleNewChat = () => {
     if (messages.length === 0) return;
     setInput("");
@@ -601,6 +608,18 @@ export default function Chat() {
           <h1 className="text-2xl font-extrabold text-e-indigo cursor-pointer" onClick={handleNewChat}>Steward</h1>
         </div>
         <div className="flex items-center gap-4">
+          <button
+            onClick={() => setShowFaqModal(true)}
+            title="FAQ"
+            className="flex items-center gap-2 text-e-grey hover:text-e-indigo transition-colors"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+              <path d="M12 17h.01" />
+            </svg>
+            <span className="hidden sm:inline text-sm">FAQ</span>
+          </button>
           <div className="relative">
             <button
               onClick={() => setLangOpen(!langOpen)}
@@ -764,6 +783,14 @@ export default function Chat() {
                       </button>
                     );
                   })}
+                  {faqs.length > 0 && (
+                    <button
+                      onClick={() => setShowFaqModal(true)}
+                      className="text-sm px-4 py-2 rounded-full border border-[#ECECEC] text-[#828282] bg-white hover:bg-[#F7F7F7] hover:text-[#1515F5] transition-colors dark:bg-gray-900 dark:border-gray-700 dark:hover:bg-gray-800"
+                    >
+                      More FAQ&apos;s
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -847,7 +874,11 @@ export default function Chat() {
                       sourceUrl ? (
                         <a href={sourceUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] text-e-grey dark:text-gray-400 hover:text-e-indigo transition-colors">{source}</a>
                       ) : (
-                        <span className="text-[10px] text-e-grey dark:text-gray-400 select-none">{source}</span>
+                        source === "FAQ" ? (
+                          <button onClick={() => setShowFaqModal(true)} className="text-[10px] text-e-grey dark:text-gray-400 hover:text-e-indigo transition-colors cursor-pointer">{source}</button>
+                        ) : (
+                          <span className="text-[10px] text-e-grey dark:text-gray-400 select-none">{source}</span>
+                        )
                       )
                     )}
                     <span className={`flex gap-2 transition-opacity ${message.rating ? "" : "touch-visible opacity-0 group-hover/msg:opacity-100"}`}>
@@ -1042,6 +1073,15 @@ export default function Chat() {
           v{process.env.NEXT_PUBLIC_VERSION} ({process.env.NEXT_PUBLIC_BUILD_ID})
         </div>
       </div>
+
+      {showFaqModal && (
+        <FaqModal
+          faqs={faqs}
+          lang={lang}
+          onClose={() => setShowFaqModal(false)}
+          onSelectFaq={handleFaqSelect}
+        />
+      )}
     </div>
   );
 }

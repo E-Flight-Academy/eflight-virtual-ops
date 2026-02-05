@@ -577,7 +577,7 @@ export default function Chat() {
     <div className="flex flex-col h-screen">
       <header className="flex items-center justify-between p-4 border-b border-e-pale dark:border-gray-800">
         <div>
-          <h1 className="text-2xl font-extrabold text-e-indigo">Steward</h1>
+          <h1 className="text-2xl font-extrabold text-e-indigo cursor-pointer" onClick={handleNewChat}>Steward</h1>
         </div>
         <div className="flex items-center gap-4">
           <div className="relative">
@@ -680,9 +680,9 @@ export default function Chat() {
         </div>
       </header>
 
-      <div className={`flex-1 overflow-y-auto p-4 bg-e-pale-light dark:bg-gray-950 ${hasUserMessages ? "space-y-6" : "flex flex-col items-center justify-center"}`}>
+      <div className={`flex-1 overflow-y-auto p-2 sm:p-4 bg-e-pale-light dark:bg-gray-950 ${hasUserMessages ? "space-y-6" : "flex flex-col items-center justify-center"}`}>
         {!hasUserMessages && (
-          <div className="w-full max-w-2xl px-4 space-y-6">
+          <div className="w-full max-w-2xl px-1 sm:px-4 space-y-3 sm:space-y-6">
             {/* Flow dialog (welcome message + options) — shown above input */}
             {messages.map((message, index) => (
               <div
@@ -721,7 +721,7 @@ export default function Chat() {
 
             {/* Suggested questions */}
             {starters.length > 0 && (
-              <div className="max-w-[56rem] mx-auto px-6 py-4">
+              <div className="max-w-[56rem] mx-auto px-2 sm:px-6 py-2 sm:py-4">
                 <div className="flex items-center gap-2 mb-3">
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#828282" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="12" cy="12" r="10" />

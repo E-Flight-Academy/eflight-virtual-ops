@@ -99,16 +99,27 @@ export async function fetchFlowsFromNotion(): Promise<KvFlowStep[]> {
         const relatedPage = await notion.pages.retrieve({ page_id: pageId });
         if (!("properties" in relatedPage)) continue;
 
-        // Extract label from the title property
-        let label = "";
-        for (const [, val] of Object.entries(relatedPage.properties)) {
+        // Extract name from the title property (used for navigation)
+        let relName = "";
+        let relLabel = "";
+        for (const [key, val] of Object.entries(relatedPage.properties)) {
           if (val.type === "title" && val.title.length > 0) {
-            label = val.title
+            relName = val.title
               .map((t: { plain_text: string }) => t.plain_text)
               .join("");
-            break;
+          }
+          if (
+            key === "Label" &&
+            val.type === "rich_text" &&
+            val.rich_text.length > 0
+          ) {
+            relLabel = val.rich_text
+              .map((t: { plain_text: string }) => t.plain_text)
+              .join("");
           }
         }
+        // Use Label for display, fall back to title
+        const displayLabel = relLabel || relName;
 
         // Extract icon (emoji or image URL)
         let icon: string | null = null;
@@ -121,8 +132,8 @@ export async function fetchFlowsFromNotion(): Promise<KvFlowStep[]> {
           icon = pageIcon.file.url;
         }
 
-        if (label) {
-          nextDialogFlow.push({ name: label, label, icon });
+        if (relName && displayLabel) {
+          nextDialogFlow.push({ name: relName, label: displayLabel, icon });
         }
       } catch (err) {
         console.warn(`Failed to fetch related flow page ${pageId}:`, err);

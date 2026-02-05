@@ -72,7 +72,7 @@ export default function FaqModal({ faqs, lang, onClose, onSelectFaq }: FaqModalP
 
   return (
     <div
-      className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center pt-[5vh] px-4 pb-4"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col">

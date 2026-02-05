@@ -140,7 +140,7 @@ export async function fetchFlowsFromNotion(): Promise<KvFlowStep[]> {
       }
     }
 
-    if (name && message) {
+    if (name && (message || endAction === "Start AI Chat")) {
       steps.push({ name, message, nextDialogFlow, endAction, contextKey, endPrompt, order });
     }
   }

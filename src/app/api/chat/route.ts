@@ -229,8 +229,37 @@ export async function POST(request: NextRequest) {
       });
     }
 
+    // Post-process: ensure [source: Website] tags include the page URL
+    let processedMessage = geminiResult;
+    if (websitePages.length > 0 && /\[source:\s*Website\s*\]/i.test(processedMessage)) {
+      const responseText = processedMessage.replace(/\[source:[^\]]*\]/gi, "").toLowerCase();
+      const responseWords = responseText.split(/\s+/).filter((w) => w.length > 4);
+
+      let bestUrl = websitePages[0].url;
+      let bestScore = 0;
+
+      for (const page of websitePages) {
+        const pageWords = new Set(
+          page.content.toLowerCase().split(/\s+/).filter((w) => w.length > 4)
+        );
+        let score = 0;
+        for (const word of responseWords) {
+          if (pageWords.has(word)) score++;
+        }
+        if (score > bestScore) {
+          bestScore = score;
+          bestUrl = page.url;
+        }
+      }
+
+      processedMessage = processedMessage.replace(
+        /\[source:\s*Website\s*\]/i,
+        `[source: Website | ${bestUrl}]`
+      );
+    }
+
     // Include translations when detected language differs from what the frontend has
-    const response: Record<string, unknown> = { message: geminiResult };
+    const response: Record<string, unknown> = { message: processedMessage };
     const langChanged = detectedLang !== (clientLang || "en");
     if (langChanged) {
       try {

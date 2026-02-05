@@ -308,9 +308,10 @@ export default function Chat() {
       const prompt = currentFlowStep.endPrompt;
       setFlowPhase("completed");
       setCurrentFlowStep(null);
-      setMessages((prev) => [...prev, userMsg]);
+      const updatedMessages = [...messages, userMsg];
+      setMessages(updatedMessages);
       if (prompt) {
-        setTimeout(() => sendMessage(prompt), 100);
+        sendMessage(prompt, updatedMessages, true);
       }
       return;
     }
@@ -330,12 +331,12 @@ export default function Chat() {
       const prompt = nextStep.endPrompt;
       setFlowPhase("completed");
       setCurrentFlowStep(null);
-      const newMessages = nextStep.message
-        ? [...[userMsg], { role: "assistant" as const, content: nextStep.message }]
-        : [userMsg];
-      setMessages((prev) => [...prev, ...newMessages]);
+      const updatedMessages = nextStep.message
+        ? [...messages, userMsg, { role: "assistant" as const, content: nextStep.message }]
+        : [...messages, userMsg];
+      setMessages(updatedMessages);
       if (prompt) {
-        setTimeout(() => sendMessage(prompt), 100);
+        sendMessage(prompt, updatedMessages, true);
       }
       return;
     }
@@ -419,7 +420,7 @@ export default function Chat() {
     });
   }, [lang, sessionId]);
 
-  const sendMessage = async (text: string) => {
+  const sendMessage = async (text: string, baseMessages?: Message[], hidden = false) => {
     if (!text.trim()) return;
 
     // Abort any in-flight request
@@ -434,18 +435,23 @@ export default function Chat() {
       setCurrentFlowStep(null);
     }
 
+    const base = baseMessages ?? messages;
     const userMessage: Message = { role: "user", content: text };
-    const newMessages = [...messages, userMessage];
-    setMessages(newMessages);
+    // API always sees the prompt; UI only shows it when not hidden
+    const apiMessages = [...base, userMessage];
+    const displayMessages = hidden ? base : apiMessages;
+    setMessages(displayMessages);
     setInput("");
 
-    // Instant answer from FAQ/starter — no need for Gemini
-    const instantAnswer = findInstantAnswer(text);
-    if (instantAnswer) {
-      const answerWithSource = `${instantAnswer}\n\n[source: FAQ]`;
-      setMessages([...newMessages, { role: "assistant", content: answerWithSource }]);
-      logChat(text, answerWithSource);
-      return;
+    // Instant answer from FAQ/starter — skip for hidden prompts
+    if (!hidden) {
+      const instantAnswer = findInstantAnswer(text);
+      if (instantAnswer) {
+        const answerWithSource = `${instantAnswer}\n\n[source: FAQ]`;
+        setMessages([...displayMessages, { role: "assistant", content: answerWithSource }]);
+        logChat(text, answerWithSource);
+        return;
+      }
     }
 
     // No instant match — ask Gemini
@@ -457,14 +463,14 @@ export default function Chat() {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: newMessages, lang: lang || "en", flowContext }),
+        body: JSON.stringify({ messages: apiMessages, lang: lang || "en", flowContext }),
         signal: controller.signal,
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        setMessages([...newMessages, { role: "assistant", content: data.message }]);
+        setMessages([...displayMessages, { role: "assistant", content: data.message }]);
         logChat(text, data.message);
         if (data.lang) {
           if (data.translations) {
@@ -475,7 +481,7 @@ export default function Chat() {
         }
       } else {
         setMessages([
-          ...newMessages,
+          ...displayMessages,
           { role: "assistant", content: `Error: ${data.error}` },
         ]);
       }
@@ -485,7 +491,7 @@ export default function Chat() {
         return;
       }
       setMessages([
-        ...newMessages,
+        ...displayMessages,
         { role: "assistant", content: t("chat.error") },
       ]);
     } finally {
@@ -695,7 +701,7 @@ export default function Chat() {
         </div>
       </header>
 
-      <div className={`flex-1 overflow-y-auto p-2 sm:p-4 bg-e-pale-light dark:bg-gray-950 ${hasUserMessages ? "space-y-6" : "flex flex-col items-center justify-center"}`}>
+      <div className={`flex-1 overflow-y-auto p-2 sm:p-4 bg-gradient-to-b from-[#EFEFEF] to-[#F7F7F7] dark:from-gray-950 dark:to-gray-900 ${hasUserMessages ? "space-y-6" : "flex flex-col items-center justify-center"}`}>
         {!hasUserMessages && (
           <div className="w-full max-w-2xl px-1 sm:px-4 space-y-3 sm:space-y-6">
             {/* Flow dialog (welcome message + options) — shown above input */}
@@ -719,11 +725,11 @@ export default function Chat() {
                   <button
                     key={i}
                     onClick={() => handleFlowOption(option.name, option.label)}
-                    className="text-sm px-4 py-2 rounded-full border border-[#ECECEC] bg-[#F7F7F7] text-[#030213] hover:bg-[#1515F5] hover:text-white hover:border-[#1515F5] transition-colors flex items-center gap-1.5"
+                    className="text-base font-semibold px-4 py-2 rounded-full border border-[#ECECEC] bg-[#F7F7F7] text-[#030213] hover:bg-[#1515F5] hover:text-white hover:border-[#1515F5] transition-colors flex items-center gap-1.5"
                   >
                     {option.icon && (
                       option.icon.startsWith("http") ? (
-                        <img src={option.icon} alt="" className="w-4 h-4" />
+                        <img src={option.icon} alt="" className="w-5 h-5" />
                       ) : (
                         <span>{option.icon}</span>
                       )
@@ -885,11 +891,11 @@ export default function Chat() {
               <button
                 key={i}
                 onClick={() => handleFlowOption(option.name, option.label)}
-                className="text-sm px-4 py-2 rounded-full border border-[#ECECEC] bg-[#F7F7F7] text-[#030213] hover:bg-[#1515F5] hover:text-white hover:border-[#1515F5] transition-colors flex items-center gap-1.5"
+                className="text-base font-semibold px-4 py-2 rounded-full border border-[#ECECEC] bg-[#F7F7F7] text-[#030213] hover:bg-[#1515F5] hover:text-white hover:border-[#1515F5] transition-colors flex items-center gap-1.5"
               >
                 {option.icon && (
                   option.icon.startsWith("http") ? (
-                    <img src={option.icon} alt="" className="w-4 h-4" />
+                    <img src={option.icon} alt="" className="w-5 h-5" />
                   ) : (
                     <span>{option.icon}</span>
                   )

@@ -64,6 +64,7 @@ export default function Chat() {
   const [flowContext, setFlowContext] = useState<Record<string, string>>({});
   const [currentFlowStep, setCurrentFlowStep] = useState<FlowStep | null>(null);
   const [shareStatus, setShareStatus] = useState<"idle" | "sharing" | "copied" | "error">("idle");
+  const [langOpen, setLangOpen] = useState(false);
   const [sessionId] = useState(() => crypto.randomUUID().slice(0, 8));
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -505,7 +506,7 @@ export default function Chat() {
   const hasUserMessages = useMemo(() => messages.some((m) => m.role === "user"), [messages]);
   const faqSuggestions = useMemo(() => {
     const query = input.trim().toLowerCase();
-    if (query.length < 2 || hasUserMessages) return [];
+    if (query.length < 2) return [];
     // Check if input matches a starter exactly (user clicked a starter)
     if (starters.some((s) => getQ(s) === input)) return [];
     return faqs
@@ -516,7 +517,7 @@ export default function Chat() {
       })
       .map((f) => getQ(f))
       .slice(0, 5);
-  }, [input, faqs, hasUserMessages, starters, getQ]);
+  }, [input, faqs, starters, getQ]);
 
   if (!isAuthenticated) {
     return (
@@ -548,33 +549,55 @@ export default function Chat() {
   }
 
   return (
-    <div className="flex flex-col h-screen max-w-4xl mx-auto">
+    <div className="flex flex-col h-screen">
       <header className="flex items-center justify-between p-4 border-b border-e-pale dark:border-gray-800">
         <div>
           <h1 className="text-2xl font-extrabold text-e-indigo">Steward</h1>
           <p className="text-sm text-e-grey">{t("header.subtitle")}</p>
         </div>
-        <div className="flex items-center gap-1">
-          <select
-            value={lang}
-            onChange={(e) => switchLanguage(e.target.value)}
-            className="h-10 px-2 pr-7 rounded-lg border border-e-grey-light dark:border-gray-700 bg-white dark:bg-gray-900 text-sm text-foreground cursor-pointer focus:outline-none focus:ring-2 focus:ring-e-indigo appearance-none"
-            style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23828282' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`, backgroundRepeat: "no-repeat", backgroundPosition: "right 8px center" }}
-          >
-            <option value="en">EN</option>
-            <option value="nl">NL</option>
-            <option value="de">DE</option>
-          </select>
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            <button
+              onClick={() => setLangOpen(!langOpen)}
+              className="flex items-center gap-2 px-3 py-2 rounded-md bg-[#F7F7F7] text-[#828282] text-sm font-medium hover:bg-[#ECECEC] transition-colors dark:bg-gray-800 dark:hover:bg-gray-700"
+            >
+              {lang.toUpperCase()}
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="m6 9 6 6 6-6" />
+              </svg>
+            </button>
+            {langOpen && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setLangOpen(false)} />
+                <div className="absolute top-full mt-2 right-0 bg-white dark:bg-gray-900 border border-[#ECECEC] dark:border-gray-700 rounded-lg shadow-lg overflow-hidden z-20 min-w-[80px]">
+                  {(["en", "nl", "de"] as const).map((code) => (
+                    <button
+                      key={code}
+                      onClick={() => { switchLanguage(code); setLangOpen(false); }}
+                      className={`w-full px-4 py-2 text-left text-sm transition-colors ${
+                        lang === code
+                          ? "bg-[#1515F5] text-white"
+                          : "text-[#828282] hover:bg-[#F7F7F7] dark:hover:bg-gray-800"
+                      }`}
+                    >
+                      {code.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
           <button
             onClick={handleNewChat}
             disabled={messages.length === 0}
             title={t("header.newChat")}
-            className="h-10 flex items-center gap-1.5 rounded-lg text-e-grey hover:bg-e-pale dark:hover:bg-gray-800 transition-colors disabled:opacity-30 disabled:cursor-not-allowed px-2 sm:pr-3"
+            className="flex items-center gap-2 text-e-grey hover:text-e-indigo transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 20h9" />
-              <path d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.855z" />
-              <path d="m15 5 3 3" />
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="12" y1="18" x2="12" y2="12" />
+              <line x1="9" y1="15" x2="15" y2="15" />
             </svg>
             <span className="hidden sm:inline text-sm">{t("header.newChat")}</span>
           </button>
@@ -582,7 +605,7 @@ export default function Chat() {
             onClick={handleShare}
             disabled={messages.length === 0 || shareStatus === "sharing"}
             title={shareStatus === "copied" ? "Link copied!" : shareStatus === "error" ? "Failed to share" : t("header.share")}
-            className="h-10 flex items-center gap-1.5 rounded-lg text-e-grey hover:bg-e-pale dark:hover:bg-gray-800 transition-colors disabled:opacity-30 disabled:cursor-not-allowed px-2 sm:pr-3"
+            className="flex items-center gap-2 text-e-grey hover:text-e-indigo transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
           >
             {shareStatus === "copied" ? (
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-500">
@@ -595,9 +618,11 @@ export default function Chat() {
               </svg>
             ) : (
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
-                <polyline points="16 6 12 2 8 6" />
-                <line x1="12" y1="2" x2="12" y2="15" />
+                <circle cx="18" cy="5" r="3" />
+                <circle cx="6" cy="12" r="3" />
+                <circle cx="18" cy="19" r="3" />
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
               </svg>
             )}
             <span className="hidden sm:inline text-sm">
@@ -619,7 +644,7 @@ export default function Chat() {
               resetLanguage();
             }}
             title={t("header.logout")}
-            className="h-10 flex items-center gap-1.5 rounded-lg text-e-grey hover:bg-e-pale dark:hover:bg-gray-800 transition-colors px-2 sm:pr-3"
+            className="flex items-center gap-2 text-e-grey hover:text-e-indigo transition-colors"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -687,16 +712,16 @@ export default function Chat() {
               </div>
             )}
 
-            {/* Suggested questions — only when flow is not active */}
-            {flowPhase !== "active" && starters.length > 0 && (
-              <div className="mb-2">
-                <div className="flex items-center gap-2 text-e-grey mb-3">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            {/* Suggested questions */}
+            {starters.length > 0 && (
+              <div className="max-w-[56rem] mx-auto px-6 py-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#828282" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="12" cy="12" r="10" />
                     <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
                     <path d="M12 17h.01" />
                   </svg>
-                  <span className="text-sm font-medium">Suggested questions</span>
+                  <span className="text-sm text-[#828282]">Suggested questions</span>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {starters.map((starter, i) => {
@@ -705,13 +730,28 @@ export default function Chat() {
                       <button
                         key={i}
                         onClick={() => sendMessage(displayText)}
-                        className="text-sm px-4 py-2 rounded-full border border-e-grey-light text-e-grey hover:border-e-indigo-light hover:text-e-indigo transition-colors bg-white dark:bg-gray-900"
+                        className="text-sm px-4 py-2 rounded-full border border-[#ECECEC] text-[#828282] bg-white hover:bg-[#F7F7F7] hover:text-[#1515F5] transition-colors dark:bg-gray-900 dark:border-gray-700 dark:hover:bg-gray-800"
                       >
                         {displayText}
                       </button>
                     );
                   })}
                 </div>
+              </div>
+            )}
+
+            {/* FAQ dropdown */}
+            {faqSuggestions.length > 0 && (
+              <div className="bg-white dark:bg-gray-900 border border-[#ECECEC] dark:border-gray-700 rounded-lg shadow-lg overflow-y-auto max-h-64">
+                {faqSuggestions.map((suggestion, i) => (
+                  <button
+                    key={i}
+                    onClick={() => sendMessage(suggestion)}
+                    className="w-full text-left px-4 py-3 text-sm text-foreground hover:bg-[#F7F7F7] dark:hover:bg-gray-800 transition-colors border-b border-[#ECECEC] dark:border-gray-700 last:border-b-0"
+                  >
+                    {suggestion}
+                  </button>
+                ))}
               </div>
             )}
 
@@ -753,49 +793,55 @@ export default function Chat() {
         {hasUserMessages && messages.map((message, index) => (
           <div
             key={index}
-            className={`flex ${message.role === "user" ? "justify-end" : "justify-start items-start gap-3"}`}
+            className={`flex max-w-4xl mx-auto w-full ${message.role === "user" ? "justify-end" : "justify-start items-start gap-3"}`}
           >
             {message.role === "assistant" && (
               <img src="/avatar.png" alt="Steward" className="w-8 h-8 rounded-full shrink-0 mt-0.5" />
             )}
             {message.role === "user" ? (
-              <div className="max-w-[80%] rounded-full bg-e-indigo text-white px-5 py-2.5">
-                <p className="whitespace-pre-wrap">{message.content}</p>
+              <div className="max-w-[70%] bg-[#1515F5] text-white px-4 py-3 rounded-2xl" style={{ borderTopRightRadius: "2px" }}>
+                <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
               </div>
             ) : (() => {
               const sourceMatch = message.content.match(/\n?\[source:\s*(.+?)\]\s*$/i);
               const body = sourceMatch ? message.content.slice(0, sourceMatch.index).trimEnd() : message.content;
               const source = sourceMatch?.[1];
               return (
-                <div className="max-w-[85%] text-foreground">
+                <div className="max-w-[85%] text-foreground group/msg">
                   <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-headings:my-2 prose-headings:text-e-indigo">
                     <ReactMarkdown>{body}</ReactMarkdown>
                   </div>
-                  <div className="flex items-center gap-2 mt-1">
+                  <div className="flex items-center gap-2 mt-1.5">
                     {source && (
                       <span className="text-[10px] text-gray-400 dark:text-gray-600 select-none">{source}</span>
                     )}
                     {message.logId && (
-                      <span className="flex gap-0.5 ml-auto">
+                      <span className={`flex gap-1 ${message.rating ? "" : "opacity-0 group-hover/msg:opacity-100"} transition-opacity`}>
                         <button
                           onClick={() => rateMessage(message.logId!, "👍")}
-                          className={`text-xs px-1 rounded transition-colors ${
+                          className={`p-1 rounded transition-colors ${
                             message.rating === "👍"
-                              ? "text-emerald-500"
-                              : "text-gray-300 dark:text-gray-600 hover:text-emerald-400"
+                              ? "text-[#1515F5]"
+                              : "text-gray-300 dark:text-gray-600 hover:text-[#1515F5]"
                           }`}
                         >
-                          👍
+                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill={message.rating === "👍" ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M7 10v12" />
+                            <path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z" />
+                          </svg>
                         </button>
                         <button
                           onClick={() => rateMessage(message.logId!, "👎")}
-                          className={`text-xs px-1 rounded transition-colors ${
+                          className={`p-1 rounded transition-colors ${
                             message.rating === "👎"
-                              ? "text-red-500"
-                              : "text-gray-300 dark:text-gray-600 hover:text-red-400"
+                              ? "text-gray-500"
+                              : "text-gray-300 dark:text-gray-600 hover:text-gray-500"
                           }`}
                         >
-                          👎
+                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill={message.rating === "👎" ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M17 14V2" />
+                            <path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z" />
+                          </svg>
                         </button>
                       </span>
                     )}
@@ -807,7 +853,7 @@ export default function Chat() {
         ))}
 
         {hasUserMessages && flowPhase === "active" && currentFlowStep && !isLoading && (
-          <div className="flex flex-wrap gap-2 ml-11">
+          <div className="flex flex-wrap gap-2 ml-11 max-w-4xl mx-auto w-full">
             {currentFlowStep.options.map((option, i) => (
               <button
                 key={i}
@@ -821,7 +867,7 @@ export default function Chat() {
         )}
 
         {isLoading && (
-          <div className="flex items-start gap-3">
+          <div className="flex items-start gap-3 max-w-4xl mx-auto w-full">
             <img src="/avatar.png" alt="Steward" className="w-8 h-8 rounded-full shrink-0" />
             <div className="flex space-x-2 pt-2">
               <div className="w-2 h-2 bg-e-indigo-light rounded-full animate-bounce" />
@@ -835,21 +881,25 @@ export default function Chat() {
       </div>
 
       {hasUserMessages && (
-        <div className="border-t border-e-pale dark:border-gray-800">
+        <div className="border-t border-e-pale dark:border-gray-800 relative">
           {faqSuggestions.length > 0 && (
-            <div className="px-4 pt-2 flex flex-wrap gap-2">
-              {faqSuggestions.map((suggestion, i) => (
-                <button
-                  key={i}
-                  onClick={() => sendMessage(suggestion)}
-                  className="text-sm px-4 py-2 rounded-full border border-e-grey-light text-e-grey hover:border-e-indigo-light hover:text-e-indigo transition-colors bg-white dark:bg-gray-900"
-                >
-                  {suggestion}
-                </button>
-              ))}
+            <div className="absolute bottom-full left-0 right-0 z-10">
+              <div className="max-w-4xl mx-auto px-4">
+                <div className="bg-white dark:bg-gray-900 border border-[#ECECEC] dark:border-gray-700 rounded-lg shadow-lg overflow-y-auto max-h-64">
+                  {faqSuggestions.map((suggestion, i) => (
+                    <button
+                      key={i}
+                      onClick={() => sendMessage(suggestion)}
+                      className="w-full text-left px-4 py-3 text-sm text-foreground hover:bg-[#F7F7F7] dark:hover:bg-gray-800 transition-colors border-b border-[#ECECEC] dark:border-gray-700 last:border-b-0"
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
-          <form onSubmit={handleSubmit} className="p-4">
+          <form onSubmit={handleSubmit} className="p-4 max-w-4xl mx-auto w-full">
             <div className="flex gap-3 items-center">
               <input
                 ref={inputRef}

@@ -827,7 +827,10 @@ export default function Chat() {
             ) : (() => {
               const sourceMatch = message.content.match(/\n?\[source:\s*(.+?)\]\s*$/i);
               const body = sourceMatch ? message.content.slice(0, sourceMatch.index).trimEnd() : message.content;
-              const source = sourceMatch?.[1];
+              const sourceRaw = sourceMatch?.[1] || "";
+              const sourceParts = sourceRaw.split("|").map((s) => s.trim());
+              const source = sourceParts[0] || null;
+              const sourceUrl = sourceParts[1] && sourceParts[1].startsWith("http") ? sourceParts[1] : null;
               return (
                 <div className="max-w-[85%] bg-white dark:bg-gray-900 px-4 py-3 rounded-2xl rounded-tl-sm text-foreground group/msg">
                   <div className="prose dark:prose-invert max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-headings:my-2 prose-headings:text-e-indigo">
@@ -835,7 +838,11 @@ export default function Chat() {
                   </div>
                   <div className="flex items-center gap-2 mt-3">
                     {source && (
-                      <span className="text-[10px] text-e-grey dark:text-gray-400 select-none">{source}</span>
+                      sourceUrl ? (
+                        <a href={sourceUrl} target="_blank" rel="noopener noreferrer" className="text-[10px] text-e-grey dark:text-gray-400 hover:text-e-indigo transition-colors">{source}</a>
+                      ) : (
+                        <span className="text-[10px] text-e-grey dark:text-gray-400 select-none">{source}</span>
+                      )
                     )}
                     <span className={`flex gap-2 transition-opacity ${message.rating ? "" : "touch-visible opacity-0 group-hover/msg:opacity-100"}`}>
                       <button

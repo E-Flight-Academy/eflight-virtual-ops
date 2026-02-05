@@ -701,7 +701,7 @@ export default function Chat() {
 
             {flowPhase === "active" && currentFlowStep && !isLoading && (
               <div className="flex flex-wrap gap-2 ml-11">
-                {currentFlowStep.nextDialogFlow.map((option, i) => (
+                {(currentFlowStep.nextDialogFlow || []).map((option, i) => (
                   <button
                     key={i}
                     onClick={() => handleFlowOption(option.name, option.label)}
@@ -860,7 +860,7 @@ export default function Chat() {
 
         {hasUserMessages && flowPhase === "active" && currentFlowStep && !isLoading && (
           <div className="flex flex-wrap gap-2 ml-11 max-w-4xl mx-auto w-full">
-            {currentFlowStep.nextDialogFlow.map((option, i) => (
+            {(currentFlowStep.nextDialogFlow || []).map((option, i) => (
               <button
                 key={i}
                 onClick={() => handleFlowOption(option.name, option.label)}

@@ -325,6 +325,21 @@ export default function Chat() {
       return;
     }
 
+    // If the next step immediately ends the flow, trigger its endPrompt
+    if (nextStep.endAction === "Start AI Chat") {
+      const prompt = nextStep.endPrompt;
+      setFlowPhase("completed");
+      setCurrentFlowStep(null);
+      const newMessages = nextStep.message
+        ? [...[userMsg], { role: "assistant" as const, content: nextStep.message }]
+        : [userMsg];
+      setMessages((prev) => [...prev, ...newMessages]);
+      if (prompt) {
+        setTimeout(() => sendMessage(prompt), 100);
+      }
+      return;
+    }
+
     setCurrentFlowStep(nextStep);
     setMessages((prev) => [
       ...prev,

@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
 
     if (searchOrder.includes("website") && websitePages.length > 0) {
       searchSteps.push(
-        `${stepNum}. Check the Website Content section for information from the e-flight.nl website.`
+        `${stepNum}. Check the Website Content section for information from the E-Flight Academy website.`
       );
       stepNum++;
     }

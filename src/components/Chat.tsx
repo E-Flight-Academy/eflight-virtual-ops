@@ -822,7 +822,7 @@ export default function Chat() {
                     {source && (
                       <span className="text-[10px] text-gray-400 dark:text-gray-600 select-none">{source}</span>
                     )}
-                    <span className={`flex gap-1 ${message.rating ? "" : "opacity-0 group-hover/msg:opacity-100"} transition-opacity`}>
+                    <span className={`flex gap-1 transition-opacity ${message.rating ? "" : "touch-visible opacity-0 group-hover/msg:opacity-100"}`}>
                       <button
                         onClick={() => rateMessage(index, "👍")}
                         className={`p-1 rounded transition-colors ${

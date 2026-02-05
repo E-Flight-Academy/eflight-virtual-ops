@@ -12,9 +12,11 @@ const MAX_PAGES = 20;
 const MAX_CHARS_PER_PAGE = 8000;
 const MAX_TOTAL_CHARS = 40000;
 const FETCH_TIMEOUT_MS = 10000; // 10s per page
+const MAX_SUB_SITEMAPS = 5;
+const DEFAULT_DOMAIN = "www.eflight.nl";
 
 const DEFAULT_PAGES = [
-  "https://e-flight.nl",
+  `https://${DEFAULT_DOMAIN}`,
 ];
 
 // --- L1: in-memory cache ---
@@ -34,6 +36,107 @@ async function doFetch(url: string): Promise<Response> {
   } finally {
     clearTimeout(timeout);
   }
+}
+
+// --- Sitemap discovery ---
+async function fetchSitemap(domain: string): Promise<string[]> {
+  const sitemapUrl = `https://${domain}/sitemap.xml`;
+  console.log(`Fetching sitemap: ${sitemapUrl}`);
+
+  let response: Response;
+  try {
+    response = await doFetch(sitemapUrl);
+  } catch {
+    if (sitemapUrl.startsWith("https://")) {
+      response = await doFetch(sitemapUrl.replace("https://", "http://"));
+    } else {
+      throw new Error(`Sitemap fetch failed for ${domain}`);
+    }
+  }
+
+  if (!response.ok) {
+    console.warn(`Sitemap not found for ${domain}: HTTP ${response.status}`);
+    return [];
+  }
+
+  const xml = await response.text();
+  const $ = cheerio.load(xml, { xmlMode: true });
+
+  // Check if it's a sitemap index (<sitemapindex>)
+  const sitemapLocs = $("sitemapindex sitemap loc")
+    .map((_, el) => $(el).text().trim())
+    .get();
+
+  if (sitemapLocs.length > 0) {
+    console.log(`Sitemap index found with ${sitemapLocs.length} sub-sitemaps`);
+    const allUrls: string[] = [];
+    for (const subUrl of sitemapLocs.slice(0, MAX_SUB_SITEMAPS)) {
+      try {
+        const subResp = await doFetch(subUrl);
+        if (!subResp.ok) continue;
+        const subXml = await subResp.text();
+        const sub$ = cheerio.load(subXml, { xmlMode: true });
+        sub$("url loc").each((_, el) => {
+          allUrls.push(sub$(el).text().trim());
+        });
+      } catch {
+        console.warn(`Failed to fetch sub-sitemap: ${subUrl}`);
+      }
+    }
+    const filtered = allUrls.filter((u) => u.includes(domain));
+    console.log(`Discovered ${filtered.length} URLs from sitemap index`);
+    return filtered;
+  }
+
+  // Regular sitemap
+  const urls = $("url loc")
+    .map((_, el) => $(el).text().trim())
+    .get()
+    .filter((u) => u.includes(domain));
+
+  console.log(`Discovered ${urls.length} URLs from sitemap`);
+  return urls;
+}
+
+/** Check if a URL is a domain root (no path beyond /) */
+function isDomainRoot(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.pathname === "/" || parsed.pathname === "";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Resolve a list of URLs: domain roots are expanded via sitemap discovery,
+ * specific page URLs are kept as-is. This allows mixing domains and pages,
+ * e.g. ["https://www.eflight.nl", "https://e-deck.nl", "https://other.com/specific-page"]
+ */
+async function resolveUrls(urls: string[]): Promise<string[]> {
+  const resolved: string[] = [];
+
+  for (const url of urls) {
+    if (isDomainRoot(url)) {
+      // Domain root — try sitemap discovery
+      try {
+        const domain = new URL(url).hostname;
+        const discovered = await fetchSitemap(domain);
+        if (discovered.length > 0) {
+          resolved.push(...discovered);
+        } else {
+          resolved.push(url); // Sitemap empty — keep the root URL
+        }
+      } catch {
+        resolved.push(url); // Sitemap failed — keep the root URL
+      }
+    } else {
+      // Specific page — keep as-is
+      resolved.push(url);
+    }
+  }
+
+  return resolved;
 }
 
 async function fetchPage(url: string): Promise<KvWebsitePage | null> {
@@ -106,12 +209,16 @@ async function fetchWebsitePages(urls: string[]): Promise<KvWebsitePage[]> {
 }
 
 export async function syncWebsite(urls?: string[]): Promise<KvWebsitePage[]> {
-  const pageUrls = urls && urls.length > 0 ? urls : DEFAULT_PAGES;
+  const inputUrls = urls && urls.length > 0 ? urls : DEFAULT_PAGES;
+  const pageUrls = await resolveUrls(inputUrls);
+
+  console.log(`Syncing ${pageUrls.length} website pages (limit: ${MAX_PAGES})`);
   const pages = await fetchWebsitePages(pageUrls);
   const data: KvWebsiteData = { pages, cachedAt: Date.now() };
   cachedWebsite = data;
   cacheTimestamp = Date.now();
   await setKvWebsite(data);
+  console.log(`Website sync complete: ${pages.length} pages, ${pages.reduce((sum, p) => sum + p.content.length, 0)} chars`);
   return pages;
 }
 
@@ -142,5 +249,5 @@ export function buildWebsiteContext(pages: KvWebsitePage[]): string {
   const entries = pages
     .map((p) => `--- ${p.title} (${p.url}) ---\n${p.content}`)
     .join("\n\n");
-  return `=== Website Content (e-flight.nl) ===\n${entries}`;
+  return `=== Website Content (${DEFAULT_DOMAIN}) ===\n${entries}`;
 }

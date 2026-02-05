@@ -427,8 +427,9 @@ export default function Chat() {
     // Instant answer from FAQ/starter — no need for Gemini
     const instantAnswer = findInstantAnswer(text);
     if (instantAnswer) {
-      setMessages([...newMessages, { role: "assistant", content: instantAnswer }]);
-      logChat(text, instantAnswer);
+      const answerWithSource = `${instantAnswer}\n\n[source: FAQ]`;
+      setMessages([...newMessages, { role: "assistant", content: answerWithSource }]);
+      logChat(text, answerWithSource);
       return;
     }
 
@@ -487,7 +488,6 @@ export default function Chat() {
   const handleNewChat = () => {
     if (messages.length === 0) return;
     setInput("");
-    resetLanguage();
     setFlowContext({});
     const welcome = flowSteps.find((s) => s.name.toLowerCase() === "welcome");
     if (welcome) {
@@ -692,7 +692,7 @@ export default function Chat() {
                 <img src="/avatar.png" alt="Steward" className="w-8 h-8 rounded-full shrink-0 mt-0.5 transition-transform duration-200 hover:scale-150" />
                 <div className="max-w-[85%] bg-white dark:bg-gray-900 px-4 py-3 rounded-2xl rounded-tl-sm text-foreground">
                   <div className="prose dark:prose-invert max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-headings:my-2 prose-headings:text-e-indigo">
-                    <ReactMarkdown>{message.content}</ReactMarkdown>
+                    <ReactMarkdown components={{ a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer" className="text-e-indigo underline hover:text-e-indigo-hover">{children}</a> }}>{message.content}</ReactMarkdown>
                   </div>
                 </div>
               </div>
@@ -704,7 +704,7 @@ export default function Chat() {
                   <button
                     key={i}
                     onClick={() => handleFlowOption(option.name, option.label)}
-                    className="text-sm px-3 py-1.5 rounded-full border border-e-indigo-light text-e-indigo hover:bg-e-indigo hover:text-white transition-colors flex items-center gap-1.5"
+                    className="text-sm px-4 py-2 rounded-full border border-[#ECECEC] bg-[#F7F7F7] text-[#030213] hover:bg-[#1515F5] hover:text-white hover:border-[#1515F5] transition-colors flex items-center gap-1.5"
                   >
                     {option.icon && (
                       option.icon.startsWith("http") ? (
@@ -806,7 +806,7 @@ export default function Chat() {
               <img src="/avatar.png" alt="Steward" className="w-8 h-8 rounded-full shrink-0 mt-0.5 transition-transform duration-200 hover:scale-150" />
             )}
             {message.role === "user" ? (
-              <div className="max-w-[70%] bg-[#1515F5] text-white px-4 py-3 rounded-2xl" style={{ borderTopRightRadius: "2px" }}>
+              <div className="max-w-[70%] bg-[#1515F5] text-white px-4 py-3 rounded-2xl rounded-tr-sm">
                 <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
               </div>
             ) : (() => {
@@ -816,35 +816,35 @@ export default function Chat() {
               return (
                 <div className="max-w-[85%] bg-white dark:bg-gray-900 px-4 py-3 rounded-2xl rounded-tl-sm text-foreground group/msg">
                   <div className="prose dark:prose-invert max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-headings:my-2 prose-headings:text-e-indigo">
-                    <ReactMarkdown>{body}</ReactMarkdown>
+                    <ReactMarkdown components={{ a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer" className="text-e-indigo underline hover:text-e-indigo-hover">{children}</a> }}>{body}</ReactMarkdown>
                   </div>
-                  <div className="flex items-center gap-2 mt-1.5">
+                  <div className="flex items-center gap-2 mt-3">
                     {source && (
-                      <span className="text-[10px] text-gray-400 dark:text-gray-600 select-none">{source}</span>
+                      <span className="text-[10px] text-e-grey dark:text-gray-400 select-none">{source}</span>
                     )}
-                    <span className={`flex gap-1 transition-opacity ${message.rating ? "" : "touch-visible opacity-0 group-hover/msg:opacity-100"}`}>
+                    <span className={`flex gap-2 transition-opacity ${message.rating ? "" : "touch-visible opacity-0 group-hover/msg:opacity-100"}`}>
                       <button
                         onClick={() => rateMessage(index, "👍")}
-                        className={`p-1 rounded transition-colors ${
+                        className={`p-1.5 rounded transition-colors ${
                           message.rating === "👍"
-                            ? "text-[#1515F5]"
-                            : "text-gray-300 dark:text-gray-600 hover:text-[#1515F5]"
+                            ? "bg-[#1515F5] text-white"
+                            : "bg-[#F7F7F7] text-[#828282] hover:bg-[#ECECEC]"
                         }`}
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill={message.rating === "👍" ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill={message.rating === "👍" ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M7 10v12" />
                           <path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z" />
                         </svg>
                       </button>
                       <button
                         onClick={() => rateMessage(index, "👎")}
-                        className={`p-1 rounded transition-colors ${
+                        className={`p-1.5 rounded transition-colors ${
                           message.rating === "👎"
-                            ? "text-gray-500"
-                            : "text-gray-300 dark:text-gray-600 hover:text-gray-500"
+                            ? "bg-[#1515F5] text-white"
+                            : "bg-[#F7F7F7] text-[#828282] hover:bg-[#ECECEC]"
                         }`}
                       >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill={message.rating === "👎" ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill={message.rating === "👎" ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M17 14V2" />
                           <path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z" />
                         </svg>
@@ -858,12 +858,12 @@ export default function Chat() {
         ))}
 
         {hasUserMessages && flowPhase === "active" && currentFlowStep && !isLoading && (
-          <div className="flex flex-wrap gap-2 ml-11 max-w-4xl mx-auto w-full">
+          <div className="max-w-4xl mx-auto w-full pl-11 flex flex-wrap gap-2">
             {(currentFlowStep.nextDialogFlow || []).map((option, i) => (
               <button
                 key={i}
                 onClick={() => handleFlowOption(option.name, option.label)}
-                className="text-sm px-3 py-1.5 rounded-full border border-e-indigo-light text-e-indigo hover:bg-e-indigo hover:text-white transition-colors flex items-center gap-1.5"
+                className="text-sm px-4 py-2 rounded-full border border-[#ECECEC] bg-[#F7F7F7] text-[#030213] hover:bg-[#1515F5] hover:text-white hover:border-[#1515F5] transition-colors flex items-center gap-1.5"
               >
                 {option.icon && (
                   option.icon.startsWith("http") ? (

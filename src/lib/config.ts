@@ -80,6 +80,7 @@ export async function fetchConfigFromNotion(): Promise<KvConfigData> {
     search_order: searchOrder,
     fallback_instruction: config["fallback_instruction"] || DEFAULT_CONFIG.fallback_instruction,
     website_pages: websitePages.length > 0 ? websitePages : undefined,
+    system_instructions: config["system_instructions"] || undefined,
     cachedAt: Date.now(),
   };
 

@@ -47,6 +47,7 @@ export async function POST(request: NextRequest) {
     const toneOfVoice = config?.tone_of_voice ?? "professional, friendly, and helpful";
     const companyContext = config?.company_context ?? "E-Flight Academy is a flight training academy.";
     const fallbackInstruction = config?.fallback_instruction ?? "If the answer cannot be found in any of the provided sources, you may use your general knowledge to answer, but clearly state that the information does not come from E-Flight Academy's official documents or FAQs.";
+    const systemInstructions = (config as Record<string, unknown>)?.system_instructions as string | undefined;
 
     // Load website content (needs config for URL list; L1 cache makes this near-instant)
     const websitePages = await withTimeout(
@@ -99,8 +100,17 @@ export async function POST(request: NextRequest) {
     instructionParts.push(
       "Follow this search order to answer questions:",
       ...searchSteps,
-      "Keep answers concise.",
-      "At the very end of every response, on a new line, add a small source tag in this exact format: [source: X] where X is one of: FAQ, Website, Knowledge Base, General Knowledge. Pick the primary source you used for the answer."
+    );
+
+    // Append custom system instructions from Notion config
+    if (systemInstructions) {
+      instructionParts.push("", systemInstructions);
+    }
+
+    // Fixed formatting rules (always applied)
+    instructionParts.push(
+      "IMPORTANT: When mentioning URLs, email addresses, or phone numbers, always format them as markdown links. Use [text](url) for websites, [email](mailto:email) for email, and [phone](tel:phone) for phone numbers. Never use raw HTML tags.",
+      "MANDATORY: You MUST end EVERY response with a source tag on a new line in this exact format: [source: X] where X is one of: FAQ, Website, Knowledge Base, General Knowledge. This is required for every single response without exception. Pick the primary source you used."
     );
 
     if (clientLang && clientLang !== "en") {

@@ -362,16 +362,53 @@ export default function Chat() {
       .catch(() => {}); // Non-fatal
   }, [lang, sessionId]);
 
-  const rateMessage = useCallback((logId: string, rating: "👍" | "👎") => {
-    setMessages((prev) =>
-      prev.map((m) => (m.logId === logId ? { ...m, rating } : m))
-    );
-    fetch(`/api/chat/log/${encodeURIComponent(logId)}/rate`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ rating }),
-    }).catch(() => {}); // Non-fatal
-  }, []);
+  const rateMessage = useCallback((msgIndex: number, rating: "👍" | "👎") => {
+    setMessages((prev) => {
+      const msg = prev[msgIndex];
+      if (!msg) return prev;
+
+      // Optimistic UI update
+      const updated = prev.map((m, i) => (i === msgIndex ? { ...m, rating } : m));
+
+      if (msg.logId) {
+        // Already logged — just update rating
+        fetch(`/api/chat/log/${encodeURIComponent(msg.logId)}/rate`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ rating }),
+        }).catch(() => {});
+      } else {
+        // Not yet logged — find the preceding user message and log first
+        let question = "";
+        for (let i = msgIndex - 1; i >= 0; i--) {
+          if (prev[i].role === "user") { question = prev[i].content; break; }
+        }
+        const sourceMatch = msg.content.match(/\[source:\s*(.+?)\]\s*$/i);
+        const source = sourceMatch?.[1] || null;
+        fetch("/api/chat/log", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question, answer: msg.content, source, lang, sessionId }),
+        })
+          .then((res) => res.ok ? res.json() : null)
+          .then((data) => {
+            if (data?.logId) {
+              setMessages((p) =>
+                p.map((m, i) => i === msgIndex ? { ...m, logId: data.logId } : m)
+              );
+              fetch(`/api/chat/log/${encodeURIComponent(data.logId)}/rate`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ rating }),
+              }).catch(() => {});
+            }
+          })
+          .catch(() => {});
+      }
+
+      return updated;
+    });
+  }, [lang, sessionId]);
 
   const sendMessage = async (text: string) => {
     if (!text.trim()) return;
@@ -785,36 +822,34 @@ export default function Chat() {
                     {source && (
                       <span className="text-[10px] text-gray-400 dark:text-gray-600 select-none">{source}</span>
                     )}
-                    {message.logId && (
-                      <span className={`flex gap-1 ${message.rating ? "" : "opacity-0 group-hover/msg:opacity-100"} transition-opacity`}>
-                        <button
-                          onClick={() => rateMessage(message.logId!, "👍")}
-                          className={`p-1 rounded transition-colors ${
-                            message.rating === "👍"
-                              ? "text-[#1515F5]"
-                              : "text-gray-300 dark:text-gray-600 hover:text-[#1515F5]"
-                          }`}
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill={message.rating === "👍" ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M7 10v12" />
-                            <path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z" />
-                          </svg>
-                        </button>
-                        <button
-                          onClick={() => rateMessage(message.logId!, "👎")}
-                          className={`p-1 rounded transition-colors ${
-                            message.rating === "👎"
-                              ? "text-gray-500"
-                              : "text-gray-300 dark:text-gray-600 hover:text-gray-500"
-                          }`}
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill={message.rating === "👎" ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M17 14V2" />
-                            <path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z" />
-                          </svg>
-                        </button>
-                      </span>
-                    )}
+                    <span className={`flex gap-1 ${message.rating ? "" : "opacity-0 group-hover/msg:opacity-100"} transition-opacity`}>
+                      <button
+                        onClick={() => rateMessage(index, "👍")}
+                        className={`p-1 rounded transition-colors ${
+                          message.rating === "👍"
+                            ? "text-[#1515F5]"
+                            : "text-gray-300 dark:text-gray-600 hover:text-[#1515F5]"
+                        }`}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill={message.rating === "👍" ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M7 10v12" />
+                          <path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => rateMessage(index, "👎")}
+                        className={`p-1 rounded transition-colors ${
+                          message.rating === "👎"
+                            ? "text-gray-500"
+                            : "text-gray-300 dark:text-gray-600 hover:text-gray-500"
+                        }`}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill={message.rating === "👎" ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M17 14V2" />
+                          <path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z" />
+                        </svg>
+                      </button>
+                    </span>
                   </div>
                 </div>
               );

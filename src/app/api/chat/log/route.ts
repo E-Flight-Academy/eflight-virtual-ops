@@ -37,9 +37,9 @@ export async function POST(request: NextRequest) {
           ? { select: { name: source } }
           : { select: null },
         Language: lang
-          ? { select: { name: lang } }
-          : { select: null },
-        Session: sessionId
+          ? { rich_text: [{ text: { content: lang } }] }
+          : { rich_text: [] },
+        "Session ID": sessionId
           ? { rich_text: [{ text: { content: sessionId } }] }
           : { rich_text: [] },
         Timestamp: {

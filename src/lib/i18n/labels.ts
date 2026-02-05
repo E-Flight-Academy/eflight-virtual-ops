@@ -33,7 +33,7 @@ export const DEFAULT_LABELS: UiLabels = {
   "login.button": "Log in",
   "login.error.incorrect": "Incorrect password",
   "login.error.connection": "Failed to connect to the server.",
-  "header.subtitle": "Your AI assistant for flight training questions",
+  "header.subtitle": "I am Steward, how can I help you! I know a lot about E-Flight Academy...",
   "header.newChat": "New conversation",
   "header.logout": "Log out",
   "reset.confirm": "Are you sure you want to start a new conversation?",

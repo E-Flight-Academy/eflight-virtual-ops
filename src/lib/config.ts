@@ -72,7 +72,14 @@ export async function fetchConfigFromNotion(): Promise<KvConfigData> {
   const websitePages = websitePagesRaw
     .split(",")
     .map((s) => s.trim())
-    .filter((s) => s.startsWith("http"));
+    .filter(Boolean)
+    .map((s) => {
+      // Add https:// if no protocol specified
+      if (!s.startsWith("http://") && !s.startsWith("https://")) {
+        return `https://${s}`;
+      }
+      return s;
+    });
 
   const result: KvConfigData = {
     tone_of_voice: config["tone_of_voice"] || DEFAULT_CONFIG.tone_of_voice,

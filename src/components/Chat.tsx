@@ -225,6 +225,18 @@ export default function Chat() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated]);
 
+  // Check if IP is whitelisted on mount
+  useEffect(() => {
+    fetch("/api/auth/ip")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.allowed) {
+          setIsAuthenticated(true);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   // Cycling multilingual placeholder for the initial empty state
   const cyclingPlaceholders = useMemo(() => [
     "Type your question in English...",

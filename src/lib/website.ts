@@ -8,11 +8,12 @@ import {
 
 // --- Constants ---
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
-const MAX_PAGES = 20;
+const MAX_PAGES = 30;
 const MAX_CHARS_PER_PAGE = 8000;
-const MAX_TOTAL_CHARS = 40000;
+const MAX_TOTAL_CHARS = 60000;
 const FETCH_TIMEOUT_MS = 10000; // 10s per page
 const MAX_SUB_SITEMAPS = 5;
+const MAX_URLS_PER_SITEMAP = 15; // Limit URLs from each sub-sitemap
 const DEFAULT_DOMAIN = "www.eflight.nl";
 
 const DEFAULT_PAGES = [
@@ -69,22 +70,36 @@ async function fetchSitemap(domain: string): Promise<string[]> {
 
   if (sitemapLocs.length > 0) {
     console.log(`Sitemap index found with ${sitemapLocs.length} sub-sitemaps`);
+
+    // Prioritize collections and pages over products
+    const priorityOrder = ["collections", "pages", "products", "blogs"];
+    const sortedLocs = [...sitemapLocs].sort((a, b) => {
+      const aIdx = priorityOrder.findIndex((p) => a.includes(p));
+      const bIdx = priorityOrder.findIndex((p) => b.includes(p));
+      return (aIdx === -1 ? 99 : aIdx) - (bIdx === -1 ? 99 : bIdx);
+    });
+
     const allUrls: string[] = [];
-    for (const subUrl of sitemapLocs.slice(0, MAX_SUB_SITEMAPS)) {
+    for (const subUrl of sortedLocs.slice(0, MAX_SUB_SITEMAPS)) {
       try {
         const subResp = await doFetch(subUrl);
         if (!subResp.ok) continue;
         const subXml = await subResp.text();
         const sub$ = cheerio.load(subXml, { xmlMode: true });
+        const subUrls: string[] = [];
         sub$("url loc").each((_, el) => {
-          allUrls.push(sub$(el).text().trim());
+          subUrls.push(sub$(el).text().trim());
         });
+        // Limit URLs per sub-sitemap to ensure variety
+        allUrls.push(...subUrls.slice(0, MAX_URLS_PER_SITEMAP));
+        console.log(`  - ${subUrl.split("/").pop()}: ${subUrls.length} URLs (using ${Math.min(subUrls.length, MAX_URLS_PER_SITEMAP)})`);
       } catch {
         console.warn(`Failed to fetch sub-sitemap: ${subUrl}`);
       }
     }
-    const filtered = allUrls.filter((u) => u.includes(domain));
-    console.log(`Discovered ${filtered.length} URLs from sitemap index`);
+    // Remove duplicates and filter by domain
+    const filtered = [...new Set(allUrls)].filter((u) => u.includes(domain));
+    console.log(`Discovered ${filtered.length} unique URLs from sitemap index`);
     return filtered;
   }
 

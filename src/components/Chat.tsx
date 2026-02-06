@@ -340,6 +340,19 @@ export default function Chat() {
     }
   }, [lang, flowPhase, currentFlowStep, getFlowMessage, messages]);
 
+  // Brief delay to show thinking dots for instant answers
+  const showWithThinkingDelay = useCallback(async (
+    baseMessages: Message[],
+    answer: string,
+    onComplete?: () => void
+  ) => {
+    setIsLoading(true);
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    setMessages([...baseMessages, { role: "assistant", content: answer }]);
+    setIsLoading(false);
+    onComplete?.();
+  }, []);
+
   const findInstantAnswer = (text: string): { answer: string; url?: string } | null => {
     const q = text.trim().toLowerCase();
     // Check starters (match any language version) - starters don't have URLs
@@ -384,7 +397,9 @@ export default function Chat() {
         const faqUrl = currentFlowStep.relatedFaqUrl;
         const answerWithUrl = faqUrl ? `${faqAnswer}\n\n[${faqUrl}](${faqUrl})` : faqAnswer;
         const answerWithSource = `${answerWithUrl}\n\n[source: FAQ]`;
-        setMessages([...messages, faqUserMsg, { role: "assistant", content: answerWithSource }]);
+        const baseMessages = [...messages, faqUserMsg];
+        setMessages(baseMessages);
+        showWithThinkingDelay(baseMessages, answerWithSource);
         return;
       }
       // Otherwise use endPrompt with Gemini
@@ -420,10 +435,11 @@ export default function Chat() {
         const faqUrl = nextStep.relatedFaqUrl;
         const answerWithUrl = faqUrl ? `${faqAnswer}\n\n[${faqUrl}](${faqUrl})` : faqAnswer;
         const answerWithSource = `${answerWithUrl}\n\n[source: FAQ]`;
-        const updatedMessages = nextMsg
-          ? [...messages, userMsg, { role: "assistant" as const, content: nextMsg }, faqUserMsg, { role: "assistant" as const, content: answerWithSource }]
-          : [...messages, faqUserMsg, { role: "assistant" as const, content: answerWithSource }];
-        setMessages(updatedMessages);
+        const baseMessages = nextMsg
+          ? [...messages, userMsg, { role: "assistant" as const, content: nextMsg }, faqUserMsg]
+          : [...messages, faqUserMsg];
+        setMessages(baseMessages);
+        showWithThinkingDelay(baseMessages, answerWithSource);
         return;
       }
       // Otherwise use endPrompt with Gemini
@@ -552,8 +568,7 @@ export default function Chat() {
           ? `${instantResult.answer}\n\n[${instantResult.url}](${instantResult.url})`
           : instantResult.answer;
         const answerWithSource = `${answerWithUrl}\n\n[source: FAQ]`;
-        setMessages([...displayMessages, { role: "assistant", content: answerWithSource }]);
-        logChat(text, answerWithSource);
+        showWithThinkingDelay(displayMessages, answerWithSource, () => logChat(text, answerWithSource));
         return;
       }
     }

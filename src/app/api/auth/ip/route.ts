@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const ALLOWED_IPS = [
-  "82.217.95.165",
+  "94.210.241.239",  // Zeeweg 10
+  "77.63.100.95",    // Zeeweg 10 2
+  "82.217.95.165",   // Zeeweg 10 3
+  "81.172.250.251",  // De Zanden 167
 ];
 
 export async function GET(request: NextRequest) {

@@ -131,9 +131,9 @@ export async function fetchFlowsFromNotion(): Promise<KvFlowStep[]> {
             }
             return "";
           };
-          // Extract URL
+          // Extract Link
           const getUrl = (): string => {
-            const urlProp = faqProps["URL"] as { type: string; url?: string | null } | undefined;
+            const urlProp = faqProps["Link"] as { type: string; url?: string | null } | undefined;
             return urlProp?.type === "url" && urlProp.url ? urlProp.url : "";
           };
           relatedFaqQuestion = getTitle();

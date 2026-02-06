@@ -33,7 +33,8 @@
       "Bash(xxd:*)",
       "Bash(lsof:*)",
       "Bash(git rm:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(SHOPIFY_STOREFRONT_TOKEN=\"902c0541a94c511b6c94c90f7402cc71\" npx tsx:*)"
     ]
   }
 }

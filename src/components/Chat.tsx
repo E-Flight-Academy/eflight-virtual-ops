@@ -51,6 +51,7 @@ interface KbStatus {
   fileNames: string[];
   lastSynced: string | null;
   faqCount?: number;
+  websitePageCount?: number;
 }
 
 function timeAgo(isoDate: string): string {
@@ -90,6 +91,7 @@ export default function Chat() {
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const sharedChatIdRef = useRef(searchParams.get("chat"));
+  const debugMode = searchParams.get("debug") === "true";
   const pollCountRef = useRef(0);
 
   const scrollToBottom = () => {
@@ -1151,7 +1153,8 @@ export default function Chat() {
         </div>
       )}
 
-      {/* Knowledge base status bar */}
+      {/* Knowledge base status bar - only visible with ?debug=true */}
+      {debugMode && (
       <div className="border-t border-e-pale dark:border-gray-800">
         <button
           onClick={() => setKbExpanded(!kbExpanded)}
@@ -1170,6 +1173,7 @@ export default function Chat() {
             <span>
               {t("kb.label")} &middot; {kbStatus.fileCount} {t("kb.files")}
               {kbStatus.faqCount != null && <> &middot; {kbStatus.faqCount} {t("kb.faqs")}</>}
+              {kbStatus.websitePageCount != null && <> &middot; {kbStatus.websitePageCount} pages</>}
               {kbStatus.lastSynced && <> &middot; {t("kb.synced")} {timeAgo(kbStatus.lastSynced)}</>}
             </span>
           ) : kbStatus?.status === "loading" ? (
@@ -1229,6 +1233,7 @@ export default function Chat() {
           v{process.env.NEXT_PUBLIC_VERSION} ({process.env.NEXT_PUBLIC_BUILD_ID})
         </div>
       </div>
+      )}
 
       {showFaqModal && (
         <FaqModal

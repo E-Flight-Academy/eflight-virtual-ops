@@ -33,6 +33,9 @@ interface FlowStep {
   endPrompt: string;
   endPromptNl: string;
   endPromptDe: string;
+  relatedFaqAnswer: string;
+  relatedFaqAnswerNl: string;
+  relatedFaqAnswerDe: string;
   order: number;
 }
 
@@ -297,6 +300,24 @@ export default function Chat() {
     return step.endPrompt;
   }, [lang]);
 
+  const getFlowFaqAnswer = useCallback((step: FlowStep) => {
+    if (lang === "nl" && step.relatedFaqAnswerNl) return step.relatedFaqAnswerNl;
+    if (lang === "de" && step.relatedFaqAnswerDe) return step.relatedFaqAnswerDe;
+    return step.relatedFaqAnswer;
+  }, [lang]);
+
+  // Update flow messages when language changes
+  useEffect(() => {
+    if (flowPhase !== "active" || !currentFlowStep) return;
+    // Only update if we're showing just the welcome message (no user messages yet)
+    if (messages.length === 1 && messages[0].role === "assistant") {
+      const translatedMsg = getFlowMessage(currentFlowStep);
+      if (messages[0].content !== translatedMsg) {
+        setMessages([{ role: "assistant", content: translatedMsg }]);
+      }
+    }
+  }, [lang, flowPhase, currentFlowStep, getFlowMessage, messages]);
+
   const findInstantAnswer = (text: string): string | null => {
     const q = text.trim().toLowerCase();
     // Check starters (match any language version)
@@ -331,9 +352,17 @@ export default function Chat() {
 
     // Check if flow should end after this step
     if (currentFlowStep.endAction === "Start AI Chat") {
-      const prompt = getFlowEndPrompt(currentFlowStep);
       setFlowPhase("completed");
       setCurrentFlowStep(null);
+      // If there's a linked FAQ, show it directly instead of calling Gemini
+      const faqAnswer = getFlowFaqAnswer(currentFlowStep);
+      if (faqAnswer) {
+        const answerWithSource = `${faqAnswer}\n\n[source: FAQ]`;
+        setMessages([...messages, userMsg, { role: "assistant", content: answerWithSource }]);
+        return;
+      }
+      // Otherwise use endPrompt with Gemini
+      const prompt = getFlowEndPrompt(currentFlowStep);
       const updatedMessages = [...messages, userMsg];
       setMessages(updatedMessages);
       if (prompt) {
@@ -352,12 +381,23 @@ export default function Chat() {
       return;
     }
 
-    // If the next step immediately ends the flow, trigger its endPrompt
+    // If the next step immediately ends the flow, trigger its endPrompt or show FAQ
     if (nextStep.endAction === "Start AI Chat") {
-      const prompt = getFlowEndPrompt(nextStep);
       setFlowPhase("completed");
       setCurrentFlowStep(null);
       const nextMsg = getFlowMessage(nextStep);
+      // If there's a linked FAQ, show it directly
+      const faqAnswer = getFlowFaqAnswer(nextStep);
+      if (faqAnswer) {
+        const answerWithSource = `${faqAnswer}\n\n[source: FAQ]`;
+        const updatedMessages = nextMsg
+          ? [...messages, userMsg, { role: "assistant" as const, content: nextMsg }, { role: "assistant" as const, content: answerWithSource }]
+          : [...messages, userMsg, { role: "assistant" as const, content: answerWithSource }];
+        setMessages(updatedMessages);
+        return;
+      }
+      // Otherwise use endPrompt with Gemini
+      const prompt = getFlowEndPrompt(nextStep);
       const updatedMessages = nextMsg
         ? [...messages, userMsg, { role: "assistant" as const, content: nextMsg }]
         : [...messages, userMsg];

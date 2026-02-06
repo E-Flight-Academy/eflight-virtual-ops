@@ -45,6 +45,7 @@ export async function fetchFlowsFromNotion(): Promise<KvFlowStep[]> {
     let endPrompt = "";
     let order = 0;
     let relationIds: string[] = [];
+    let relatedFaqId: string | null = null;
 
     for (const [key, value] of Object.entries(props)) {
       if (value.type === "title" && value.title.length > 0) {
@@ -90,6 +91,38 @@ export async function fetchFlowsFromNotion(): Promise<KvFlowStep[]> {
       }
       if (key === "Order" && value.type === "number") {
         order = value.number ?? 0;
+      }
+      if (key === "Related FAQ" && value.type === "relation") {
+        const rels = value.relation as { id: string }[];
+        if (rels.length > 0) {
+          relatedFaqId = rels[0].id;
+        }
+      }
+    }
+
+    // Fetch Related FAQ answer if linked
+    let relatedFaqAnswer = "";
+    let relatedFaqAnswerNl = "";
+    let relatedFaqAnswerDe = "";
+    if (relatedFaqId) {
+      try {
+        const faqPage = await notion.pages.retrieve({ page_id: relatedFaqId });
+        if ("properties" in faqPage) {
+          const faqProps = faqPage.properties as Record<string, unknown>;
+          // Extract answers in all languages
+          const getAnswer = (propName: string): string => {
+            const prop = faqProps[propName] as { type: string; rich_text: { plain_text: string }[] } | undefined;
+            if (prop?.type === "rich_text" && prop.rich_text.length > 0) {
+              return prop.rich_text.map((t) => t.plain_text).join("");
+            }
+            return "";
+          };
+          relatedFaqAnswer = getAnswer("Answer (EN)");
+          relatedFaqAnswerNl = getAnswer("Answer (NL)");
+          relatedFaqAnswerDe = getAnswer("Answer (DE)");
+        }
+      } catch (err) {
+        console.warn(`Failed to fetch Related FAQ ${relatedFaqId}:`, err);
       }
     }
 
@@ -142,7 +175,7 @@ export async function fetchFlowsFromNotion(): Promise<KvFlowStep[]> {
     }
 
     if (name && (message || endAction === "Start AI Chat")) {
-      steps.push({ name, message, messageNl: "", messageDe: "", nextDialogFlow, endAction, contextKey, endPrompt, endPromptNl: "", endPromptDe: "", order });
+      steps.push({ name, message, messageNl: "", messageDe: "", nextDialogFlow, endAction, contextKey, endPrompt, endPromptNl: "", endPromptDe: "", relatedFaqAnswer, relatedFaqAnswerNl, relatedFaqAnswerDe, order });
     }
   }
 

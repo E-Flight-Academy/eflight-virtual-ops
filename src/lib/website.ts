@@ -8,12 +8,12 @@ import {
 
 // --- Constants ---
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
-const MAX_PAGES = 30;
+const MAX_PAGES = 200;
 const MAX_CHARS_PER_PAGE = 8000;
-const MAX_TOTAL_CHARS = 60000;
+const MAX_TOTAL_CHARS = 500000; // 500K chars ≈ 150K tokens
 const FETCH_TIMEOUT_MS = 10000; // 10s per page
-const MAX_SUB_SITEMAPS = 5;
-const MAX_URLS_PER_SITEMAP = 15; // Limit URLs from each sub-sitemap
+const MAX_SUB_SITEMAPS = 10;
+const MAX_URLS_PER_SITEMAP = 50; // Limit URLs from each sub-sitemap
 const DEFAULT_DOMAIN = "www.eflight.nl";
 
 const DEFAULT_PAGES = [

@@ -101,9 +101,13 @@ export async function fetchFaqsFromNotion(): Promise<KvFaq[]> {
       ? audProp.multi_select.map((s) => s.name)
       : [];
 
+    // URL (url property)
+    const urlProp = props["URL"] as { type: string; url?: string | null } | undefined;
+    const url = urlProp?.type === "url" && urlProp.url ? urlProp.url : "";
+
     // Include if at least one Q+A pair exists
     if (question && (answer || answerNl || answerDe)) {
-      faqs.push({ question, questionNl, questionDe, answer, answerNl, answerDe, category, audience });
+      faqs.push({ question, questionNl, questionDe, answer, answerNl, answerDe, category, audience, url });
     }
   }
 

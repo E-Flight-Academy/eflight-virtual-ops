@@ -39,6 +39,7 @@ interface FlowStep {
   relatedFaqAnswer: string;
   relatedFaqAnswerNl: string;
   relatedFaqAnswerDe: string;
+  relatedFaqUrl: string;
   order: number;
 }
 
@@ -73,7 +74,7 @@ export default function Chat() {
   const [kbStatus, setKbStatus] = useState<KbStatus | null>(null);
   const [kbExpanded, setKbExpanded] = useState(false);
   const [starters, setStarters] = useState<{ question: string; questionNl: string; questionDe: string; answer: string; answerNl: string; answerDe: string }[]>([]);
-  const [faqs, setFaqs] = useState<{ question: string; questionNl: string; questionDe: string; answer: string; answerNl: string; answerDe: string; category: string; audience: string[] }[]>([]);
+  const [faqs, setFaqs] = useState<{ question: string; questionNl: string; questionDe: string; answer: string; answerNl: string; answerDe: string; category: string; audience: string[]; url: string }[]>([]);
   const [showFaqModal, setShowFaqModal] = useState(false);
   const [phIndex, setPhIndex] = useState(0);
   const [phVisible, setPhVisible] = useState(true);
@@ -339,22 +340,22 @@ export default function Chat() {
     }
   }, [lang, flowPhase, currentFlowStep, getFlowMessage, messages]);
 
-  const findInstantAnswer = (text: string): string | null => {
+  const findInstantAnswer = (text: string): { answer: string; url?: string } | null => {
     const q = text.trim().toLowerCase();
-    // Check starters (match any language version)
+    // Check starters (match any language version) - starters don't have URLs
     const starter = starters.find((s) =>
       s.question.toLowerCase() === q ||
       s.questionNl.toLowerCase() === q ||
       s.questionDe.toLowerCase() === q
     );
-    if (starter) { const a = getA(starter); if (a) return a; }
+    if (starter) { const a = getA(starter); if (a) return { answer: a }; }
     // Check all FAQs (match any language version)
     const faq = faqs.find((f) =>
       f.question.toLowerCase() === q ||
       f.questionNl.toLowerCase() === q ||
       f.questionDe.toLowerCase() === q
     );
-    if (faq) { const a = getA(faq); if (a) return a; }
+    if (faq) { const a = getA(faq); if (a) return { answer: a, url: faq.url || undefined }; }
     return null;
   };
 
@@ -380,7 +381,9 @@ export default function Chat() {
       const faqAnswer = getFlowFaqAnswer(currentFlowStep);
       if (faqAnswer) {
         const faqUserMsg: Message = { role: "user", content: faqQuestion || displayLabel };
-        const answerWithSource = `${faqAnswer}\n\n[source: FAQ]`;
+        const faqUrl = currentFlowStep.relatedFaqUrl;
+        const answerWithUrl = faqUrl ? `${faqAnswer}\n\n[${faqUrl}](${faqUrl})` : faqAnswer;
+        const answerWithSource = `${answerWithUrl}\n\n[source: FAQ]`;
         setMessages([...messages, faqUserMsg, { role: "assistant", content: answerWithSource }]);
         return;
       }
@@ -414,7 +417,9 @@ export default function Chat() {
       const faqAnswer = getFlowFaqAnswer(nextStep);
       if (faqAnswer) {
         const faqUserMsg: Message = { role: "user", content: faqQuestion || displayLabel };
-        const answerWithSource = `${faqAnswer}\n\n[source: FAQ]`;
+        const faqUrl = nextStep.relatedFaqUrl;
+        const answerWithUrl = faqUrl ? `${faqAnswer}\n\n[${faqUrl}](${faqUrl})` : faqAnswer;
+        const answerWithSource = `${answerWithUrl}\n\n[source: FAQ]`;
         const updatedMessages = nextMsg
           ? [...messages, userMsg, { role: "assistant" as const, content: nextMsg }, faqUserMsg, { role: "assistant" as const, content: answerWithSource }]
           : [...messages, faqUserMsg, { role: "assistant" as const, content: answerWithSource }];
@@ -541,9 +546,12 @@ export default function Chat() {
 
     // Instant answer from FAQ/starter — skip for hidden prompts
     if (!hidden) {
-      const instantAnswer = findInstantAnswer(text);
-      if (instantAnswer) {
-        const answerWithSource = `${instantAnswer}\n\n[source: FAQ]`;
+      const instantResult = findInstantAnswer(text);
+      if (instantResult) {
+        const answerWithUrl = instantResult.url
+          ? `${instantResult.answer}\n\n[${instantResult.url}](${instantResult.url})`
+          : instantResult.answer;
+        const answerWithSource = `${answerWithUrl}\n\n[source: FAQ]`;
         setMessages([...displayMessages, { role: "assistant", content: answerWithSource }]);
         logChat(text, answerWithSource);
         return;

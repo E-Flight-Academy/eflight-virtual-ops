@@ -80,6 +80,7 @@ export interface KvFaq {
   answerDe: string;
   category: string;
   audience: string[];
+  url: string;
 }
 
 export interface KvFaqsData {
@@ -112,6 +113,7 @@ export interface KvFlowStep {
   relatedFaqAnswer: string;
   relatedFaqAnswerNl: string;
   relatedFaqAnswerDe: string;
+  relatedFaqUrl: string;
   order: number;
 }
 

@@ -107,6 +107,7 @@ export async function fetchFlowsFromNotion(): Promise<KvFlowStep[]> {
     let relatedFaqAnswer = "";
     let relatedFaqAnswerNl = "";
     let relatedFaqAnswerDe = "";
+    let relatedFaqUrl = "";
     if (relatedFaqId) {
       try {
         const faqPage = await notion.pages.retrieve({ page_id: relatedFaqId });
@@ -130,12 +131,18 @@ export async function fetchFlowsFromNotion(): Promise<KvFlowStep[]> {
             }
             return "";
           };
+          // Extract URL
+          const getUrl = (): string => {
+            const urlProp = faqProps["URL"] as { type: string; url?: string | null } | undefined;
+            return urlProp?.type === "url" && urlProp.url ? urlProp.url : "";
+          };
           relatedFaqQuestion = getTitle();
           relatedFaqQuestionNl = getText("Question (NL)");
           relatedFaqQuestionDe = getText("Question (DE)");
           relatedFaqAnswer = getText("Answer (EN)");
           relatedFaqAnswerNl = getText("Answer (NL)");
           relatedFaqAnswerDe = getText("Answer (DE)");
+          relatedFaqUrl = getUrl();
         }
       } catch (err) {
         console.warn(`Failed to fetch Related FAQ ${relatedFaqId}:`, err);
@@ -191,7 +198,7 @@ export async function fetchFlowsFromNotion(): Promise<KvFlowStep[]> {
     }
 
     if (name && (message || endAction === "Start AI Chat")) {
-      steps.push({ name, message, messageNl: "", messageDe: "", nextDialogFlow, endAction, contextKey, endPrompt, endPromptNl: "", endPromptDe: "", relatedFaqQuestion, relatedFaqQuestionNl, relatedFaqQuestionDe, relatedFaqAnswer, relatedFaqAnswerNl, relatedFaqAnswerDe, order });
+      steps.push({ name, message, messageNl: "", messageDe: "", nextDialogFlow, endAction, contextKey, endPrompt, endPromptNl: "", endPromptDe: "", relatedFaqQuestion, relatedFaqQuestionNl, relatedFaqQuestionDe, relatedFaqAnswer, relatedFaqAnswerNl, relatedFaqAnswerDe, relatedFaqUrl, order });
     }
   }
 

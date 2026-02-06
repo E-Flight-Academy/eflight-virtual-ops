@@ -3,6 +3,7 @@ import { syncStarters } from "@/lib/starters";
 import { syncFaqs } from "@/lib/faq";
 import { syncWebsite } from "@/lib/website";
 import { syncFlows } from "@/lib/guided-flows";
+import { syncProducts } from "@/lib/shopify";
 import { getConfig } from "@/lib/config";
 import { getKvStatus, setKvStatus } from "@/lib/kv-cache";
 
@@ -32,7 +33,7 @@ async function handleSync(request: NextRequest) {
 
   try {
     const config = await getConfig().catch(() => null);
-    const [starters, faqs, websitePages, flowSteps] = await Promise.all([
+    const [starters, faqs, websitePages, flowSteps, products] = await Promise.all([
       syncStarters(),
       syncFaqs(),
       syncWebsite(config?.website_pages).catch((err) => {
@@ -41,6 +42,10 @@ async function handleSync(request: NextRequest) {
       }),
       syncFlows().catch((err) => {
         console.warn("Flows sync failed:", err);
+        return [];
+      }),
+      syncProducts().catch((err) => {
+        console.warn("Shopify sync failed:", err);
         return [];
       }),
     ]);
@@ -61,6 +66,7 @@ async function handleSync(request: NextRequest) {
       faqs: { count: faqs.length },
       website: { count: websitePages.length, urls: websitePages.map((p) => p.url) },
       flows: { count: flowSteps.length, names: flowSteps.map((s) => s.name) },
+      products: { count: products.length, titles: products.map((p) => p.title) },
     });
   } catch (err) {
     console.error("Notion sync failed:", err);

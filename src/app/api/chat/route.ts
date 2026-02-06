@@ -4,6 +4,7 @@ import { getDocumentContext } from "@/lib/documents";
 import { getConfig } from "@/lib/config";
 import { getFaqs, buildFaqContext } from "@/lib/faq";
 import { getWebsiteContent, buildWebsiteContext } from "@/lib/website";
+import { getProducts, buildProductsContext } from "@/lib/shopify";
 import { detectLanguage } from "@/lib/i18n/detect";
 import { getTranslations } from "@/lib/i18n/translate";
 
@@ -49,14 +50,23 @@ export async function POST(request: NextRequest) {
     const fallbackInstruction = config?.fallback_instruction ?? "If the answer cannot be found in any of the provided sources, you may use your general knowledge to answer, but clearly state that the information does not come from E-Flight Academy's official documents or FAQs.";
     const systemInstructions = (config as Record<string, unknown>)?.system_instructions as string | undefined;
 
-    // Load website content (needs config for URL list; L1 cache makes this near-instant)
-    const websitePages = await withTimeout(
-      getWebsiteContent(config?.website_pages).catch((err) => {
-        console.error("Failed to load website content:", err);
-        return [] as never[];
-      }),
-      10000, []
-    );
+    // Load website content and products in parallel (L1 cache makes this near-instant)
+    const [websitePages, products] = await Promise.all([
+      withTimeout(
+        getWebsiteContent(config?.website_pages).catch((err) => {
+          console.error("Failed to load website content:", err);
+          return [] as never[];
+        }),
+        10000, []
+      ),
+      withTimeout(
+        getProducts().catch((err) => {
+          console.error("Failed to load products:", err);
+          return [] as never[];
+        }),
+        5000, []
+      ),
+    ]);
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
@@ -89,6 +99,13 @@ export async function POST(request: NextRequest) {
     if (searchOrder.includes("website") && websitePages.length > 0) {
       searchSteps.push(
         `${stepNum}. Check the Website Content section for information from the E-Flight Academy website.`
+      );
+      stepNum++;
+    }
+
+    if (products.length > 0) {
+      searchSteps.push(
+        `${stepNum}. For questions about products, merchandise, or prices, refer to the Shop Products section.`
       );
       stepNum++;
     }
@@ -149,6 +166,11 @@ export async function POST(request: NextRequest) {
     // Append Website context
     if (searchOrder.includes("website") && websitePages.length > 0) {
       instructionParts.push("", buildWebsiteContext(websitePages));
+    }
+
+    // Append Products context
+    if (products.length > 0) {
+      instructionParts.push("", buildProductsContext(products));
     }
 
     const systemInstruction = instructionParts.join("\n");

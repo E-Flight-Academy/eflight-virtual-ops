@@ -17,6 +17,8 @@ const KB_WEBSITE_KEY = "kb:website";
 const WEBSITE_TTL = 21600;      // 6 hours
 const KB_FLOWS_KEY = "kb:flows";
 const FLOWS_TTL = 3600;         // 1 hour
+const KB_PRODUCTS_KEY = "kb:products";
+const PRODUCTS_TTL = 21600;     // 6 hours
 const I18N_KEY_PREFIX = "i18n:";
 const I18N_TTL = 2592000;       // 30 days
 const I18N_STARTERS_KEY_PREFIX = "i18n:starters:";
@@ -119,6 +121,30 @@ export interface KvFlowStep {
 
 export interface KvFlowsData {
   steps: KvFlowStep[];
+  cachedAt: number;
+}
+
+export interface KvProductVariant {
+  title: string;
+  price: number;
+  available: boolean;
+}
+
+export interface KvProduct {
+  title: string;
+  handle: string;
+  description: string;
+  productType: string;
+  tags: string[];
+  minPrice: number;
+  maxPrice: number;
+  currency: string;
+  variants: KvProductVariant[];
+  url: string;
+}
+
+export interface KvProductsData {
+  products: KvProduct[];
   cachedAt: number;
 }
 
@@ -296,6 +322,27 @@ export async function setKvFlows(data: KvFlowsData): Promise<void> {
     const r = getRedis();
     if (!r) return;
     await r.set(KB_FLOWS_KEY, data, { ex: FLOWS_TTL });
+  } catch {
+    // Non-fatal
+  }
+}
+
+// --- Products (Shopify) ---
+export async function getKvProducts(): Promise<KvProductsData | null> {
+  try {
+    const r = getRedis();
+    if (!r) return null;
+    return await r.get<KvProductsData>(KB_PRODUCTS_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export async function setKvProducts(data: KvProductsData): Promise<void> {
+  try {
+    const r = getRedis();
+    if (!r) return;
+    await r.set(KB_PRODUCTS_KEY, data, { ex: PRODUCTS_TTL });
   } catch {
     // Non-fatal
   }

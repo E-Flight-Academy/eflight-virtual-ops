@@ -457,12 +457,16 @@ export default function Chat() {
     }
 
     // If user types during active flow, end flow gracefully
-    if (flowPhase === "active") {
+    // and clear the welcome message so the user's question appears at the top
+    let base = baseMessages ?? messages;
+    if (flowPhase === "active" && !baseMessages) {
+      setFlowPhase("completed");
+      setCurrentFlowStep(null);
+      base = [];
+    } else if (flowPhase === "active") {
       setFlowPhase("completed");
       setCurrentFlowStep(null);
     }
-
-    const base = baseMessages ?? messages;
     const userMessage: Message = { role: "user", content: text };
     // API always sees the prompt; UI only shows it when not hidden
     const apiMessages = [...base, userMessage];

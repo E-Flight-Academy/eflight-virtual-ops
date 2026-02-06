@@ -14,7 +14,26 @@
       "Bash(git push)",
       "Bash(git commit:*)",
       "WebFetch(domain:eflight-virtual-ops.vercel.app)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(node -e:*)",
+      "Bash(source .env.local)",
+      "Bash(node:*)",
+      "Bash(gh api:*)",
+      "Bash(npm ls:*)",
+      "Bash(git fetch:*)",
+      "Bash(vercel ls:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(tree:*)",
+      "Bash(vercel env:*)",
+      "Bash(npx:*)",
+      "Bash(python3:*)",
+      "Bash(source \"/Users/matthijscollard/Library/CloudStorage/GoogleDrive-matthijs@eflight.nl/Shared drives/E-Flight Academy/13_IT/virtual-ops/eflight-virtual-ops/.env.local\")",
+      "WebFetch(domain:e-flight.nl)",
+      "Bash(git rev-parse:*)",
+      "Bash(xxd:*)",
+      "Bash(lsof:*)",
+      "Bash(git rm:*)",
+      "WebSearch"
     ]
   }
 }

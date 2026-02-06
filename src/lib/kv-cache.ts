@@ -106,6 +106,9 @@ export interface KvFlowStep {
   endPrompt: string;
   endPromptNl: string;
   endPromptDe: string;
+  relatedFaqQuestion: string;
+  relatedFaqQuestionNl: string;
+  relatedFaqQuestionDe: string;
   relatedFaqAnswer: string;
   relatedFaqAnswerNl: string;
   relatedFaqAnswerDe: string;

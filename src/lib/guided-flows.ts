@@ -100,7 +100,10 @@ export async function fetchFlowsFromNotion(): Promise<KvFlowStep[]> {
       }
     }
 
-    // Fetch Related FAQ answer if linked
+    // Fetch Related FAQ question and answer if linked
+    let relatedFaqQuestion = "";
+    let relatedFaqQuestionNl = "";
+    let relatedFaqQuestionDe = "";
     let relatedFaqAnswer = "";
     let relatedFaqAnswerNl = "";
     let relatedFaqAnswerDe = "";
@@ -109,17 +112,30 @@ export async function fetchFlowsFromNotion(): Promise<KvFlowStep[]> {
         const faqPage = await notion.pages.retrieve({ page_id: relatedFaqId });
         if ("properties" in faqPage) {
           const faqProps = faqPage.properties as Record<string, unknown>;
-          // Extract answers in all languages
-          const getAnswer = (propName: string): string => {
+          // Extract text from rich_text property
+          const getText = (propName: string): string => {
             const prop = faqProps[propName] as { type: string; rich_text: { plain_text: string }[] } | undefined;
             if (prop?.type === "rich_text" && prop.rich_text.length > 0) {
               return prop.rich_text.map((t) => t.plain_text).join("");
             }
             return "";
           };
-          relatedFaqAnswer = getAnswer("Answer (EN)");
-          relatedFaqAnswerNl = getAnswer("Answer (NL)");
-          relatedFaqAnswerDe = getAnswer("Answer (DE)");
+          // Extract title (Question)
+          const getTitle = (): string => {
+            for (const val of Object.values(faqProps)) {
+              const v = val as { type: string; title: { plain_text: string }[] };
+              if (v.type === "title" && v.title.length > 0) {
+                return v.title.map((t) => t.plain_text).join("");
+              }
+            }
+            return "";
+          };
+          relatedFaqQuestion = getTitle();
+          relatedFaqQuestionNl = getText("Question (NL)");
+          relatedFaqQuestionDe = getText("Question (DE)");
+          relatedFaqAnswer = getText("Answer (EN)");
+          relatedFaqAnswerNl = getText("Answer (NL)");
+          relatedFaqAnswerDe = getText("Answer (DE)");
         }
       } catch (err) {
         console.warn(`Failed to fetch Related FAQ ${relatedFaqId}:`, err);
@@ -175,7 +191,7 @@ export async function fetchFlowsFromNotion(): Promise<KvFlowStep[]> {
     }
 
     if (name && (message || endAction === "Start AI Chat")) {
-      steps.push({ name, message, messageNl: "", messageDe: "", nextDialogFlow, endAction, contextKey, endPrompt, endPromptNl: "", endPromptDe: "", relatedFaqAnswer, relatedFaqAnswerNl, relatedFaqAnswerDe, order });
+      steps.push({ name, message, messageNl: "", messageDe: "", nextDialogFlow, endAction, contextKey, endPrompt, endPromptNl: "", endPromptDe: "", relatedFaqQuestion, relatedFaqQuestionNl, relatedFaqQuestionDe, relatedFaqAnswer, relatedFaqAnswerNl, relatedFaqAnswerDe, order });
     }
   }
 

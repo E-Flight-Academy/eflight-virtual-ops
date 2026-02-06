@@ -33,6 +33,9 @@ interface FlowStep {
   endPrompt: string;
   endPromptNl: string;
   endPromptDe: string;
+  relatedFaqQuestion: string;
+  relatedFaqQuestionNl: string;
+  relatedFaqQuestionDe: string;
   relatedFaqAnswer: string;
   relatedFaqAnswerNl: string;
   relatedFaqAnswerDe: string;
@@ -312,6 +315,12 @@ export default function Chat() {
     return step.endPrompt;
   }, [lang]);
 
+  const getFlowFaqQuestion = useCallback((step: FlowStep) => {
+    if (lang === "nl" && step.relatedFaqQuestionNl) return step.relatedFaqQuestionNl;
+    if (lang === "de" && step.relatedFaqQuestionDe) return step.relatedFaqQuestionDe;
+    return step.relatedFaqQuestion;
+  }, [lang]);
+
   const getFlowFaqAnswer = useCallback((step: FlowStep) => {
     if (lang === "nl" && step.relatedFaqAnswerNl) return step.relatedFaqAnswerNl;
     if (lang === "de" && step.relatedFaqAnswerDe) return step.relatedFaqAnswerDe;
@@ -366,11 +375,13 @@ export default function Chat() {
     if (currentFlowStep.endAction === "Start AI Chat") {
       setFlowPhase("completed");
       setCurrentFlowStep(null);
-      // If there's a linked FAQ, show it directly instead of calling Gemini
+      // If there's a linked FAQ, show the FAQ question and answer directly
+      const faqQuestion = getFlowFaqQuestion(currentFlowStep);
       const faqAnswer = getFlowFaqAnswer(currentFlowStep);
       if (faqAnswer) {
+        const faqUserMsg: Message = { role: "user", content: faqQuestion || displayLabel };
         const answerWithSource = `${faqAnswer}\n\n[source: FAQ]`;
-        setMessages([...messages, userMsg, { role: "assistant", content: answerWithSource }]);
+        setMessages([...messages, faqUserMsg, { role: "assistant", content: answerWithSource }]);
         return;
       }
       // Otherwise use endPrompt with Gemini
@@ -398,13 +409,15 @@ export default function Chat() {
       setFlowPhase("completed");
       setCurrentFlowStep(null);
       const nextMsg = getFlowMessage(nextStep);
-      // If there's a linked FAQ, show it directly
+      // If there's a linked FAQ, show the FAQ question and answer directly
+      const faqQuestion = getFlowFaqQuestion(nextStep);
       const faqAnswer = getFlowFaqAnswer(nextStep);
       if (faqAnswer) {
+        const faqUserMsg: Message = { role: "user", content: faqQuestion || displayLabel };
         const answerWithSource = `${faqAnswer}\n\n[source: FAQ]`;
         const updatedMessages = nextMsg
-          ? [...messages, userMsg, { role: "assistant" as const, content: nextMsg }, { role: "assistant" as const, content: answerWithSource }]
-          : [...messages, userMsg, { role: "assistant" as const, content: answerWithSource }];
+          ? [...messages, userMsg, { role: "assistant" as const, content: nextMsg }, faqUserMsg, { role: "assistant" as const, content: answerWithSource }]
+          : [...messages, faqUserMsg, { role: "assistant" as const, content: answerWithSource }];
         setMessages(updatedMessages);
         return;
       }

@@ -23,6 +23,14 @@ let fetchInProgress: Promise<DocumentContext> | null = null;
 
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 
+export async function clearDocumentCache(): Promise<void> {
+  cachedContext = null;
+  cacheTimestamp = 0;
+  fetchInProgress = null;
+  // Note: KV cache will be overwritten by the next fetch
+  console.log("Document cache cleared");
+}
+
 // L2: Try to restore from KV
 async function tryRestoreFromKv(): Promise<DocumentContext | null> {
   try {

@@ -1,12 +1,16 @@
-import { NextResponse } from "next/server";
-import { getDocumentContext } from "@/lib/documents";
+import { NextRequest, NextResponse } from "next/server";
+import { getDocumentContext, clearDocumentCache } from "@/lib/documents";
 import { getKvStatus, setKvStatus } from "@/lib/kv-cache";
 import { getWebsiteContent } from "@/lib/website";
 import { getConfig } from "@/lib/config";
 
 export const maxDuration = 120;
 
-async function warmUp() {
+async function warmUp(force: boolean = false) {
+  // Force refresh: clear caches first
+  if (force) {
+    await clearDocumentCache();
+  }
   // Check if another instance is already warming
   try {
     const currentStatus = await getKvStatus();
@@ -70,11 +74,13 @@ async function warmUp() {
 }
 
 // POST: called by frontend on login
-export async function POST() {
-  return warmUp();
+export async function POST(request: NextRequest) {
+  const force = request.nextUrl.searchParams.get("force") === "true";
+  return warmUp(force);
 }
 
 // GET: called by Vercel cron
-export async function GET() {
-  return warmUp();
+export async function GET(request: NextRequest) {
+  const force = request.nextUrl.searchParams.get("force") === "true";
+  return warmUp(force);
 }

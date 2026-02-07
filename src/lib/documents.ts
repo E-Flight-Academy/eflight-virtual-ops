@@ -24,11 +24,29 @@ let fetchInProgress: Promise<DocumentContext> | null = null;
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 
 export async function clearDocumentCache(): Promise<void> {
+  // Clear L1 in-memory cache
   cachedContext = null;
   cacheTimestamp = 0;
   fetchInProgress = null;
-  // Note: KV cache will be overwritten by the next fetch
-  console.log("Document cache cleared");
+
+  // Clear L2 KV cache by setting expired timestamp
+  try {
+    await setKvContext({
+      systemInstructionText: "",
+      fileNames: [],
+      cachedAt: 0, // Forces re-fetch on next access
+    });
+    await setKvStatus({
+      status: "not_synced",
+      fileCount: 0,
+      fileNames: [],
+      lastSynced: null,
+    });
+  } catch {
+    // Non-fatal
+  }
+
+  console.log("Document cache cleared (L1 + L2)");
 }
 
 // L2: Try to restore from KV

@@ -10,6 +10,7 @@ export interface DriveFileContent {
   content: string;
   buffer?: Buffer;
   isText: boolean;
+  folder: string; // Top-level folder name (e.g., "public", "student", "instructor")
 }
 
 const WORKSPACE_EXPORT_TYPES: Record<string, string> = {
@@ -55,7 +56,14 @@ const SUPPORTED_BINARY_TYPES = new Set([
   "image/heif",
 ]);
 
-async function listFolderFiles(folderId: string): Promise<{ id: string; name: string; mimeType: string }[]> {
+interface FileWithFolder {
+  id: string;
+  name: string;
+  mimeType: string;
+  folder: string;
+}
+
+async function listFolderFiles(folderId: string, folder: string = ""): Promise<FileWithFolder[]> {
   const drive = getDriveClient();
   const files: { id: string; name: string; mimeType: string }[] = [];
   let pageToken: string | undefined;
@@ -81,12 +89,18 @@ async function listFolderFiles(folderId: string): Promise<{ id: string; name: st
     pageToken = res.data.nextPageToken ?? undefined;
   } while (pageToken);
 
-  // Recursively list files in subfolders
+  // Separate folders from files
   const folders = files.filter((f) => f.mimeType === FOLDER_MIME_TYPE);
-  const nonFolders = files.filter((f) => f.mimeType !== FOLDER_MIME_TYPE);
+  const nonFolders: FileWithFolder[] = files
+    .filter((f) => f.mimeType !== FOLDER_MIME_TYPE)
+    .map((f) => ({ ...f, folder }));
 
-  for (const folder of folders) {
-    const subFiles = await listFolderFiles(folder.id);
+  // Recursively list files in subfolders
+  // If we're at root level (folder === ""), use subfolder name as the folder tag
+  // Otherwise, keep the parent folder name
+  for (const subfolder of folders) {
+    const subfolderTag = folder === "" ? subfolder.name.toLowerCase() : folder;
+    const subFiles = await listFolderFiles(subfolder.id, subfolderTag);
     nonFolders.push(...subFiles);
   }
 
@@ -123,6 +137,13 @@ export async function fetchAllFiles(): Promise<DriveFileContent[]> {
   const fileList = await listFolderFiles(folderId);
   const results: DriveFileContent[] = [];
 
+  // Log folder distribution for debugging
+  const folderCounts: Record<string, number> = {};
+  for (const f of fileList) {
+    folderCounts[f.folder || "(root)"] = (folderCounts[f.folder || "(root)"] || 0) + 1;
+  }
+  console.log("Drive files by folder:", folderCounts);
+
   for (const file of fileList) {
     try {
       const exportType = WORKSPACE_EXPORT_TYPES[file.mimeType];
@@ -136,6 +157,7 @@ export async function fetchAllFiles(): Promise<DriveFileContent[]> {
           mimeType: exportType,
           content,
           isText: true,
+          folder: file.folder,
         });
       } else if (file.mimeType === "application/pdf") {
         // PDF — download and extract text
@@ -156,6 +178,7 @@ export async function fetchAllFiles(): Promise<DriveFileContent[]> {
             mimeType: "application/pdf",
             content: extractedText,
             isText: true,
+            folder: file.folder,
           });
         } else {
           // No text (e.g. scanned image PDF) — keep as binary for Gemini File API
@@ -166,6 +189,7 @@ export async function fetchAllFiles(): Promise<DriveFileContent[]> {
             content: "",
             buffer,
             isText: false,
+            folder: file.folder,
           });
         }
       } else if (SUPPORTED_BINARY_TYPES.has(file.mimeType)) {
@@ -178,6 +202,7 @@ export async function fetchAllFiles(): Promise<DriveFileContent[]> {
           content: "",
           buffer,
           isText: false,
+          folder: file.folder,
         });
       } else {
         console.warn(`Skipping unsupported file type "${file.name}" (${file.mimeType})`);

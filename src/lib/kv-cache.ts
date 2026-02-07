@@ -19,6 +19,8 @@ const KB_FLOWS_KEY = "kb:flows";
 const FLOWS_TTL = 3600;         // 1 hour
 const KB_PRODUCTS_KEY = "kb:products";
 const PRODUCTS_TTL = 21600;     // 6 hours
+const KB_ROLE_ACCESS_KEY = "kb:role-access";
+const ROLE_ACCESS_TTL = 3600;   // 1 hour
 const I18N_KEY_PREFIX = "i18n:";
 const I18N_TTL = 2592000;       // 30 days
 const I18N_STARTERS_KEY_PREFIX = "i18n:starters:";
@@ -145,6 +147,16 @@ export interface KvProduct {
 
 export interface KvProductsData {
   products: KvProduct[];
+  cachedAt: number;
+}
+
+export interface KvRoleMapping {
+  role: string;
+  folders: string[];
+}
+
+export interface KvRoleAccessData {
+  mappings: KvRoleMapping[];
   cachedAt: number;
 }
 
@@ -343,6 +355,27 @@ export async function setKvProducts(data: KvProductsData): Promise<void> {
     const r = getRedis();
     if (!r) return;
     await r.set(KB_PRODUCTS_KEY, data, { ex: PRODUCTS_TTL });
+  } catch {
+    // Non-fatal
+  }
+}
+
+// --- Role Access ---
+export async function getKvRoleAccess(): Promise<KvRoleAccessData | null> {
+  try {
+    const r = getRedis();
+    if (!r) return null;
+    return await r.get<KvRoleAccessData>(KB_ROLE_ACCESS_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export async function setKvRoleAccess(data: KvRoleAccessData): Promise<void> {
+  try {
+    const r = getRedis();
+    if (!r) return;
+    await r.set(KB_ROLE_ACCESS_KEY, data, { ex: ROLE_ACCESS_TTL });
   } catch {
     // Non-fatal
   }

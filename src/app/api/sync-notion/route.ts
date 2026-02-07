@@ -4,6 +4,7 @@ import { syncFaqs } from "@/lib/faq";
 import { syncWebsite } from "@/lib/website";
 import { syncFlows } from "@/lib/guided-flows";
 import { syncProducts } from "@/lib/shopify";
+import { syncRoleAccess } from "@/lib/role-access";
 import { getConfig } from "@/lib/config";
 import { getKvStatus, setKvStatus } from "@/lib/kv-cache";
 
@@ -33,7 +34,7 @@ async function handleSync(request: NextRequest) {
 
   try {
     const config = await getConfig().catch(() => null);
-    const [starters, faqs, websitePages, flowSteps, products] = await Promise.all([
+    const [starters, faqs, websitePages, flowSteps, products, roleAccess] = await Promise.all([
       syncStarters(),
       syncFaqs(),
       syncWebsite(config?.website_pages).catch((err) => {
@@ -46,6 +47,10 @@ async function handleSync(request: NextRequest) {
       }),
       syncProducts().catch((err) => {
         console.warn("Shopify sync failed:", err);
+        return [];
+      }),
+      syncRoleAccess().catch((err) => {
+        console.warn("Role access sync failed:", err);
         return [];
       }),
     ]);
@@ -67,6 +72,7 @@ async function handleSync(request: NextRequest) {
       website: { count: websitePages.length, urls: websitePages.map((p) => p.url) },
       flows: { count: flowSteps.length, names: flowSteps.map((s) => s.name) },
       products: { count: products.length, titles: products.map((p) => p.title) },
+      roleAccess: { count: roleAccess.length, roles: roleAccess.map((r) => r.role) },
     });
   } catch (err) {
     console.error("Notion sync failed:", err);

@@ -1,5 +1,5 @@
 import { Part } from "@google/generative-ai";
-import { fetchAllFiles } from "./google-drive";
+import { fetchAllFiles, type DriveFileContent } from "./google-drive";
 import { getOrUploadFile, buildFileParts, getUploadedFilesMap } from "./gemini-files";
 import {
   getKvContext, setKvContext,
@@ -14,6 +14,29 @@ interface DocumentContext {
   systemInstructionText: string;
   fileParts: Part[];
   fileNames: string[];
+}
+
+// Store files with folder info for filtering
+let cachedFiles: DriveFileContent[] = [];
+
+/**
+ * Filter files based on allowed folders
+ * @param files All files from Drive
+ * @param allowedFolders Folders the user can access (or ["*"] for all)
+ */
+function filterFilesByFolder(files: DriveFileContent[], allowedFolders: string[]): DriveFileContent[] {
+  // If user has access to all folders
+  if (allowedFolders.includes("*")) {
+    return files;
+  }
+
+  // Normalize folder names to lowercase for comparison
+  const normalizedAllowed = new Set(allowedFolders.map(f => f.toLowerCase()));
+
+  return files.filter(file => {
+    const fileFolder = (file.folder || "public").toLowerCase();
+    return normalizedAllowed.has(fileFolder);
+  });
 }
 
 // L1: Module-level in-memory cache
@@ -88,6 +111,9 @@ async function tryRestoreFromKv(): Promise<DocumentContext | null> {
 // L3: Full fetch from Google Drive + Gemini upload
 async function doFetchDocumentContext(): Promise<DocumentContext> {
   const files = await fetchAllFiles();
+
+  // Store files for later filtering
+  cachedFiles = files;
 
   const textFiles = files.filter((f) => f.isText);
   const binaryFiles = files.filter((f) => !f.isText);
@@ -192,26 +218,89 @@ export async function getKnowledgeBaseStatus() {
   };
 }
 
-export async function getDocumentContext(): Promise<DocumentContext> {
+export async function getDocumentContext(allowedFolders?: string[]): Promise<DocumentContext> {
   // L1: in-memory
   if (cachedContext && Date.now() - cacheTimestamp < CACHE_TTL_MS) {
-    return cachedContext;
+    // If no folder filter, return full cache
+    if (!allowedFolders || allowedFolders.includes("*")) {
+      return cachedContext;
+    }
+    // Filter cached files by folder and rebuild context
+    return buildFilteredContext(allowedFolders);
   }
 
   // Prevent concurrent fetches
   if (fetchInProgress) {
-    return fetchInProgress;
+    const result = await fetchInProgress;
+    if (allowedFolders && !allowedFolders.includes("*")) {
+      return buildFilteredContext(allowedFolders);
+    }
+    return result;
   }
 
   // L2: try KV before full fetch
   const kvRestored = await tryRestoreFromKv();
-  if (kvRestored) return kvRestored;
+  if (kvRestored) {
+    if (allowedFolders && !allowedFolders.includes("*")) {
+      // For KV restore, we don't have file folder info, so refetch
+      // This is a rare case - usually L1 cache is warm
+    } else {
+      return kvRestored;
+    }
+  }
 
   // L3: full fetch from Drive + Gemini
   fetchInProgress = doFetchDocumentContext();
   try {
-    return await fetchInProgress;
+    const result = await fetchInProgress;
+    if (allowedFolders && !allowedFolders.includes("*")) {
+      return buildFilteredContext(allowedFolders);
+    }
+    return result;
   } finally {
     fetchInProgress = null;
   }
+}
+
+/**
+ * Build a filtered document context from cached files
+ */
+async function buildFilteredContext(allowedFolders: string[]): Promise<DocumentContext> {
+  if (cachedFiles.length === 0) {
+    // No cached files, return empty context
+    return { systemInstructionText: "", fileParts: [], fileNames: [] };
+  }
+
+  const filteredFiles = filterFilesByFolder(cachedFiles, allowedFolders);
+
+  console.log(`Filtering documents: ${cachedFiles.length} total → ${filteredFiles.length} accessible (folders: ${allowedFolders.join(", ")})`);
+
+  const textFiles = filteredFiles.filter((f) => f.isText);
+  const binaryFiles = filteredFiles.filter((f) => !f.isText);
+
+  // Build system instruction text from filtered text files
+  const systemInstructionText = textFiles
+    .map((f) => `=== ${f.name} ===\n${f.content}`)
+    .join("\n\n");
+
+  // Get file parts for filtered binary files (they should already be uploaded)
+  const uploadsMap = getUploadedFilesMap();
+  const fileParts: Part[] = [];
+  for (const f of binaryFiles) {
+    const uploaded = uploadsMap.get(f.id);
+    if (uploaded) {
+      fileParts.push({
+        fileData: {
+          fileUri: uploaded.uri,
+          mimeType: uploaded.mimeType,
+        },
+      });
+    }
+  }
+
+  return {
+    systemInstructionText,
+    fileParts,
+    fileNames: filteredFiles.map((f) => f.name),
+  };
 }

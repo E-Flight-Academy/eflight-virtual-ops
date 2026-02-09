@@ -7,6 +7,9 @@ import { getWebsiteContent, buildWebsiteContext } from "@/lib/website";
 import { getProducts, buildProductsContext } from "@/lib/shopify";
 import { detectLanguage } from "@/lib/i18n/detect";
 import { getTranslations } from "@/lib/i18n/translate";
+import { getSession } from "@/lib/shopify-auth";
+import { getUserRoles } from "@/lib/airtable";
+import { getFoldersForRoles } from "@/lib/role-access";
 
 export const maxDuration = 60;
 
@@ -28,6 +31,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Get user roles for document filtering
+    let userRoles: string[] = [];
+    try {
+      const session = await getSession();
+      if (session?.customer?.email) {
+        userRoles = await getUserRoles(session.customer.email);
+      }
+    } catch (err) {
+      console.warn("Failed to get user roles:", err);
+    }
+
+    // Get allowed folders based on roles (defaults to ["public"] for anonymous)
+    const allowedFolders = await getFoldersForRoles(userRoles);
+    console.log(`Chat: user roles [${userRoles.join(", ")}] → folders [${allowedFolders.join(", ")}]`);
+
     // Load config, FAQs, and Drive context in parallel (with timeouts)
     const [config, faqs, documentContext] = await Promise.all([
       withTimeout(
@@ -39,7 +57,7 @@ export async function POST(request: NextRequest) {
         5000, []
       ),
       withTimeout(
-        getDocumentContext().catch((err) => { console.error("Failed to load document context:", err); return null; }),
+        getDocumentContext(allowedFolders).catch((err) => { console.error("Failed to load document context:", err); return null; }),
         10000, null
       ),
     ]);

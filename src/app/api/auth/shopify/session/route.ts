@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/shopify-auth";
+import { getUserRoles } from "@/lib/airtable";
 
 export async function GET() {
   try {
@@ -10,8 +11,12 @@ export async function GET() {
       return NextResponse.json({
         authenticated: false,
         customer: null,
+        roles: [],
       });
     }
+
+    // Fetch roles from Airtable
+    const roles = await getUserRoles(session.customer.email);
 
     // Don't expose tokens to client
     return NextResponse.json({
@@ -22,12 +27,14 @@ export async function GET() {
         lastName: session.customer.lastName,
         displayName: session.customer.displayName,
       },
+      roles,
     });
   } catch (error) {
     console.error("Session error:", error);
     return NextResponse.json({
       authenticated: false,
       customer: null,
+      roles: [],
     });
   }
 }

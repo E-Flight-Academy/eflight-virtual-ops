@@ -67,6 +67,7 @@ export default function Chat() {
   const { t, lang, translatedStarters, setTranslations, resetLanguage, switchLanguage } = useI18n();
   const searchParams = useSearchParams();
   const [shopifyUser, setShopifyUser] = useState<{ email: string; firstName: string; lastName: string; displayName: string } | null>(null);
+  const [userRoles, setUserRoles] = useState<string[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -234,6 +235,7 @@ export default function Chat() {
       .then((data) => {
         if (data.authenticated && data.customer) {
           setShopifyUser(data.customer);
+          setUserRoles(data.roles || []);
         }
       })
       .catch(() => {});
@@ -272,6 +274,7 @@ export default function Chat() {
   const handleShopifyLogout = async () => {
     await fetch("/api/auth/shopify/logout", { method: "POST" });
     setShopifyUser(null);
+    setUserRoles([]);
   };
 
   const getQ = useCallback((item: { question: string; questionNl: string; questionDe: string }) => {

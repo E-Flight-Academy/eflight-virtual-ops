@@ -125,17 +125,19 @@ export async function fetchCustomerData(accessToken: string): Promise<ShopifyCus
     }
   `;
 
-  const response = await fetch(
-    `https://shopify.com/${SHOPIFY_STORE_DOMAIN.replace(".myshopify.com", "")}/account/customer/api/2024-10/graphql`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: accessToken,
-      },
-      body: JSON.stringify({ query }),
-    }
-  );
+  // Customer Account API uses the store's myshopify domain
+  const graphqlEndpoint = `https://${SHOPIFY_STORE_DOMAIN}/account/customer/api/2024-10/graphql`;
+
+  console.log("Fetching customer data from:", graphqlEndpoint);
+
+  const response = await fetch(graphqlEndpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: accessToken,
+    },
+    body: JSON.stringify({ query }),
+  });
 
   if (!response.ok) {
     const error = await response.text();

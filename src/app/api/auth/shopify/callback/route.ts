@@ -34,25 +34,32 @@ export async function GET(request: NextRequest) {
     }
 
     // Exchange code for tokens
+    console.log("Exchanging code for tokens...");
     const tokens = await exchangeCodeForTokens(code, codeVerifier);
+    console.log("Token exchange successful, expires in:", tokens.expiresIn);
 
     // Fetch customer data
+    console.log("Fetching customer data...");
     const customer = await fetchCustomerData(tokens.accessToken);
+    console.log("Customer fetched:", customer.displayName, customer.email);
 
     // Create session
+    console.log("Creating session...");
     await createSession({
       customer,
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken,
       expiresAt: Date.now() + tokens.expiresIn * 1000,
     });
+    console.log("Session created successfully");
 
     // Redirect back to app
     return NextResponse.redirect(`https://steward.eflight.nl?login=success`);
   } catch (error) {
     console.error("Callback error:", error);
+    const errorMessage = error instanceof Error ? error.message : "unknown";
     return NextResponse.redirect(
-      `https://steward.eflight.nl?error=callback_failed`
+      `https://steward.eflight.nl?error=${encodeURIComponent(errorMessage)}`
     );
   }
 }

@@ -39,8 +39,8 @@ async function fetchRoleAccessFromNotion(): Promise<KvRoleMapping[]> {
           .trim();
       }
 
-      // Folders is a multi-select field
-      if (propName === "Folders" && propValue.type === "multi_select") {
+      // Folders is a multi-select field (case-insensitive match)
+      if (propName.toLowerCase() === "folders" && propValue.type === "multi_select") {
         folders = propValue.multi_select.map((opt: { name: string }) => opt.name.toLowerCase());
       }
     }

@@ -5,9 +5,11 @@ const SHOPIFY_CLIENT_ID = process.env.SHOPIFY_CUSTOMER_CLIENT_ID || "";
 const SHOPIFY_STORE_DOMAIN = process.env.SHOPIFY_STORE_DOMAIN || "e-flight-academy.myshopify.com";
 
 // Endpoints (custom domain)
-const AUTH_ENDPOINT = "https://account.eflight.nl/authentication/oauth/authorize";
-const TOKEN_ENDPOINT = "https://account.eflight.nl/authentication/oauth/token";
-const LOGOUT_ENDPOINT = "https://account.eflight.nl/authentication/logout";
+const CUSTOMER_ACCOUNT_DOMAIN = "account.eflight.nl";
+const AUTH_ENDPOINT = `https://${CUSTOMER_ACCOUNT_DOMAIN}/authentication/oauth/authorize`;
+const TOKEN_ENDPOINT = `https://${CUSTOMER_ACCOUNT_DOMAIN}/authentication/oauth/token`;
+const LOGOUT_ENDPOINT = `https://${CUSTOMER_ACCOUNT_DOMAIN}/authentication/logout`;
+const GRAPHQL_ENDPOINT = `https://${CUSTOMER_ACCOUNT_DOMAIN}/customer/api/2024-10/graphql`;
 
 // Callback URL
 const CALLBACK_URL = process.env.SHOPIFY_CALLBACK_URL || "https://steward.eflight.nl/api/auth/shopify/callback";
@@ -125,12 +127,9 @@ export async function fetchCustomerData(accessToken: string): Promise<ShopifyCus
     }
   `;
 
-  // Customer Account API uses the store's myshopify domain
-  const graphqlEndpoint = `https://${SHOPIFY_STORE_DOMAIN}/account/customer/api/2024-10/graphql`;
+  console.log("Fetching customer data from:", GRAPHQL_ENDPOINT);
 
-  console.log("Fetching customer data from:", graphqlEndpoint);
-
-  const response = await fetch(graphqlEndpoint, {
+  const response = await fetch(GRAPHQL_ENDPOINT, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

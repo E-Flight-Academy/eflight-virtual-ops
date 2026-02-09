@@ -941,6 +941,9 @@ export default function Chat() {
                   <input
                     ref={inputRef}
                     type="text"
+                    name="message"
+                    id="message-input"
+                    autoComplete="off"
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     placeholder={undefined}
@@ -1106,6 +1109,9 @@ export default function Chat() {
               <input
                 ref={inputRef}
                 type="text"
+                name="message"
+                id="message-input-bottom"
+                autoComplete="off"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder={t("chat.placeholder")}

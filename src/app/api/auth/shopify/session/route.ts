@@ -4,6 +4,7 @@ import { getSession } from "@/lib/shopify-auth";
 export async function GET() {
   try {
     const session = await getSession();
+    console.log("Session check:", session ? `Found session for ${session.customer.email}` : "No session");
 
     if (!session) {
       return NextResponse.json({

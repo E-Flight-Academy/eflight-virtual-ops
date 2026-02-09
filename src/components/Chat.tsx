@@ -66,9 +66,7 @@ function timeAgo(isoDate: string): string {
 export default function Chat() {
   const { t, lang, translatedStarters, setTranslations, resetLanguage, switchLanguage } = useI18n();
   const searchParams = useSearchParams();
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [password, setPassword] = useState("");
-  const [authError, setAuthError] = useState("");
+  const [shopifyUser, setShopifyUser] = useState<{ email: string; firstName: string; lastName: string; displayName: string } | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -149,58 +147,56 @@ export default function Chat() {
   }, [isLoading]);
 
   useEffect(() => {
-    if (isAuthenticated) {
-      inputRef.current?.focus();
-      // Check initial status, then start polling + warm
-      fetchKbStatus().then((data) => {
-        if (data?.status !== "synced") {
-          startPolling();
-          fetch("/api/knowledge-base/warm", { method: "POST" }).catch(() => {});
-        }
-      });
-      // Fetch conversation starters and FAQ questions
-      fetch("/api/starters")
+    inputRef.current?.focus();
+    // Check initial status, then start polling + warm
+    fetchKbStatus().then((data) => {
+      if (data?.status !== "synced") {
+        startPolling();
+        fetch("/api/knowledge-base/warm", { method: "POST" }).catch(() => {});
+      }
+    });
+    // Fetch conversation starters and FAQ questions
+    fetch("/api/starters")
+      .then((res) => res.json())
+      .then((data) => setStarters(data))
+      .catch(() => {});
+    fetch("/api/faqs")
+      .then((res) => res.json())
+      .then((data) => setFaqs(data))
+      .catch(() => {});
+    // Fetch guided flows (skip if loading a shared chat)
+    if (sharedChatIdRef.current) {
+      setFlowPhase("completed");
+    } else {
+      fetch("/api/guided-flows")
         .then((res) => res.json())
-        .then((data) => setStarters(data))
-        .catch(() => {});
-      fetch("/api/faqs")
-        .then((res) => res.json())
-        .then((data) => setFaqs(data))
-        .catch(() => {});
-      // Fetch guided flows (skip if loading a shared chat)
-      if (sharedChatIdRef.current) {
-        setFlowPhase("completed");
-      } else {
-        fetch("/api/guided-flows")
-          .then((res) => res.json())
-          .then((data: FlowStep[]) => {
-            setFlowSteps(data);
-            if (data.length > 0) {
-              const welcome = data.find((s) => s.name.toLowerCase() === "welcome");
-              if (welcome) {
-                setCurrentFlowStep(welcome);
-                setFlowPhase("active");
-                setMessages([{ role: "assistant", content: getFlowMessage(welcome) }]);
-              } else {
-                setFlowPhase("skipped");
-              }
+        .then((data: FlowStep[]) => {
+          setFlowSteps(data);
+          if (data.length > 0) {
+            const welcome = data.find((s) => s.name.toLowerCase() === "welcome");
+            if (welcome) {
+              setCurrentFlowStep(welcome);
+              setFlowPhase("active");
+              setMessages([{ role: "assistant", content: getFlowMessage(welcome) }]);
             } else {
               setFlowPhase("skipped");
             }
-          })
-          .catch(() => {
+          } else {
             setFlowPhase("skipped");
-          });
-      }
+          }
+        })
+        .catch(() => {
+          setFlowPhase("skipped");
+        });
     }
     return () => stopPolling();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, fetchKbStatus, startPolling, stopPolling]);
+  }, [fetchKbStatus, startPolling, stopPolling]);
 
   // Load shared chat from URL parameter
   useEffect(() => {
     const chatId = sharedChatIdRef.current;
-    if (!chatId || !isAuthenticated) return;
+    if (!chatId) return;
 
     fetch(`/api/chat/share/${encodeURIComponent(chatId)}`)
       .then((res) => {
@@ -229,15 +225,15 @@ export default function Chat() {
         window.history.replaceState({}, "", url.toString());
       });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated]);
+  }, []);
 
-  // Check if IP is whitelisted on mount
+  // Check Shopify session on mount
   useEffect(() => {
-    fetch("/api/auth/ip")
+    fetch("/api/auth/shopify/session")
       .then((res) => res.json())
       .then((data) => {
-        if (data.allowed) {
-          setIsAuthenticated(true);
+        if (data.authenticated && data.customer) {
+          setShopifyUser(data.customer);
         }
       })
       .catch(() => {});
@@ -269,23 +265,13 @@ export default function Chat() {
     return () => clearInterval(interval);
   }, [messages, input, cyclingPlaceholders]);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setAuthError("");
-    try {
-      const response = await fetch("/api/auth", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password }),
-      });
-      if (response.ok) {
-        setIsAuthenticated(true);
-      } else {
-        setAuthError(t("login.error.incorrect"));
-      }
-    } catch {
-      setAuthError(t("login.error.connection"));
-    }
+  const handleShopifyLogin = () => {
+    window.location.href = "/api/auth/shopify/login";
+  };
+
+  const handleShopifyLogout = async () => {
+    await fetch("/api/auth/shopify/logout", { method: "POST" });
+    setShopifyUser(null);
   };
 
   const getQ = useCallback((item: { question: string; questionNl: string; questionDe: string }) => {
@@ -691,34 +677,6 @@ export default function Chat() {
       .slice(0, 5);
   }, [input, faqs, starters, getQ]);
 
-  if (!isAuthenticated) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <form onSubmit={handleLogin} className="w-full max-w-sm p-8">
-          <h1 className="text-xl font-extrabold text-e-indigo text-center mb-2">Steward</h1>
-          <p className="text-sm text-e-grey text-center mb-6">{t("login.subtitle")}</p>
-          {authError && (
-            <p className="text-red-500 text-sm text-center mb-4">{authError}</p>
-          )}
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder={t("login.placeholder")}
-            className="w-full rounded-lg border border-e-grey-light dark:border-gray-700 px-4 py-2 mb-4 focus:outline-none focus:ring-2 focus:ring-e-indigo bg-white dark:bg-gray-900"
-            autoFocus
-          />
-          <button
-            type="submit"
-            disabled={!password}
-            className="w-full px-6 py-2 bg-e-indigo text-white rounded-lg hover:bg-e-indigo-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {t("login.button")}
-          </button>
-        </form>
-      </div>
-    );
-  }
 
   return (
     <div className="flex flex-col h-screen">
@@ -812,30 +770,38 @@ export default function Chat() {
               {shareStatus === "copied" ? "Copied!" : shareStatus === "error" ? "Failed" : t("header.share")}
             </span>
           </button>
-          <button
-            onClick={() => {
-              setIsAuthenticated(false);
-              setPassword("");
-              setMessages([]);
-              setKbStatus(null);
-              setKbExpanded(false);
-              setFaqs([]);
-              setFlowSteps([]);
-              setFlowPhase("loading");
-              setFlowContext({});
-              setCurrentFlowStep(null);
-              resetLanguage();
-            }}
-            title={t("header.logout")}
-            className="flex items-center gap-2 text-e-grey hover:text-e-indigo transition-colors"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-              <polyline points="16 17 21 12 16 7" />
-              <line x1="21" y1="12" x2="9" y2="12" />
-            </svg>
-            <span className="hidden sm:inline text-sm">{t("header.logout")}</span>
-          </button>
+          {shopifyUser ? (
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-e-grey hidden sm:inline">
+                {shopifyUser.firstName || shopifyUser.email}
+              </span>
+              <button
+                onClick={handleShopifyLogout}
+                title={t("header.logout")}
+                className="flex items-center gap-2 text-e-grey hover:text-e-indigo transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                  <polyline points="16 17 21 12 16 7" />
+                  <line x1="21" y1="12" x2="9" y2="12" />
+                </svg>
+                <span className="hidden sm:inline text-sm">{t("header.logout")}</span>
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={handleShopifyLogin}
+              title={t("header.login")}
+              className="flex items-center gap-2 text-e-grey hover:text-e-indigo transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+                <polyline points="10 17 15 12 10 7" />
+                <line x1="15" y1="12" x2="3" y2="12" />
+              </svg>
+              <span className="hidden sm:inline text-sm">{t("header.login")}</span>
+            </button>
+          )}
         </div>
       </header>
 

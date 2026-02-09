@@ -6,6 +6,7 @@ export interface UiLabels {
   "login.error.connection": string;
   "header.subtitle": string;
   "header.newChat": string;
+  "header.login": string;
   "header.logout": string;
   "reset.confirm": string;
   "reset.cancel": string;
@@ -35,6 +36,7 @@ export const DEFAULT_LABELS: UiLabels = {
   "login.error.connection": "Failed to connect to the server.",
   "header.subtitle": "I am Steward, how can I help you! I know a lot about E-Flight Academy...",
   "header.newChat": "New conversation",
+  "header.login": "Log in",
   "header.logout": "Log out",
   "reset.confirm": "Are you sure you want to start a new conversation?",
   "reset.cancel": "Cancel",

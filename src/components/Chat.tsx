@@ -1211,6 +1211,17 @@ export default function Chat() {
           </div>
         )}
 
+        {shopifyUser && (
+          <div className="px-4 pb-2 text-[10px] text-e-grey">
+            <span className="font-medium">User:</span> {shopifyUser.email}
+            {userRoles.length > 0 && (
+              <> · <span className="font-medium">Roles:</span> {userRoles.join(", ")}</>
+            )}
+            {userRoles.length === 0 && (
+              <> · <span className="text-amber-500">No roles found</span></>
+            )}
+          </div>
+        )}
         <div className="px-4 pb-1 text-[10px] text-e-grey-light text-center select-none">
           v{process.env.NEXT_PUBLIC_VERSION} ({process.env.NEXT_PUBLIC_BUILD_ID})
         </div>

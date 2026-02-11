@@ -150,7 +150,7 @@ export async function POST(request: NextRequest) {
 
     // Fixed formatting rules (always applied)
     instructionParts.push(
-      "IMPORTANT: When mentioning URLs, email addresses, or phone numbers, always format them as markdown links. Use [text](url) for websites, [email](mailto:email) for email, and [phone](tel:phone) for phone numbers. Never use raw HTML tags.",
+      "IMPORTANT: When mentioning URLs, email addresses, or phone numbers, always format them as clickable markdown links. For websites use [visible text](https://example.com). For email addresses always show the full address as link text: [info@eflight.nl](mailto:info@eflight.nl). For phone numbers always show the full number as link text: [055 203 2230](tel:+31552032230). Never hide the address or number behind generic words like 'email' or 'phone'. Never use raw HTML tags.",
       "MANDATORY: You MUST end EVERY response with a source tag on a new line. Format: [source: X] where X is one of: FAQ, Website, Knowledge Base, General Knowledge. When the source is Website, include the page URL like this: [source: Website | https://www.eflight.nl/page]. This is required for every single response without exception."
     );
 

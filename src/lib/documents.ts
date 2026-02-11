@@ -9,9 +9,20 @@ import {
   getKvWebsite,
   type KvGeminiUris,
 } from "./kv-cache";
+import { queryDocuments, isVectorConfigured } from "./vector";
 
-interface DocumentContext {
+export interface DocumentContext {
   systemInstructionText: string;
+  fileParts: Part[];
+  fileNames: string[];
+}
+
+export interface RagResult {
+  systemInstructionText: string;
+  sourceFiles: string[];
+}
+
+export interface BinaryDocumentContext {
   fileParts: Part[];
   fileNames: string[];
 }
@@ -302,5 +313,81 @@ async function buildFilteredContext(allowedFolders: string[]): Promise<DocumentC
     systemInstructionText,
     fileParts,
     fileNames: filteredFiles.map((f) => f.name),
+  };
+}
+
+// --- RAG retrieval ---
+
+/**
+ * Query the vector store for document chunks relevant to the user's message.
+ * Falls back to full text context if vector store is not configured.
+ */
+export async function getRelevantDocuments(
+  query: string,
+  allowedFolders: string[],
+): Promise<RagResult | null> {
+  if (!isVectorConfigured()) {
+    // Fallback: return full text from the old getDocumentContext path
+    const ctx = await getDocumentContext(allowedFolders);
+    return ctx.systemInstructionText
+      ? { systemInstructionText: ctx.systemInstructionText, sourceFiles: ctx.fileNames }
+      : null;
+  }
+
+  try {
+    const matches = await queryDocuments(query, allowedFolders, 10);
+    if (matches.length === 0) return null;
+
+    const systemInstructionText = matches
+      .map((m) => `=== ${m.fileName} (excerpt) ===\n${m.text}`)
+      .join("\n\n");
+
+    const sourceFiles = [...new Set(matches.map((m) => m.fileName))];
+
+    console.log(`RAG: retrieved ${matches.length} chunks from ${sourceFiles.length} files for query: "${query.slice(0, 80)}"`);
+
+    return { systemInstructionText, sourceFiles };
+  } catch (err) {
+    console.warn("RAG query failed, falling back to full text context:", err);
+    const ctx = await getDocumentContext(allowedFolders);
+    return ctx.systemInstructionText
+      ? { systemInstructionText: ctx.systemInstructionText, sourceFiles: ctx.fileNames }
+      : null;
+  }
+}
+
+/**
+ * Get only binary file context (scanned PDFs, images) for Gemini File API.
+ * Used alongside RAG retrieval -- text documents come from the vector store.
+ */
+export async function getBinaryDocumentContext(
+  allowedFolders?: string[],
+): Promise<BinaryDocumentContext> {
+  // Ensure files are loaded (reuse existing cache/fetch mechanism)
+  await getDocumentContext(allowedFolders);
+
+  const files = allowedFolders
+    ? filterFilesByFolder(cachedFiles, allowedFolders)
+    : cachedFiles;
+
+  const binaryFiles = files.filter((f) => !f.isText);
+
+  const uploadsMap = getUploadedFilesMap();
+  const fileParts: Part[] = [];
+  for (const f of binaryFiles) {
+    const uploaded = uploadsMap.get(f.id);
+    if (uploaded) {
+      fileParts.push({
+        fileData: {
+          fileUri: uploaded.uri,
+          mimeType: uploaded.mimeType,
+        },
+      });
+    }
+  }
+
+  return {
+    fileParts,
+    fileNames: binaryFiles.map((f) => f.name),
   };
 }

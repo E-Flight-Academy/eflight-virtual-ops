@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { NextRequest, NextResponse } from "next/server";
-import { getDocumentContext } from "@/lib/documents";
+import { getRelevantDocuments, getBinaryDocumentContext } from "@/lib/documents";
 import { getConfig } from "@/lib/config";
 import { getFaqs, buildFaqContext } from "@/lib/faq";
 import { getWebsiteContent, buildWebsiteContext } from "@/lib/website";
@@ -46,8 +46,10 @@ export async function POST(request: NextRequest) {
     const allowedFolders = await getFoldersForRoles(userRoles);
     console.log(`Chat: user roles [${userRoles.join(", ")}] → folders [${allowedFolders.join(", ")}]`);
 
-    // Load config, FAQs, and Drive context in parallel (with timeouts)
-    const [config, faqs, documentContext] = await Promise.all([
+    const lastMessage = messages[messages.length - 1];
+
+    // Load config, FAQs, RAG results, and binary files in parallel (with timeouts)
+    const [config, faqs, ragResult, binaryContext] = await Promise.all([
       withTimeout(
         getConfig().catch((err) => { console.error("Failed to load config:", err); return null; }),
         5000, null
@@ -57,7 +59,11 @@ export async function POST(request: NextRequest) {
         5000, []
       ),
       withTimeout(
-        getDocumentContext(allowedFolders).catch((err) => { console.error("Failed to load document context:", err); return null; }),
+        getRelevantDocuments(lastMessage.content, allowedFolders).catch((err) => { console.error("Failed to load RAG context:", err); return null; }),
+        10000, null
+      ),
+      withTimeout(
+        getBinaryDocumentContext(allowedFolders).catch((err) => { console.error("Failed to load binary context:", err); return null; }),
         10000, null
       ),
     ]);
@@ -107,7 +113,7 @@ export async function POST(request: NextRequest) {
       stepNum++;
     }
 
-    if (searchOrder.includes("drive") && documentContext?.systemInstructionText) {
+    if (searchOrder.includes("drive") && ragResult?.systemInstructionText) {
       searchSteps.push(
         `${stepNum}. Check the Knowledge Base Documents for relevant information.`
       );
@@ -172,12 +178,12 @@ export async function POST(request: NextRequest) {
       instructionParts.push("", buildFaqContext(faqs, clientLang || "nl"));
     }
 
-    // Append Drive document context (text only — in system instruction)
-    if (searchOrder.includes("drive") && documentContext?.systemInstructionText) {
+    // Append Drive document context (RAG excerpts or full text fallback)
+    if (searchOrder.includes("drive") && ragResult?.systemInstructionText) {
       instructionParts.push(
         "",
-        "=== Knowledge Base Documents ===",
-        documentContext.systemInstructionText
+        "=== Knowledge Base Documents (most relevant excerpts) ===",
+        ragResult.systemInstructionText
       );
     }
 
@@ -201,14 +207,14 @@ export async function POST(request: NextRequest) {
 
     // Build chat history
     // Only include binary file parts on the first message to avoid re-processing
-    // 21 PDFs on every exchange. On follow-up messages, text context suffices.
+    // scanned PDFs on every exchange. On follow-up messages, text context suffices.
     const fileContextHistory: { role: string; parts: unknown[] }[] = [];
-    if (messages.length === 1 && documentContext?.fileParts.length) {
+    if (messages.length === 1 && binaryContext?.fileParts.length) {
       fileContextHistory.push({
         role: "user",
         parts: [
           { text: "Here are additional reference documents for the knowledge base:" },
-          ...documentContext.fileParts,
+          ...binaryContext.fileParts,
         ],
       });
       fileContextHistory.push({
@@ -238,8 +244,6 @@ export async function POST(request: NextRequest) {
     const history = [...fileContextHistory, ...userHistory];
 
     const chat = model.startChat({ history });
-
-    const lastMessage = messages[messages.length - 1];
 
     // Detect language on every message (in parallel with chat), but only for
     // messages long enough to be unambiguous (≥10 chars). Short messages like

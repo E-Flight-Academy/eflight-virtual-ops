@@ -7,6 +7,7 @@ import { syncProducts } from "@/lib/shopify";
 import { syncRoleAccess } from "@/lib/role-access";
 import { getConfig } from "@/lib/config";
 import { getKvStatus, setKvStatus } from "@/lib/kv-cache";
+import { syncVectorIndex } from "@/lib/vector";
 
 function isAuthorized(request: NextRequest): boolean {
   const secret = process.env.SYNC_SECRET;
@@ -55,6 +56,14 @@ async function handleSync(request: NextRequest) {
       }),
     ]);
 
+    // Index documents into vector store for RAG
+    let vectorResult = { fileCount: 0, chunkCount: 0 };
+    try {
+      vectorResult = await syncVectorIndex();
+    } catch (err) {
+      console.warn("Vector index sync failed:", err);
+    }
+
     // Update faqCount in KB status
     try {
       const currentStatus = await getKvStatus();
@@ -73,6 +82,7 @@ async function handleSync(request: NextRequest) {
       flows: { count: flowSteps.length, names: flowSteps.map((s) => s.name) },
       products: { count: products.length, titles: products.map((p) => p.title) },
       roleAccess: { count: roleAccess.length, roles: roleAccess.map((r) => r.role) },
+      vectorIndex: { fileCount: vectorResult.fileCount, chunkCount: vectorResult.chunkCount },
     });
   } catch (err) {
     console.error("Notion sync failed:", err);

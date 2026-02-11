@@ -1,6 +1,7 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenerativeAI, TaskType } from "@google/generative-ai";
 
-const EMBEDDING_MODEL = "text-embedding-004";
+const EMBEDDING_MODEL = "gemini-embedding-001";
+const OUTPUT_DIMENSIONALITY = 768;
 const MAX_BATCH_SIZE = 100;
 
 let genAI: GoogleGenerativeAI | null = null;
@@ -14,11 +15,15 @@ function getGenAI(): GoogleGenerativeAI {
 }
 
 /**
- * Embed a single text string using Google's text-embedding-004 model.
+ * Embed a single text string using Google's gemini-embedding-001 model.
  */
 export async function embedText(text: string): Promise<number[]> {
   const model = getGenAI().getGenerativeModel({ model: EMBEDDING_MODEL });
-  const result = await model.embedContent(text);
+  const result = await model.embedContent({
+    content: { role: "user", parts: [{ text }] },
+    taskType: TaskType.RETRIEVAL_QUERY,
+    outputDimensionality: OUTPUT_DIMENSIONALITY,
+  } as Parameters<typeof model.embedContent>[0]);
   return result.embedding.values;
 }
 
@@ -36,7 +41,9 @@ export async function embedTexts(texts: string[]): Promise<number[][]> {
     const result = await model.batchEmbedContents({
       requests: batch.map((text) => ({
         content: { role: "user", parts: [{ text }] },
-      })),
+        taskType: TaskType.RETRIEVAL_DOCUMENT,
+        outputDimensionality: OUTPUT_DIMENSIONALITY,
+      } as Parameters<typeof model.batchEmbedContents>[0]["requests"][number])),
     });
     allVectors.push(...result.embeddings.map((e) => e.values));
   }

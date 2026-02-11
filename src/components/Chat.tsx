@@ -52,6 +52,13 @@ interface KbStatus {
   lastSynced: string | null;
   faqCount?: number;
   websitePageCount?: number;
+  user?: {
+    email: string | null;
+    roles: string[];
+    folders: string[];
+  };
+  filteredFileCount?: number;
+  filteredFileNames?: string[];
 }
 
 function timeAgo(isoDate: string): string {
@@ -1153,10 +1160,12 @@ export default function Chat() {
           />
           {kbStatus?.status === "synced" ? (
             <span>
-              {t("kb.label")} &middot; {kbStatus.fileCount} {t("kb.files")}
-              {kbStatus.faqCount != null && <> &middot; {kbStatus.faqCount} {t("kb.faqs")}</>}
+              {kbStatus.user?.email ? kbStatus.user.email : "Not logged in"}
+              {kbStatus.user?.roles && kbStatus.user.roles.length > 0 && <> &middot; {kbStatus.user.roles.join(", ")}</>}
+              {" "}&middot; Folders: {kbStatus.user?.folders?.join(", ") || "public"}
+              {" "}&middot; {kbStatus.filteredFileCount ?? kbStatus.fileCount} docs
+              {kbStatus.faqCount != null && <> &middot; {kbStatus.faqCount} FAQs</>}
               {kbStatus.websitePageCount != null && <> &middot; {kbStatus.websitePageCount} pages</>}
-              {kbStatus.lastSynced && <> &middot; {t("kb.synced")} {timeAgo(kbStatus.lastSynced)}</>}
             </span>
           ) : kbStatus?.status === "loading" ? (
             <span>{t("kb.label")} &middot; {t("kb.loading")}</span>
@@ -1182,7 +1191,7 @@ export default function Chat() {
         {kbExpanded && kbStatus?.status === "synced" && (
           <div className="px-4 pb-3 max-h-48 overflow-y-auto">
             <ul className="text-xs text-e-grey space-y-1">
-              {kbStatus.fileNames.map((name, i) => (
+              {(kbStatus.filteredFileNames ?? kbStatus.fileNames).map((name, i) => (
                 <li key={i} className="flex items-center gap-2">
                   <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -1211,17 +1220,6 @@ export default function Chat() {
           </div>
         )}
 
-        {shopifyUser && (
-          <div className="px-4 pb-2 text-[10px] text-e-grey">
-            <span className="font-medium">User:</span> {shopifyUser.email}
-            {userRoles.length > 0 && (
-              <> · <span className="font-medium">Roles:</span> {userRoles.join(", ")}</>
-            )}
-            {userRoles.length === 0 && (
-              <> · <span className="text-amber-500">No roles found</span></>
-            )}
-          </div>
-        )}
         <div className="px-4 pb-1 text-[10px] text-e-grey-light text-center select-none">
           v{process.env.NEXT_PUBLIC_VERSION} ({process.env.NEXT_PUBLIC_BUILD_ID})
         </div>

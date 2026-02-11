@@ -338,18 +338,35 @@ export async function getRelevantDocuments(
   }
 
   try {
-    const matches = await queryDocuments(query, allowedFolders, 10);
-    if (matches.length === 0) return null;
+    const matches = await queryDocuments(query, allowedFolders, 15);
 
-    const systemInstructionText = matches
+    // Filter out low-relevance chunks
+    const MIN_SCORE = 0.75;
+    const relevant = matches.filter((m) => m.score >= MIN_SCORE);
+
+    const scores = matches.map((m) => m.score.toFixed(3));
+    const sourceFiles = [...new Set(matches.map((m) => m.fileName))];
+    console.log(`RAG: retrieved ${matches.length} chunks from ${sourceFiles.length} files for query: "${query.slice(0, 80)}"`);
+    console.log(`RAG scores: [${scores.join(", ")}]`);
+    console.log(`RAG sources: ${matches.map((m) => `${m.fileName}:${m.score.toFixed(3)}`).join(", ")}`);
+    console.log(`RAG: ${relevant.length}/${matches.length} chunks above score threshold ${MIN_SCORE}`);
+
+    if (relevant.length === 0) {
+      // No chunks scored high enough — fall back to full text context
+      console.log("RAG: no relevant chunks found, falling back to full text context");
+      const ctx = await getDocumentContext(allowedFolders);
+      return ctx.systemInstructionText
+        ? { systemInstructionText: ctx.systemInstructionText, sourceFiles: ctx.fileNames }
+        : null;
+    }
+
+    const systemInstructionText = relevant
       .map((m) => `=== ${m.fileName} (excerpt) ===\n${m.text}`)
       .join("\n\n");
 
-    const sourceFiles = [...new Set(matches.map((m) => m.fileName))];
+    const relevantSourceFiles = [...new Set(relevant.map((m) => m.fileName))];
 
-    console.log(`RAG: retrieved ${matches.length} chunks from ${sourceFiles.length} files for query: "${query.slice(0, 80)}"`);
-
-    return { systemInstructionText, sourceFiles };
+    return { systemInstructionText, sourceFiles: relevantSourceFiles };
   } catch (err) {
     console.warn("RAG query failed, falling back to full text context:", err);
     const ctx = await getDocumentContext(allowedFolders);

@@ -236,8 +236,11 @@ export async function getDocumentContext(allowedFolders?: string[]): Promise<Doc
     if (!allowedFolders || allowedFolders.includes("*")) {
       return cachedContext;
     }
-    // Filter cached files by folder and rebuild context
-    return buildFilteredContext(allowedFolders);
+    // Only use L1 for filtering if cachedFiles is populated (not after KV restore)
+    if (cachedFiles.length > 0) {
+      return buildFilteredContext(allowedFolders);
+    }
+    // Fall through to L3 to populate cachedFiles for folder filtering
   }
 
   // Prevent concurrent fetches

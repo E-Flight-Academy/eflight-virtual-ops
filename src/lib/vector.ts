@@ -185,6 +185,15 @@ export async function syncVectorIndex(): Promise<{ fileCount: number; chunkCount
   }
 
   const duration = ((Date.now() - startTime) / 1000).toFixed(1);
+  // Log chunks per file for debugging
+  const chunksPerFile = new Map<string, number>();
+  for (const chunk of allChunks) {
+    const name = chunk.metadata.fileName;
+    chunksPerFile.set(name, (chunksPerFile.get(name) ?? 0) + 1);
+  }
+  for (const [name, count] of chunksPerFile) {
+    console.log(`  ${name}: ${count} chunks`);
+  }
   console.log(`Vector sync: indexed ${allChunks.length} chunks from ${textFiles.length} files in ${duration}s`);
 
   return { fileCount: textFiles.length, chunkCount: allChunks.length };

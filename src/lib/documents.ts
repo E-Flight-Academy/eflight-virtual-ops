@@ -9,7 +9,7 @@ import {
   getKvWebsite,
   type KvGeminiUris,
 } from "./kv-cache";
-import { queryDocuments, isVectorConfigured } from "./vector";
+import { queryDocuments, isVectorConfigured, type QueryMatch } from "./vector";
 
 export interface DocumentContext {
   systemInstructionText: string;
@@ -338,18 +338,31 @@ export async function getRelevantDocuments(
   }
 
   try {
-    const matches = await queryDocuments(query, allowedFolders, 15);
+    // Fetch more candidates than needed, then diversify across documents
+    const MAX_CHUNKS_PER_FILE = 5;
+    const TARGET_CHUNKS = 15;
+    const matches = await queryDocuments(query, allowedFolders, 40);
 
     // Filter out low-relevance chunks
     const MIN_SCORE = 0.75;
-    const relevant = matches.filter((m) => m.score >= MIN_SCORE);
+    const aboveThreshold = matches.filter((m) => m.score >= MIN_SCORE);
 
-    const scores = matches.map((m) => m.score.toFixed(3));
+    // Diversify: limit chunks per document so one file doesn't dominate
+    const fileChunkCounts = new Map<string, number>();
+    const relevant: QueryMatch[] = [];
+    for (const m of aboveThreshold) {
+      const count = fileChunkCounts.get(m.fileName) ?? 0;
+      if (count >= MAX_CHUNKS_PER_FILE) continue;
+      fileChunkCounts.set(m.fileName, count + 1);
+      relevant.push(m);
+      if (relevant.length >= TARGET_CHUNKS) break;
+    }
+
+    const scores = matches.slice(0, 20).map((m) => `${m.score.toFixed(3)}[${m.fileName.slice(0, 30)}]`);
     const sourceFiles = [...new Set(matches.map((m) => m.fileName))];
-    console.log(`RAG: retrieved ${matches.length} chunks from ${sourceFiles.length} files for query: "${query.slice(0, 80)}"`);
-    console.log(`RAG scores: [${scores.join(", ")}]`);
-    console.log(`RAG sources: ${matches.map((m) => `${m.fileName}:${m.score.toFixed(3)}`).join(", ")}`);
-    console.log(`RAG: ${relevant.length}/${matches.length} chunks above score threshold ${MIN_SCORE}`);
+    console.log(`RAG: retrieved ${matches.length} chunks from ${sourceFiles.length} files (${sourceFiles.join(", ")}) for query: "${query.slice(0, 80)}"`);
+    console.log(`RAG scores (top 20): ${scores.join(", ")}`);
+    console.log(`RAG: diversified to ${relevant.length} chunks from ${fileChunkCounts.size} files (max ${MAX_CHUNKS_PER_FILE}/file)`);
 
     if (relevant.length === 0) {
       // No chunks scored high enough — fall back to full text context
@@ -360,11 +373,40 @@ export async function getRelevantDocuments(
         : null;
     }
 
-    const systemInstructionText = relevant
+    // Build RAG context from diversified chunks
+    const ragParts = relevant
       .map((m) => `=== ${m.fileName} (excerpt) ===\n${m.text}`)
       .join("\n\n");
 
-    const relevantSourceFiles = [...new Set(relevant.map((m) => m.fileName))];
+    // Always include full text of small documents (reference sheets, checklists, etc.)
+    // These are too small for RAG to find reliably but contain critical information.
+    const SMALL_FILE_THRESHOLD = 6400; // ~2 chunks worth of text
+    const smallDocParts: string[] = [];
+    const ragFileNames = new Set(relevant.map((m) => m.fileName));
+
+    if (cachedFiles.length > 0) {
+      const accessibleFiles = filterFilesByFolder(cachedFiles, allowedFolders);
+      const smallTextFiles = accessibleFiles.filter(
+        (f) => f.isText && f.content.length > 0 && f.content.length <= SMALL_FILE_THRESHOLD
+      );
+
+      for (const f of smallTextFiles) {
+        if (!ragFileNames.has(f.name)) {
+          smallDocParts.push(`=== ${f.name} ===\n${f.content}`);
+          ragFileNames.add(f.name);
+        }
+      }
+
+      if (smallDocParts.length > 0) {
+        console.log(`RAG: appending ${smallDocParts.length} small documents in full`);
+      }
+    }
+
+    const systemInstructionText = smallDocParts.length > 0
+      ? ragParts + "\n\n=== Reference Documents (full text) ===\n\n" + smallDocParts.join("\n\n")
+      : ragParts;
+
+    const relevantSourceFiles = [...ragFileNames];
 
     return { systemInstructionText, sourceFiles: relevantSourceFiles };
   } catch (err) {

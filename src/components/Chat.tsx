@@ -98,6 +98,7 @@ export default function Chat() {
   const abortControllerRef = useRef<AbortController | null>(null);
   const sharedChatIdRef = useRef(searchParams.get("chat"));
   const debugMode = searchParams.get("debug") === "true";
+  const client = searchParams.get("client");
   const pollCountRef = useRef(0);
 
   const scrollToBottom = () => {
@@ -690,7 +691,7 @@ export default function Chat() {
 
   return (
     <div className="flex flex-col h-screen">
-      <header className="flex items-center justify-between p-4 border-b border-e-pale dark:border-gray-800">
+      {client !== "briefing" && <header className="flex items-center justify-between p-4 border-b border-e-pale dark:border-gray-800">
         <div>
           <h1 className="text-2xl font-extrabold text-e-indigo cursor-pointer" onClick={handleNewChat}>Steward <span className="hidden sm:inline text-sm font-normal text-e-grey">E-Flight Academy Virtual Assistant</span></h1>
         </div>
@@ -813,7 +814,7 @@ export default function Chat() {
             </button>
           )}
         </div>
-      </header>
+      </header>}
 
       <div className={`flex-1 overflow-y-auto p-2 sm:p-4 bg-gradient-to-b from-[#EFEFEF] to-[#F7F7F7] dark:from-gray-950 dark:to-gray-900 ${hasUserMessages ? "space-y-6" : "flex flex-col items-center justify-center"}`}>
         {!hasUserMessages && (

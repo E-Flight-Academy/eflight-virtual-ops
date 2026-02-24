@@ -28,6 +28,19 @@ const nextConfig: NextConfig = {
     NEXT_PUBLIC_BUILD_ID: getBuildId(),
     NEXT_PUBLIC_VERSION: getVersion(),
   },
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          {
+            key: "Content-Security-Policy",
+            value: "frame-ancestors 'self' https://www.e-deck.nl",
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

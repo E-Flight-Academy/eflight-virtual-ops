@@ -236,8 +236,8 @@ export default function Chat() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Check Shopify session on mount
-  useEffect(() => {
+  // Check Shopify session on mount and when window regains focus (for iframe login flow)
+  const checkSession = useCallback(() => {
     fetch("/api/auth/shopify/session")
       .then((res) => res.json())
       .then((data) => {
@@ -248,6 +248,14 @@ export default function Chat() {
       })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    checkSession();
+    if (client === "briefing") {
+      window.addEventListener("focus", checkSession);
+      return () => window.removeEventListener("focus", checkSession);
+    }
+  }, [checkSession, client]);
 
   // Cycling multilingual placeholder for the initial empty state
   const cyclingPlaceholders = useMemo(() => [
@@ -276,7 +284,11 @@ export default function Chat() {
   }, [messages, input, cyclingPlaceholders]);
 
   const handleShopifyLogin = () => {
-    window.location.href = "/api/auth/shopify/login";
+    if (window.self !== window.top) {
+      window.open("/api/auth/shopify/login", "_blank");
+    } else {
+      window.location.href = "/api/auth/shopify/login";
+    }
   };
 
   const handleShopifyLogout = async () => {

@@ -406,8 +406,9 @@ export default function Chat() {
       if (faqAnswer) {
         const faqUserMsg: Message = { role: "user", content: faqQuestion || displayLabel };
         const faqUrl = currentFlowStep.relatedFaqUrl;
-        const answerWithUrl = faqUrl ? `${faqAnswer}\n\n[${faqUrl}](${faqUrl})` : faqAnswer;
-        const answerWithSource = `${answerWithUrl}\n\n[source: FAQ]`;
+        const answerWithSource = faqUrl
+          ? `${faqAnswer}\n\n[source: FAQ | ${faqUrl}]`
+          : `${faqAnswer}\n\n[source: FAQ]`;
         const baseMessages = [...messages, faqUserMsg];
         setMessages(baseMessages);
         showWithThinkingDelay(baseMessages, answerWithSource);
@@ -444,8 +445,9 @@ export default function Chat() {
       if (faqAnswer) {
         const faqUserMsg: Message = { role: "user", content: faqQuestion || displayLabel };
         const faqUrl = nextStep.relatedFaqUrl;
-        const answerWithUrl = faqUrl ? `${faqAnswer}\n\n[${faqUrl}](${faqUrl})` : faqAnswer;
-        const answerWithSource = `${answerWithUrl}\n\n[source: FAQ]`;
+        const answerWithSource = faqUrl
+          ? `${faqAnswer}\n\n[source: FAQ | ${faqUrl}]`
+          : `${faqAnswer}\n\n[source: FAQ]`;
         const baseMessages = nextMsg
           ? [...messages, userMsg, { role: "assistant" as const, content: nextMsg }, faqUserMsg]
           : [...messages, faqUserMsg];
@@ -575,10 +577,9 @@ export default function Chat() {
     if (!hidden) {
       const instantResult = findInstantAnswer(text);
       if (instantResult) {
-        const answerWithUrl = instantResult.url
-          ? `${instantResult.answer}\n\n[${instantResult.url}](${instantResult.url})`
-          : instantResult.answer;
-        const answerWithSource = `${answerWithUrl}\n\n[source: FAQ]`;
+        const answerWithSource = instantResult.url
+          ? `${instantResult.answer}\n\n[source: FAQ | ${instantResult.url}]`
+          : `${instantResult.answer}\n\n[source: FAQ]`;
         showWithThinkingDelay(displayMessages, answerWithSource, () => logChat(text, answerWithSource));
         return;
       }
@@ -597,22 +598,75 @@ export default function Chat() {
         signal: controller.signal,
       });
 
-      const data = await response.json();
-
-      if (response.ok) {
-        setMessages([...displayMessages, { role: "assistant", content: data.message }]);
-        logChat(text, data.message);
-        if (data.lang) {
-          if (data.translations) {
-            setTranslations(data.lang, data.translations as UiLabels);
-          } else if (data.lang === "en") {
-            resetLanguage();
-          }
-        }
-      } else {
+      if (!response.ok) {
+        const data = await response.json();
         setMessages([
           ...displayMessages,
           { role: "assistant", content: `Error: ${data.error}` },
+        ]);
+        return;
+      }
+
+      // Stream NDJSON response
+      const reader = response.body?.getReader();
+      if (!reader) throw new Error("No response body");
+
+      const decoder = new TextDecoder();
+      let accumulated = "";
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
+
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          try {
+            const msg = JSON.parse(line);
+            if (msg.type === "chunk") {
+              accumulated += msg.text;
+              setMessages([...displayMessages, { role: "assistant", content: accumulated }]);
+            } else if (msg.type === "done") {
+              // Apply source post-processing
+              if (msg.source) {
+                accumulated = accumulated.replace(
+                  /\[source:\s*Website\s*\]/i,
+                  msg.source
+                );
+                setMessages([...displayMessages, { role: "assistant", content: accumulated }]);
+              }
+              logChat(text, accumulated);
+              // Handle language changes
+              if (msg.lang) {
+                if (msg.translations) {
+                  setTranslations(msg.lang, msg.translations as UiLabels);
+                } else if (msg.lang === "en") {
+                  resetLanguage();
+                }
+              }
+            } else if (msg.type === "error") {
+              if (!accumulated) {
+                setMessages([
+                  ...displayMessages,
+                  { role: "assistant", content: t("chat.error") },
+                ]);
+              }
+            }
+          } catch {
+            // Skip malformed lines
+          }
+        }
+      }
+
+      // If no chunks arrived at all, show error
+      if (!accumulated) {
+        setMessages([
+          ...displayMessages,
+          { role: "assistant", content: t("chat.error") },
         ]);
       }
     } catch (err) {
@@ -1014,28 +1068,52 @@ export default function Chat() {
               const sourceParts = sourceRaw.split("|").map((s) => s.trim());
               const source = sourceParts[0] || null;
               const sourceUrl = sourceParts[1] && sourceParts[1].startsWith("http") ? sourceParts[1] : null;
+              const sourceLabel = sourceParts.length >= 3 ? sourceParts[2] : (sourceParts[1] && !sourceParts[1].startsWith("http") ? sourceParts[1] : null);
               return (
                 <div className="max-w-[85%] bg-white dark:bg-gray-900 px-4 py-3 rounded-2xl rounded-tl-sm text-foreground group/msg">
                   <div className="prose dark:prose-invert max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-headings:my-2 prose-headings:text-e-indigo">
                     <ReactMarkdown components={{ a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer" className="text-e-indigo underline hover:text-e-indigo-hover">{children}</a> }}>{body}</ReactMarkdown>
                   </div>
                   <div className="flex items-center gap-2 mt-3">
-                    {source && (
+                    {source && (source === "General Knowledge" || source === "Knowledge Base") && !sourceLabel ? (
+                      <span className="text-[10px] text-e-grey dark:text-gray-400 select-none">{source}</span>
+                    ) : source && (
                       sourceUrl ? (
-                        <a href={sourceUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[10px] text-e-grey dark:text-gray-400 hover:text-e-indigo transition-colors underline">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
-                            <polyline points="15 3 21 3 21 9" />
-                            <line x1="10" y1="14" x2="21" y2="3" />
+                        <a href={sourceUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 w-full px-3 py-2.5 bg-[#F7F7F7] dark:bg-gray-800 rounded-xl hover:bg-[#ECECEC] dark:hover:bg-gray-700 transition-colors group/source cursor-pointer no-underline">
+                          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#1515F5]/10 text-[#1515F5] shrink-0">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                              <polyline points="15 3 21 3 21 9" />
+                              <line x1="10" y1="14" x2="21" y2="3" />
+                            </svg>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-foreground truncate">{sourceLabel || source}</p>
+                            <p className="text-xs text-e-grey dark:text-gray-400">{source === "FAQ" ? t("chat.sourceFaq") : t("chat.sourceWebsite")}</p>
+                          </div>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-e-grey dark:text-gray-400 group-hover/source:text-[#1515F5] transition-colors shrink-0">
+                            <polyline points="9 18 15 12 9 6" />
                           </svg>
-                          {source}
                         </a>
+                      ) : source === "FAQ" ? (
+                        <button onClick={() => setShowFaqModal(true)} className="flex items-center gap-3 w-full px-3 py-2.5 bg-[#F7F7F7] dark:bg-gray-800 rounded-xl hover:bg-[#ECECEC] dark:hover:bg-gray-700 transition-colors group/source cursor-pointer text-left">
+                          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#1515F5]/10 text-[#1515F5] shrink-0">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <circle cx="12" cy="12" r="10" />
+                              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+                              <line x1="12" y1="17" x2="12.01" y2="17" />
+                            </svg>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-foreground truncate">{sourceLabel || "FAQ"}</p>
+                            <p className="text-xs text-e-grey dark:text-gray-400">{t("chat.sourceFaq")}</p>
+                          </div>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-e-grey dark:text-gray-400 group-hover/source:text-[#1515F5] transition-colors shrink-0">
+                            <polyline points="9 18 15 12 9 6" />
+                          </svg>
+                        </button>
                       ) : (
-                        source === "FAQ" ? (
-                          <button onClick={() => setShowFaqModal(true)} className="text-[10px] text-e-grey dark:text-gray-400 hover:text-e-indigo transition-colors cursor-pointer underline">{source}</button>
-                        ) : (
-                          <span className="text-[10px] text-e-grey dark:text-gray-400 select-none">{source}</span>
-                        )
+                        <span className="text-[10px] text-e-grey dark:text-gray-400 select-none">{source}</span>
                       )
                     )}
                     <span className={`flex gap-2 transition-opacity ${message.rating ? "" : "touch-visible opacity-0 group-hover/msg:opacity-100"}`}>
@@ -1233,9 +1311,21 @@ export default function Chat() {
           </div>
         )}
 
-        <div className="px-4 pb-1 text-[10px] text-e-grey-light text-center select-none">
-          v{process.env.NEXT_PUBLIC_VERSION} ({process.env.NEXT_PUBLIC_BUILD_ID})
-        </div>
+        <button
+          className="w-full px-4 pb-1 text-[10px] text-e-grey-light text-center cursor-pointer hover:text-e-grey transition-colors"
+          onClick={() => {
+            const version = `v${process.env.NEXT_PUBLIC_VERSION} (${process.env.NEXT_PUBLIC_BUILD_ID})`;
+            navigator.clipboard.writeText(version);
+            const el = document.getElementById("version-label");
+            if (el) {
+              const original = el.textContent;
+              el.textContent = "Copied!";
+              setTimeout(() => { el.textContent = original; }, 1500);
+            }
+          }}
+        >
+          <span id="version-label">v{process.env.NEXT_PUBLIC_VERSION} ({process.env.NEXT_PUBLIC_BUILD_ID})</span>
+        </button>
       </div>
       )}
 

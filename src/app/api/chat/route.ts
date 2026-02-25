@@ -48,8 +48,8 @@ export async function POST(request: NextRequest) {
 
     const lastMessage = messages[messages.length - 1];
 
-    // Load config, FAQs, RAG results, and binary files in parallel (with timeouts)
-    const [config, faqs, ragResult, binaryContext] = await Promise.all([
+    // Load all data sources in parallel (with timeouts)
+    const [config, faqs, ragResult, binaryContext, websitePages, products] = await Promise.all([
       withTimeout(
         getConfig().catch((err) => { console.error("Failed to load config:", err); return null; }),
         5000, null
@@ -66,18 +66,8 @@ export async function POST(request: NextRequest) {
         getBinaryDocumentContext(allowedFolders).catch((err) => { console.error("Failed to load binary context:", err); return null; }),
         10000, null
       ),
-    ]);
-
-    const searchOrder = config?.search_order ?? ["faq", "drive"];
-    const toneOfVoice = config?.tone_of_voice ?? "professional, friendly, and helpful";
-    const companyContext = config?.company_context ?? "E-Flight Academy is a flight training academy.";
-    const fallbackInstruction = config?.fallback_instruction ?? "If the answer cannot be found in any of the provided sources, you may use your general knowledge to answer, but clearly state that the information does not come from E-Flight Academy's official documents or FAQs.";
-    const systemInstructions = (config as Record<string, unknown>)?.system_instructions as string | undefined;
-
-    // Load website content and products in parallel (L1 cache makes this near-instant)
-    const [websitePages, products] = await Promise.all([
       withTimeout(
-        getWebsiteContent(config?.website_pages).catch((err) => {
+        getWebsiteContent().catch((err) => {
           console.error("Failed to load website content:", err);
           return [] as never[];
         }),
@@ -91,6 +81,12 @@ export async function POST(request: NextRequest) {
         5000, []
       ),
     ]);
+
+    const searchOrder = config?.search_order ?? ["faq", "drive"];
+    const toneOfVoice = config?.tone_of_voice ?? "professional, friendly, and helpful";
+    const companyContext = config?.company_context ?? "E-Flight Academy is a flight training academy.";
+    const fallbackInstruction = config?.fallback_instruction ?? "If the answer cannot be found in any of the provided sources, you may use your general knowledge to answer, but clearly state that the information does not come from E-Flight Academy's official documents or FAQs.";
+    const systemInstructions = (config as Record<string, unknown>)?.system_instructions as string | undefined;
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
@@ -151,7 +147,7 @@ export async function POST(request: NextRequest) {
     // Fixed formatting rules (always applied)
     instructionParts.push(
       "IMPORTANT: When mentioning URLs, email addresses, or phone numbers, always format them as clickable markdown links. For websites use [visible text](https://example.com). For email addresses always show the full address as link text: [info@eflight.nl](mailto:info@eflight.nl). For phone numbers always show the full number as link text: [055 203 2230](tel:+31552032230). Never hide the address or number behind generic words like 'email' or 'phone'. Never use raw HTML tags.",
-      "MANDATORY: You MUST end EVERY response with a source tag on a new line. Format: [source: X] where X is one of: FAQ, Website, Knowledge Base, General Knowledge. When the source is Website, include the page URL like this: [source: Website | https://www.eflight.nl/page]. This is required for every single response without exception."
+      "MANDATORY: You MUST end EVERY response with a source tag on a new line. Format: [source: X] where X is one of: FAQ, Website, Knowledge Base, General Knowledge. When the source is Website, include the page URL like this: [source: Website | https://www.eflight.nl/page]. When the source is FAQ, include the original FAQ question like this: [source: FAQ | What does the training cost?]. This is required for every single response without exception."
     );
 
     if (clientLang && clientLang !== "en") {
@@ -245,81 +241,99 @@ export async function POST(request: NextRequest) {
 
     const chat = model.startChat({ history });
 
-    // Detect language on every message (in parallel with chat), but only for
-    // messages long enough to be unambiguous (≥10 chars). Short messages like
-    // "ok" or "ja" keep the current language.
+    // Detect language in parallel with streaming (resolve before stream ends)
     const shouldDetect = lastMessage.content.trim().length >= 10;
     const langPromise = shouldDetect
       ? withTimeout(detectLanguage(lastMessage.content), 5000, clientLang || "en")
       : Promise.resolve(clientLang || "en");
 
-    // Wrap Gemini call with timeout (leave margin for response)
-    const [geminiResult, detectedLang] = await Promise.all([
-      withTimeout(
-        (async () => {
-          const result = await chat.sendMessage(lastMessage.content);
-          const response = await result.response;
-          return response.text();
-        })(),
-        50000,
-        null
-      ),
-      langPromise,
-    ]);
+    // Start streaming response from Gemini
+    const streamResult = await chat.sendMessageStream(lastMessage.content);
 
-    if (geminiResult === null) {
-      return NextResponse.json({
-        message: "Sorry, the response took too long. Please try again or ask a simpler question.",
-      });
-    }
+    const encoder = new TextEncoder();
+    let fullText = "";
 
-    // Post-process: ensure [source: Website] tags include the page URL
-    let processedMessage = geminiResult;
-    if (websitePages.length > 0 && /\[source:\s*Website\s*\]/i.test(processedMessage)) {
-      const responseText = processedMessage.replace(/\[source:[^\]]*\]/gi, "").toLowerCase();
-      const responseWords = responseText.split(/\s+/).filter((w) => w.length > 4);
+    const stream = new ReadableStream({
+      async start(controller) {
+        try {
+          for await (const chunk of streamResult.stream) {
+            const text = chunk.text();
+            fullText += text;
+            controller.enqueue(encoder.encode(JSON.stringify({ type: "chunk", text }) + "\n"));
+          }
 
-      let bestUrl = websitePages[0].url;
-      let bestScore = 0;
+          // Post-process: ensure [source: Website] tags include the page URL and title
+          let processedSource: string | null = null;
+          let sourceTitle: string | null = null;
+          let sourceUrl: string | null = null;
+          if (websitePages.length > 0 && /\[source:\s*Website\s*\]/i.test(fullText)) {
+            const responseText = fullText.replace(/\[source:[^\]]*\]/gi, "").toLowerCase();
+            const responseWords = responseText.split(/\s+/).filter((w) => w.length > 4);
 
-      for (const page of websitePages) {
-        const pageWords = new Set(
-          page.content.toLowerCase().split(/\s+/).filter((w) => w.length > 4)
-        );
-        let score = 0;
-        for (const word of responseWords) {
-          if (pageWords.has(word)) score++;
+            let bestPage = websitePages[0];
+            let bestScore = 0;
+
+            for (const page of websitePages) {
+              const pageWords = new Set(
+                page.content.toLowerCase().split(/\s+/).filter((w) => w.length > 4)
+              );
+              let score = 0;
+              for (const word of responseWords) {
+                if (pageWords.has(word)) score++;
+              }
+              if (score > bestScore) {
+                bestScore = score;
+                bestPage = page;
+              }
+            }
+
+            sourceUrl = bestPage.url;
+            sourceTitle = bestPage.title;
+            processedSource = `[source: Website | ${bestPage.url} | ${bestPage.title}]`;
+          }
+
+          // Resolve language detection and translations
+          const detectedLang = await langPromise;
+          const langChanged = detectedLang !== (clientLang || "en");
+          const done: Record<string, unknown> = { type: "done" };
+
+          if (processedSource) {
+            done.source = processedSource;
+            if (sourceTitle) done.sourceTitle = sourceTitle;
+            if (sourceUrl) done.sourceUrl = sourceUrl;
+          }
+
+          if (langChanged) {
+            try {
+              const translations = detectedLang === "en"
+                ? null
+                : await withTimeout(getTranslations(detectedLang), 8000, null);
+              done.lang = detectedLang;
+              if (translations) {
+                done.translations = translations;
+              }
+            } catch {
+              // Non-fatal
+            }
+          }
+
+          controller.enqueue(encoder.encode(JSON.stringify(done) + "\n"));
+          controller.close();
+        } catch (err) {
+          console.error("Stream error:", err);
+          controller.enqueue(encoder.encode(JSON.stringify({ type: "error", error: "Stream interrupted" }) + "\n"));
+          controller.close();
         }
-        if (score > bestScore) {
-          bestScore = score;
-          bestUrl = page.url;
-        }
-      }
+      },
+    });
 
-      processedMessage = processedMessage.replace(
-        /\[source:\s*Website\s*\]/i,
-        `[source: Website | ${bestUrl}]`
-      );
-    }
-
-    // Include translations when detected language differs from what the frontend has
-    const response: Record<string, unknown> = { message: processedMessage };
-    const langChanged = detectedLang !== (clientLang || "en");
-    if (langChanged) {
-      try {
-        const translations = detectedLang === "en"
-          ? null  // Frontend already has English defaults
-          : await withTimeout(getTranslations(detectedLang), 8000, null);
-        response.lang = detectedLang;
-        if (translations) {
-          response.translations = translations;
-        }
-      } catch {
-        // Non-fatal — UI stays in current language
-      }
-    }
-
-    return NextResponse.json(response);
+    return new Response(stream, {
+      headers: {
+        "Content-Type": "application/x-ndjson",
+        "Cache-Control": "no-cache",
+        "Transfer-Encoding": "chunked",
+      },
+    });
   } catch (error) {
     console.error("Chat API error:", error);
     const message = error instanceof Error ? error.message : "Unknown error";

@@ -34,73 +34,103 @@ export async function fetchFlowsFromNotion(): Promise<KvFlowStep[]> {
 
   const steps: KvFlowStep[] = [];
 
-  for (const page of response.results) {
-    if (!("properties" in page)) continue;
+  // First pass: extract properties from each page (no API calls needed)
+  const parsed = response.results
+    .filter((page) => "properties" in page)
+    .map((page) => {
+      const pageId = (page as { id: string }).id;
+      const props = (page as { properties: Record<string, unknown> }).properties;
+      let name = "";
+      let label = "";
+      let message = "";
+      let endAction: "Continue Flow" | "Start AI Chat" = "Continue Flow";
+      let contextKey = "";
+      let endPrompt = "";
+      let order = 0;
+      let nextStepNames: string[] = [];
+      let relatedFaqId: string | null = null;
+      let icon: string | null = null;
 
-    const props = page.properties;
-    let name = "";
-    let message = "";
-    let endAction: "Continue Flow" | "Start AI Chat" = "Continue Flow";
-    let contextKey = "";
-    let endPrompt = "";
-    let order = 0;
-    let relationIds: string[] = [];
-    let relatedFaqId: string | null = null;
+      // Extract page icon
+      const pageIcon = (page as { icon?: { type: string; emoji?: string; external?: { url: string }; file?: { url: string } } }).icon;
+      if (pageIcon?.type === "emoji" && pageIcon.emoji) {
+        icon = pageIcon.emoji;
+      } else if (pageIcon?.type === "external" && pageIcon.external?.url) {
+        icon = pageIcon.external.url;
+      } else if (pageIcon?.type === "file" && pageIcon.file?.url) {
+        icon = pageIcon.file.url;
+      }
 
-    for (const [key, value] of Object.entries(props)) {
-      if (value.type === "title" && value.title.length > 0) {
-        name = value.title
-          .map((t: { plain_text: string }) => t.plain_text)
-          .join("");
-      }
-      if (
-        key === "Message" &&
-        value.type === "rich_text" &&
-        value.rich_text.length > 0
-      ) {
-        message = value.rich_text
-          .map((t: { plain_text: string }) => t.plain_text)
-          .join("");
-      }
-      if (key === "Next Dialog Flow" && value.type === "relation") {
-        relationIds = (value.relation as { id: string }[]).map((r) => r.id);
-      }
-      if (key === "End Action" && value.type === "select" && value.select) {
-        const val = value.select.name;
-        if (val === "Start AI Chat" || val === "Continue Flow") {
-          endAction = val;
+      for (const [key, value] of Object.entries(props)) {
+        const v = value as Record<string, unknown>;
+        if (v.type === "title" && Array.isArray(v.title) && v.title.length > 0) {
+          name = (v.title as { plain_text: string }[]).map((t) => t.plain_text).join("");
+        }
+        if (key === "Label" && v.type === "rich_text" && Array.isArray(v.rich_text) && v.rich_text.length > 0) {
+          label = (v.rich_text as { plain_text: string }[]).map((t) => t.plain_text).join("");
+        }
+        if (key === "Message" && v.type === "rich_text" && Array.isArray(v.rich_text) && v.rich_text.length > 0) {
+          message = (v.rich_text as { plain_text: string }[]).map((t) => t.plain_text).join("");
+        }
+        if (key === "Next Steps" && v.type === "rich_text" && Array.isArray(v.rich_text) && v.rich_text.length > 0) {
+          const raw = (v.rich_text as { plain_text: string }[]).map((t) => t.plain_text).join("");
+          nextStepNames = raw.split(",").map((s) => s.trim()).filter(Boolean);
+        }
+        if (key === "End Action" && v.type === "select" && v.select) {
+          const val = (v.select as { name: string }).name;
+          if (val === "Start AI Chat" || val === "Continue Flow") endAction = val;
+        }
+        if (key === "Context Key" && v.type === "rich_text" && Array.isArray(v.rich_text) && v.rich_text.length > 0) {
+          contextKey = (v.rich_text as { plain_text: string }[]).map((t) => t.plain_text).join("");
+        }
+        if (key === "End Prompt" && v.type === "rich_text" && Array.isArray(v.rich_text) && v.rich_text.length > 0) {
+          endPrompt = (v.rich_text as { plain_text: string }[]).map((t) => t.plain_text).join("");
+        }
+        if (key === "Order" && v.type === "number") {
+          order = (v.number as number | null) ?? 0;
+        }
+        if (key === "Related FAQ" && v.type === "relation") {
+          const rels = v.relation as { id: string }[];
+          if (rels.length > 0) relatedFaqId = rels[0].id;
         }
       }
-      if (
-        key === "Context Key" &&
-        value.type === "rich_text" &&
-        value.rich_text.length > 0
-      ) {
-        contextKey = value.rich_text
-          .map((t: { plain_text: string }) => t.plain_text)
-          .join("");
-      }
-      if (
-        key === "End Prompt" &&
-        value.type === "rich_text" &&
-        value.rich_text.length > 0
-      ) {
-        endPrompt = value.rich_text
-          .map((t: { plain_text: string }) => t.plain_text)
-          .join("");
-      }
-      if (key === "Order" && value.type === "number") {
-        order = value.number ?? 0;
-      }
-      if (key === "Related FAQ" && value.type === "relation") {
-        const rels = value.relation as { id: string }[];
-        if (rels.length > 0) {
-          relatedFaqId = rels[0].id;
-        }
-      }
-    }
 
-    // Fetch Related FAQ question and answer if linked
+      return { pageId, name, label, icon, message, endAction, contextKey, endPrompt, order, nextStepNames, relatedFaqId };
+    });
+
+  // Collect FAQ page IDs to fetch in parallel
+  const allFaqIds = new Set<string>();
+  for (const p of parsed) {
+    if (p.relatedFaqId) allFaqIds.add(p.relatedFaqId);
+  }
+
+  // Fetch FAQ pages in parallel
+  const faqPages = await Promise.all(
+    [...allFaqIds].map(async (pageId) => {
+      try {
+        const page = await notion.pages.retrieve({ page_id: pageId });
+        return { pageId, page };
+      } catch (err) {
+        console.warn(`Failed to fetch Related FAQ ${pageId}:`, err);
+        return null;
+      }
+    })
+  );
+
+  const faqPageMap = new Map<string, typeof faqPages[number]>();
+  for (const entry of faqPages) {
+    if (entry) faqPageMap.set(entry.pageId, entry);
+  }
+
+  // Build a lookup map of step name -> parsed data (for resolving Next Steps)
+  const stepByName = new Map<string, typeof parsed[number]>();
+  for (const p of parsed) {
+    if (p.name) stepByName.set(p.name, p);
+  }
+
+  // Second pass: build flow steps
+  for (const p of parsed) {
+    // Resolve Related FAQ
     let relatedFaqQuestion = "";
     let relatedFaqQuestionNl = "";
     let relatedFaqQuestionDe = "";
@@ -108,97 +138,60 @@ export async function fetchFlowsFromNotion(): Promise<KvFlowStep[]> {
     let relatedFaqAnswerNl = "";
     let relatedFaqAnswerDe = "";
     let relatedFaqUrl = "";
-    if (relatedFaqId) {
-      try {
-        const faqPage = await notion.pages.retrieve({ page_id: relatedFaqId });
-        if ("properties" in faqPage) {
-          const faqProps = faqPage.properties as Record<string, unknown>;
-          // Extract text from rich_text property
-          const getText = (propName: string): string => {
-            const prop = faqProps[propName] as { type: string; rich_text: { plain_text: string }[] } | undefined;
-            if (prop?.type === "rich_text" && prop.rich_text.length > 0) {
-              return prop.rich_text.map((t) => t.plain_text).join("");
+
+    if (p.relatedFaqId) {
+      const faqEntry = faqPageMap.get(p.relatedFaqId);
+      if (faqEntry && "properties" in faqEntry.page) {
+        const faqProps = faqEntry.page.properties as Record<string, unknown>;
+        const getText = (propName: string): string => {
+          const prop = faqProps[propName] as { type: string; rich_text: { plain_text: string }[] } | undefined;
+          if (prop?.type === "rich_text" && prop.rich_text.length > 0) {
+            return prop.rich_text.map((t) => t.plain_text).join("");
+          }
+          return "";
+        };
+        const getTitle = (): string => {
+          for (const val of Object.values(faqProps)) {
+            const v = val as { type: string; title: { plain_text: string }[] };
+            if (v.type === "title" && v.title.length > 0) {
+              return v.title.map((t) => t.plain_text).join("");
             }
-            return "";
-          };
-          // Extract title (Question)
-          const getTitle = (): string => {
-            for (const val of Object.values(faqProps)) {
-              const v = val as { type: string; title: { plain_text: string }[] };
-              if (v.type === "title" && v.title.length > 0) {
-                return v.title.map((t) => t.plain_text).join("");
-              }
-            }
-            return "";
-          };
-          // Extract Link
-          const getUrl = (): string => {
-            const urlProp = faqProps["Link"] as { type: string; url?: string | null } | undefined;
-            return urlProp?.type === "url" && urlProp.url ? urlProp.url : "";
-          };
-          relatedFaqQuestion = getTitle();
-          relatedFaqQuestionNl = getText("Question (NL)");
-          relatedFaqQuestionDe = getText("Question (DE)");
-          relatedFaqAnswer = getText("Answer (EN)");
-          relatedFaqAnswerNl = getText("Answer (NL)");
-          relatedFaqAnswerDe = getText("Answer (DE)");
-          relatedFaqUrl = getUrl();
-        }
-      } catch (err) {
-        console.warn(`Failed to fetch Related FAQ ${relatedFaqId}:`, err);
+          }
+          return "";
+        };
+        const getUrl = (): string => {
+          const urlProp = faqProps["Link"] as { type: string; url?: string | null } | undefined;
+          return urlProp?.type === "url" && urlProp.url ? urlProp.url : "";
+        };
+        relatedFaqQuestion = getTitle();
+        relatedFaqQuestionNl = getText("Question (NL)");
+        relatedFaqQuestionDe = getText("Question (DE)");
+        relatedFaqAnswer = getText("Answer (EN)");
+        relatedFaqAnswerNl = getText("Answer (NL)");
+        relatedFaqAnswerDe = getText("Answer (DE)");
+        relatedFaqUrl = getUrl();
       }
     }
 
-    // Resolve related pages for Next Dialog Flow
+    // Resolve Next Steps from text field (comma-separated step names)
     const nextDialogFlow: FlowOption[] = [];
-    for (const pageId of relationIds) {
-      try {
-        const relatedPage = await notion.pages.retrieve({ page_id: pageId });
-        if (!("properties" in relatedPage)) continue;
-
-        // Extract name from the title property (used for navigation)
-        let relName = "";
-        let relLabel = "";
-        for (const [key, val] of Object.entries(relatedPage.properties)) {
-          if (val.type === "title" && val.title.length > 0) {
-            relName = val.title
-              .map((t: { plain_text: string }) => t.plain_text)
-              .join("");
-          }
-          if (
-            key === "Label" &&
-            val.type === "rich_text" &&
-            val.rich_text.length > 0
-          ) {
-            relLabel = val.rich_text
-              .map((t: { plain_text: string }) => t.plain_text)
-              .join("");
-          }
-        }
-        // Use Label for display, fall back to title
-        const displayLabel = relLabel || relName;
-
-        // Extract icon (emoji or image URL)
-        let icon: string | null = null;
-        const pageIcon = (relatedPage as { icon?: { type: string; emoji?: string; external?: { url: string }; file?: { url: string } } }).icon;
-        if (pageIcon?.type === "emoji" && pageIcon.emoji) {
-          icon = pageIcon.emoji;
-        } else if (pageIcon?.type === "external" && pageIcon.external?.url) {
-          icon = pageIcon.external.url;
-        } else if (pageIcon?.type === "file" && pageIcon.file?.url) {
-          icon = pageIcon.file.url;
-        }
-
-        if (relName && displayLabel) {
-          nextDialogFlow.push({ name: relName, label: displayLabel, labelNl: "", labelDe: "", icon });
-        }
-      } catch (err) {
-        console.warn(`Failed to fetch related flow page ${pageId}:`, err);
+    for (const stepName of p.nextStepNames) {
+      const target = stepByName.get(stepName);
+      if (!target) {
+        console.warn(`Next step "${stepName}" not found (referenced by "${p.name}")`);
+        continue;
       }
+      nextDialogFlow.push({
+        name: target.name,
+        label: target.label || target.name,
+        labelNl: "",
+        labelDe: "",
+        icon: target.icon,
+      });
     }
 
-    if (name && (message || endAction === "Start AI Chat")) {
-      steps.push({ name, message, messageNl: "", messageDe: "", nextDialogFlow, endAction, contextKey, endPrompt, endPromptNl: "", endPromptDe: "", relatedFaqQuestion, relatedFaqQuestionNl, relatedFaqQuestionDe, relatedFaqAnswer, relatedFaqAnswerNl, relatedFaqAnswerDe, relatedFaqUrl, order });
+    if (p.name && (p.message || p.endAction === "Start AI Chat")) {
+      steps.push({ name: p.name, message: p.message, messageNl: "", messageDe: "", nextDialogFlow, endAction: p.endAction, contextKey: p.contextKey, endPrompt: p.endPrompt, endPromptNl: "", endPromptDe: "", relatedFaqQuestion, relatedFaqQuestionNl, relatedFaqQuestionDe, relatedFaqAnswer, relatedFaqAnswerNl, relatedFaqAnswerDe, relatedFaqUrl, order: p.order });
     }
   }
 

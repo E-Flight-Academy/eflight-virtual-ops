@@ -19,7 +19,7 @@ function getRichText(props: Record<string, unknown>, key: string): string {
   return "";
 }
 
-function getRichTextMd(props: Record<string, unknown>, key: string): string {
+export function getRichTextMd(props: Record<string, unknown>, key: string): string {
   const prop = props[key] as {
     type: string;
     rich_text: {

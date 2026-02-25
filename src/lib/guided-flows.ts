@@ -7,6 +7,7 @@ import {
   type KvFlowStep,
   type KvFlowsData,
 } from "./kv-cache";
+import { getRichTextMd } from "./faq";
 
 // L1: in-memory cache
 let cachedFlows: KvFlowsData | null = null;
@@ -166,9 +167,9 @@ export async function fetchFlowsFromNotion(): Promise<KvFlowStep[]> {
         relatedFaqQuestion = getTitle();
         relatedFaqQuestionNl = getText("Question (NL)");
         relatedFaqQuestionDe = getText("Question (DE)");
-        relatedFaqAnswer = getText("Answer (EN)");
-        relatedFaqAnswerNl = getText("Answer (NL)");
-        relatedFaqAnswerDe = getText("Answer (DE)");
+        relatedFaqAnswer = getRichTextMd(faqProps, "Answer (EN)");
+        relatedFaqAnswerNl = getRichTextMd(faqProps, "Answer (NL)");
+        relatedFaqAnswerDe = getRichTextMd(faqProps, "Answer (DE)");
         relatedFaqUrl = getUrl();
       }
     }

@@ -364,7 +364,7 @@ export default function Chat() {
     onComplete?.();
   }, []);
 
-  const findInstantAnswer = (text: string): { answer: string; url?: string } | null => {
+  const findInstantAnswer = (text: string): { answer: string; url?: string; question: string } | null => {
     const q = text.trim().toLowerCase();
     // Check starters (match any language version) - starters don't have URLs
     const starter = starters.find((s) =>
@@ -372,14 +372,14 @@ export default function Chat() {
       s.questionNl.toLowerCase() === q ||
       s.questionDe.toLowerCase() === q
     );
-    if (starter) { const a = getA(starter); if (a) return { answer: a }; }
+    if (starter) { const a = getA(starter); if (a) return { answer: a, question: starter.question }; }
     // Check all FAQs (match any language version)
     const faq = faqs.find((f) =>
       f.question.toLowerCase() === q ||
       f.questionNl.toLowerCase() === q ||
       f.questionDe.toLowerCase() === q
     );
-    if (faq) { const a = getA(faq); if (a) return { answer: a, url: faq.url || undefined }; }
+    if (faq) { const a = getA(faq); if (a) return { answer: a, url: faq.url || undefined, question: faq.question }; }
     return null;
   };
 
@@ -406,9 +406,10 @@ export default function Chat() {
       if (faqAnswer) {
         const faqUserMsg: Message = { role: "user", content: faqQuestion || displayLabel };
         const faqUrl = currentFlowStep.relatedFaqUrl;
+        const faqTitle = currentFlowStep.relatedFaqQuestion || faqQuestion || displayLabel;
         const answerWithSource = faqUrl
-          ? `${faqAnswer}\n\n[source: FAQ | ${faqUrl}]`
-          : `${faqAnswer}\n\n[source: FAQ]`;
+          ? `${faqAnswer}\n\n[source: FAQ | ${faqUrl} | ${faqTitle}]`
+          : `${faqAnswer}\n\n[source: FAQ | ${faqTitle}]`;
         const baseMessages = [...messages, faqUserMsg];
         setMessages(baseMessages);
         showWithThinkingDelay(baseMessages, answerWithSource);
@@ -445,9 +446,10 @@ export default function Chat() {
       if (faqAnswer) {
         const faqUserMsg: Message = { role: "user", content: faqQuestion || displayLabel };
         const faqUrl = nextStep.relatedFaqUrl;
+        const faqTitle = nextStep.relatedFaqQuestion || faqQuestion || displayLabel;
         const answerWithSource = faqUrl
-          ? `${faqAnswer}\n\n[source: FAQ | ${faqUrl}]`
-          : `${faqAnswer}\n\n[source: FAQ]`;
+          ? `${faqAnswer}\n\n[source: FAQ | ${faqUrl} | ${faqTitle}]`
+          : `${faqAnswer}\n\n[source: FAQ | ${faqTitle}]`;
         const baseMessages = nextMsg
           ? [...messages, userMsg, { role: "assistant" as const, content: nextMsg }, faqUserMsg]
           : [...messages, faqUserMsg];
@@ -578,8 +580,8 @@ export default function Chat() {
       const instantResult = findInstantAnswer(text);
       if (instantResult) {
         const answerWithSource = instantResult.url
-          ? `${instantResult.answer}\n\n[source: FAQ | ${instantResult.url}]`
-          : `${instantResult.answer}\n\n[source: FAQ]`;
+          ? `${instantResult.answer}\n\n[source: FAQ | ${instantResult.url} | ${instantResult.question}]`
+          : `${instantResult.answer}\n\n[source: FAQ | ${instantResult.question}]`;
         showWithThinkingDelay(displayMessages, answerWithSource, () => logChat(text, answerWithSource));
         return;
       }
@@ -634,7 +636,7 @@ export default function Chat() {
               // Apply source post-processing
               if (msg.source) {
                 accumulated = accumulated.replace(
-                  /\[source:\s*Website\s*\]/i,
+                  /\[source:\s*(?:Website|FAQ)\s*(?:\|[^\]]*)?\]/i,
                   msg.source
                 );
                 setMessages([...displayMessages, { role: "assistant", content: accumulated }]);
@@ -753,6 +755,33 @@ export default function Chat() {
       .map((f) => getQ(f))
       .slice(0, 5);
   }, [input, faqs, starters, getQ]);
+
+  const [selectedSuggestion, setSelectedSuggestion] = useState(-1);
+
+  // Reset selection when suggestions change
+  useEffect(() => {
+    setSelectedSuggestion(-1);
+  }, [faqSuggestions]);
+
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (faqSuggestions.length === 0) return;
+    if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setSelectedSuggestion((prev) =>
+        prev <= 0 ? faqSuggestions.length - 1 : prev - 1
+      );
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setSelectedSuggestion((prev) =>
+        prev >= faqSuggestions.length - 1 ? 0 : prev + 1
+      );
+    } else if (e.key === "Enter" && selectedSuggestion >= 0) {
+      e.preventDefault();
+      sendMessage(faqSuggestions[selectedSuggestion]);
+    } else if (e.key === "Escape") {
+      setSelectedSuggestion(-1);
+    }
+  };
 
 
   return (
@@ -996,25 +1025,28 @@ export default function Chat() {
               </div>
             )}
 
-            {/* FAQ dropdown */}
-            {faqSuggestions.length > 0 && (
-              <div className="bg-white dark:bg-gray-900 border border-[#ECECEC] dark:border-gray-700 rounded-lg shadow-lg overflow-y-auto max-h-64">
-                {faqSuggestions.map((suggestion, i) => (
-                  <button
-                    key={i}
-                    onClick={() => sendMessage(suggestion)}
-                    className="w-full text-left px-4 py-3 text-sm text-foreground hover:bg-[#F7F7F7] dark:hover:bg-gray-800 transition-colors border-b border-[#ECECEC] dark:border-gray-700 last:border-b-0 cursor-pointer"
-                  >
-                    {suggestion}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* Centered input */}
+            {/* Centered input with FAQ suggestions */}
             <form onSubmit={handleSubmit}>
-              <div className="flex gap-3 items-center">
+              <div className="flex gap-3 items-end">
                 <div className="relative flex-1">
+                  {faqSuggestions.length > 0 && (
+                    <div className="bg-white dark:bg-gray-900 border border-[#ECECEC] dark:border-gray-700 border-b-0 rounded-t-2xl overflow-y-auto max-h-64">
+                      {faqSuggestions.map((suggestion, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => sendMessage(suggestion)}
+                          className={`w-full text-left px-5 py-3 text-sm text-foreground hover:bg-[#F7F7F7] dark:hover:bg-gray-800 transition-colors border-b border-[#ECECEC] dark:border-gray-700 cursor-pointer flex items-center gap-3 ${i === selectedSuggestion ? "bg-[#F7F7F7] dark:bg-gray-800" : ""}`}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-e-grey shrink-0">
+                            <circle cx="11" cy="11" r="8" />
+                            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                          </svg>
+                          {suggestion}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                   <input
                     ref={inputRef}
                     type="text"
@@ -1023,8 +1055,9 @@ export default function Chat() {
                     autoComplete="off"
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={handleInputKeyDown}
                     placeholder={undefined}
-                    className="w-full rounded-full border border-e-grey-light dark:border-gray-700 px-5 py-3 focus:outline-none focus:ring-2 focus:ring-e-indigo-light bg-white dark:bg-gray-900"
+                    className={`w-full border border-e-grey-light dark:border-gray-700 px-5 py-3 focus:outline-none focus:ring-2 focus:ring-e-indigo-light bg-white dark:bg-gray-900 ${faqSuggestions.length > 0 ? "rounded-b-2xl rounded-t-none" : "rounded-full"}`}
                   />
                   {!input && (
                     <span
@@ -1089,28 +1122,15 @@ export default function Chat() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-foreground truncate">{sourceLabel || source}</p>
-                            <p className="text-xs text-e-grey dark:text-gray-400">{source === "FAQ" ? t("chat.sourceFaq") : t("chat.sourceWebsite")}</p>
+                            <p className="text-xs text-e-grey dark:text-gray-400">{t("chat.sourceWebsite")}</p>
                           </div>
                           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-e-grey dark:text-gray-400 group-hover/source:text-[#1515F5] transition-colors shrink-0">
                             <polyline points="9 18 15 12 9 6" />
                           </svg>
                         </a>
                       ) : source === "FAQ" ? (
-                        <button onClick={() => setShowFaqModal(true)} className="flex items-center gap-3 w-full px-3 py-2.5 bg-[#F7F7F7] dark:bg-gray-800 rounded-xl hover:bg-[#ECECEC] dark:hover:bg-gray-700 transition-colors group/source cursor-pointer text-left">
-                          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#1515F5]/10 text-[#1515F5] shrink-0">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                              <circle cx="12" cy="12" r="10" />
-                              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
-                              <line x1="12" y1="17" x2="12.01" y2="17" />
-                            </svg>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-foreground truncate">{sourceLabel || "FAQ"}</p>
-                            <p className="text-xs text-e-grey dark:text-gray-400">{t("chat.sourceFaq")}</p>
-                          </div>
-                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-e-grey dark:text-gray-400 group-hover/source:text-[#1515F5] transition-colors shrink-0">
-                            <polyline points="9 18 15 12 9 6" />
-                          </svg>
+                        <button onClick={() => setShowFaqModal(true)} className="text-[10px] text-e-grey dark:text-gray-400 hover:text-e-indigo transition-colors cursor-pointer">
+                          FAQ · {t("chat.sourceFaq")}
                         </button>
                       ) : (
                         <span className="text-[10px] text-e-grey dark:text-gray-400 select-none">{source}</span>
@@ -1188,36 +1208,40 @@ export default function Chat() {
 
       {hasUserMessages && (
         <div className="border-t border-e-pale dark:border-gray-800 relative">
-          {faqSuggestions.length > 0 && (
-            <div className="absolute bottom-full left-0 right-0 z-10">
-              <div className="max-w-4xl mx-auto px-4">
-                <div className="bg-white dark:bg-gray-900 border border-[#ECECEC] dark:border-gray-700 rounded-lg shadow-lg overflow-y-auto max-h-64">
-                  {faqSuggestions.map((suggestion, i) => (
-                    <button
-                      key={i}
-                      onClick={() => sendMessage(suggestion)}
-                      className="w-full text-left px-4 py-3 text-sm text-foreground hover:bg-[#F7F7F7] dark:hover:bg-gray-800 transition-colors border-b border-[#ECECEC] dark:border-gray-700 last:border-b-0 cursor-pointer"
-                    >
-                      {suggestion}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
           <form onSubmit={handleSubmit} className="p-4 max-w-4xl mx-auto w-full">
-            <div className="flex gap-3 items-center">
-              <input
-                ref={inputRef}
-                type="text"
-                name="message"
-                id="message-input-bottom"
-                autoComplete="off"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder={t("chat.placeholder")}
-                className="flex-1 rounded-full border border-e-grey-light dark:border-gray-700 px-5 py-3 focus:outline-none focus:ring-2 focus:ring-e-indigo-light bg-white dark:bg-gray-900"
-              />
+            <div className="flex gap-3 items-end">
+              <div className="flex-1">
+                {faqSuggestions.length > 0 && (
+                  <div className="bg-white dark:bg-gray-900 border border-[#ECECEC] dark:border-gray-700 border-b-0 rounded-t-2xl overflow-y-auto max-h-64">
+                    {faqSuggestions.map((suggestion, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => sendMessage(suggestion)}
+                        className={`w-full text-left px-5 py-3 text-sm text-foreground hover:bg-[#F7F7F7] dark:hover:bg-gray-800 transition-colors border-b border-[#ECECEC] dark:border-gray-700 cursor-pointer flex items-center gap-3 ${i === selectedSuggestion ? "bg-[#F7F7F7] dark:bg-gray-800" : ""}`}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-e-grey shrink-0">
+                          <circle cx="11" cy="11" r="8" />
+                          <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                        </svg>
+                        {suggestion}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <input
+                  ref={inputRef}
+                  type="text"
+                  name="message"
+                  id="message-input-bottom"
+                  autoComplete="off"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyDown={handleInputKeyDown}
+                  placeholder={t("chat.placeholder")}
+                  className={`w-full border border-e-grey-light dark:border-gray-700 px-5 py-3 focus:outline-none focus:ring-2 focus:ring-e-indigo-light bg-white dark:bg-gray-900 ${faqSuggestions.length > 0 ? "rounded-b-2xl rounded-t-none" : "rounded-full"}`}
+                />
+              </div>
               <button
                 type="submit"
                 disabled={!input.trim()}

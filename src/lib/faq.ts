@@ -161,7 +161,11 @@ export function buildFaqContext(faqs: KvFaq[], lang = "en"): string {
   if (faqs.length === 0) return "";
   const entries = faqs
     .filter((f) => getFaqAnswer(f, lang))
-    .map((f) => `Q: ${getFaqQuestion(f, lang)}\nA: ${getFaqAnswer(f, lang)}`)
+    .map((f) => {
+      let entry = `Q: ${getFaqQuestion(f, lang)}\nA: ${getFaqAnswer(f, lang)}`;
+      if (f.url) entry += `\nLink: ${f.url}`;
+      return entry;
+    })
     .join("\n\n");
   return `=== Frequently Asked Questions ===\n${entries}`;
 }

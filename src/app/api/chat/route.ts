@@ -147,14 +147,12 @@ export async function POST(request: NextRequest) {
     // Fixed formatting rules (always applied)
     instructionParts.push(
       "IMPORTANT: When mentioning URLs, email addresses, or phone numbers, always format them as clickable markdown links. For websites use [visible text](https://example.com). For email addresses always show the full address as link text: [info@eflight.nl](mailto:info@eflight.nl). For phone numbers always show the full number as link text: [055 203 2230](tel:+31552032230). Never hide the address or number behind generic words like 'email' or 'phone'. Never use raw HTML tags.",
-      "MANDATORY: You MUST end EVERY response with a source tag on a new line. Format: [source: X] where X is one of: FAQ, Website, Knowledge Base, General Knowledge. When the source is Website, include the page URL like this: [source: Website | https://www.eflight.nl/page]. When the source is FAQ, include the original FAQ question like this: [source: FAQ | What does the training cost?]. This is required for every single response without exception."
+      "MANDATORY: You MUST end EVERY response with a source tag on a new line. Format: [source: X] where X is one of: FAQ, Website, Knowledge Base, General Knowledge. When the source is Website, include the page URL like this: [source: Website | https://www.eflight.nl/page]. When the source is FAQ, include the original FAQ question (in English) like this: [source: FAQ | What does the training cost?]. If the answer comes from a FAQ entry, ALWAYS use FAQ as the source, even if similar information exists on the website. This is required for every single response without exception."
     );
 
-    if (clientLang && clientLang !== "en") {
-      instructionParts.push(
-        `IMPORTANT: Always respond in the same language as the user. The user's preferred language code is: ${clientLang}.`
-      );
-    }
+    instructionParts.push(
+      `MANDATORY: Always respond in the SAME language as the user's message. If the user writes in Dutch, you MUST respond in Dutch. If in German, respond in German. If in English, respond in English. The user's current language preference is: ${clientLang || "en"}. Never say you cannot respond in a language - just respond in whatever language the user uses.`
+    );
 
     // Append guided flow context if present
     if (flowContext && typeof flowContext === "object" && Object.keys(flowContext).length > 0) {
@@ -266,30 +264,102 @@ export async function POST(request: NextRequest) {
           let processedSource: string | null = null;
           let sourceTitle: string | null = null;
           let sourceUrl: string | null = null;
-          if (websitePages.length > 0 && /\[source:\s*Website\s*\]/i.test(fullText)) {
-            const responseText = fullText.replace(/\[source:[^\]]*\]/gi, "").toLowerCase();
-            const responseWords = responseText.split(/\s+/).filter((w) => w.length > 4);
+          const websiteSourceMatch = fullText.match(/\[source:\s*Website\s*(?:\|\s*(https?:\/\/[^\s\]|]+))?\s*(?:\|[^\]]*)?\]/i);
+          if (websitePages.length > 0 && websiteSourceMatch) {
+            const geminiUrl = websiteSourceMatch[1]?.trim();
 
-            let bestPage = websitePages[0];
-            let bestScore = 0;
-
-            for (const page of websitePages) {
-              const pageWords = new Set(
-                page.content.toLowerCase().split(/\s+/).filter((w) => w.length > 4)
-              );
-              let score = 0;
-              for (const word of responseWords) {
-                if (pageWords.has(word)) score++;
-              }
-              if (score > bestScore) {
-                bestScore = score;
-                bestPage = page;
-              }
+            // First try: exact URL match
+            let bestPage = geminiUrl ? websitePages.find(p => p.url === geminiUrl) : undefined;
+            // Second try: partial URL match (but not just domain root)
+            if (!bestPage && geminiUrl) {
+              bestPage = websitePages.find(p => p.url.length > 30 && (geminiUrl.includes(p.url) || p.url.includes(geminiUrl)));
             }
 
-            sourceUrl = bestPage.url;
-            sourceTitle = bestPage.title;
-            processedSource = `[source: Website | ${bestPage.url} | ${bestPage.title}]`;
+            if (bestPage) {
+              sourceUrl = bestPage.url;
+              sourceTitle = bestPage.title;
+            } else if (geminiUrl) {
+              // URL not in cache — use Gemini's URL directly, derive title from path
+              sourceUrl = geminiUrl;
+              const pathSegment = geminiUrl.split("/").pop() || "";
+              sourceTitle = pathSegment.replace(/-/g, " ").replace(/^\w/, (c) => c.toUpperCase());
+            } else {
+              // No URL from Gemini — fall back to word-matching
+              const responseText = fullText.replace(/\[source:[^\]]*\]/gi, "").toLowerCase();
+              const responseWords = responseText.split(/\s+/).filter((w) => w.length > 4);
+              let fallbackPage = websitePages[0];
+              let bestScore = 0;
+              for (const page of websitePages) {
+                const pageWords = new Set(page.content.toLowerCase().split(/\s+/).filter((w) => w.length > 4));
+                let score = 0;
+                for (const word of responseWords) { if (pageWords.has(word)) score++; }
+                if (score > bestScore) { bestScore = score; fallbackPage = page; }
+              }
+              sourceUrl = fallbackPage.url;
+              sourceTitle = fallbackPage.title;
+            }
+
+            processedSource = `[source: Website | ${sourceUrl} | ${sourceTitle}]`;
+          }
+
+          // Post-process: ensure [source: FAQ] tags include the FAQ URL when available
+          const faqSourceMatch = fullText.match(/\[source:\s*FAQ\s*(?:\|\s*([^\]]*))?\]/i);
+          if (!processedSource && faqSourceMatch && faqs.length > 0) {
+            const faqLabel = faqSourceMatch[1]?.trim() || "";
+            // Try to find the matching FAQ by question
+            let matchedFaq = faqs.find((f) => f.question === faqLabel || f.questionNl === faqLabel || f.questionDe === faqLabel);
+            if (!matchedFaq && faqLabel) {
+              // Fuzzy match: find FAQ whose question is most similar
+              const labelLower = faqLabel.toLowerCase();
+              matchedFaq = faqs.find((f) =>
+                f.question.toLowerCase().includes(labelLower) || labelLower.includes(f.question.toLowerCase()) ||
+                f.questionNl.toLowerCase().includes(labelLower) || labelLower.includes(f.questionNl.toLowerCase())
+              );
+            }
+            if (!matchedFaq) {
+              // Last resort: find any FAQ with a URL that seems related by content
+              const responseWords = fullText.replace(/\[source:[^\]]*\]/gi, "").toLowerCase().split(/\s+/).filter(w => w.length > 4);
+              let bestFaq = null;
+              let bestScore = 0;
+              for (const f of faqs) {
+                if (!f.url) continue;
+                const faqWords = new Set([...f.answer.toLowerCase().split(/\s+/), ...f.question.toLowerCase().split(/\s+/)].filter(w => w.length > 4));
+                let score = 0;
+                for (const w of responseWords) { if (faqWords.has(w)) score++; }
+                if (score > bestScore) { bestScore = score; bestFaq = f; }
+              }
+              if (bestFaq && bestScore > 3) matchedFaq = bestFaq;
+            }
+            if (matchedFaq?.url) {
+              sourceUrl = matchedFaq.url;
+              sourceTitle = faqLabel || matchedFaq.question;
+              processedSource = `[source: FAQ | ${matchedFaq.url} | ${sourceTitle}]`;
+            }
+          }
+
+          // Final check: if the response matches a FAQ with a URL, prefer that over Website source
+          if (faqs.length > 0) {
+            const cleanText = fullText.replace(/\[source:[^\]]*\]/gi, "").toLowerCase();
+            const cleanWords = cleanText.split(/\s+/).filter(w => w.length > 4);
+            let bestFaqMatch = null;
+            let bestFaqScore = 0;
+            for (const f of faqs) {
+              if (!f.url) continue;
+              const answerWords = new Set(
+                [f.answer, f.answerNl, f.answerDe].join(" ").toLowerCase().split(/\s+/).filter(w => w.length > 4)
+              );
+              let score = 0;
+              for (const w of cleanWords) { if (answerWords.has(w)) score++; }
+              // Normalize by answer length to prefer specific matches
+              const normalized = answerWords.size > 0 ? score / Math.sqrt(answerWords.size) : 0;
+              if (normalized > bestFaqScore) { bestFaqScore = normalized; bestFaqMatch = f; }
+            }
+            // If strong FAQ match with URL, override any Website source
+            if (bestFaqMatch && bestFaqScore > 2) {
+              sourceUrl = bestFaqMatch.url;
+              sourceTitle = bestFaqMatch.question;
+              processedSource = `[source: FAQ | ${bestFaqMatch.url} | ${bestFaqMatch.question}]`;
+            }
           }
 
           // Resolve language detection and translations

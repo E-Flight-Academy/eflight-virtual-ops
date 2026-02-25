@@ -874,7 +874,7 @@ export default function Chat() {
                   <button
                     key={i}
                     onClick={() => handleFlowOption(option.name, getFlowLabel(option))}
-                    className="text-base font-semibold px-4 py-2 rounded-full border border-[#ECECEC] bg-[#F7F7F7] text-[#030213] hover:bg-[#1515F5] hover:text-white hover:border-[#1515F5] transition-colors flex items-center gap-1.5"
+                    className="text-base font-semibold px-4 py-2 rounded-full border border-[#ECECEC] bg-[#F7F7F7] text-[#030213] hover:bg-[#1515F5] hover:text-white hover:border-[#1515F5] transition-colors flex items-center gap-1.5 cursor-pointer"
                   >
                     {option.icon && (
                       option.icon.startsWith("http") ? (
@@ -924,7 +924,7 @@ export default function Chat() {
                       <button
                         key={i}
                         onClick={() => sendMessage(displayText)}
-                        className="text-sm px-4 py-2 rounded-full border border-[#ECECEC] text-[#828282] bg-white hover:bg-[#F7F7F7] hover:text-[#1515F5] transition-colors dark:bg-gray-900 dark:border-gray-700 dark:hover:bg-gray-800"
+                        className="text-sm px-4 py-2 rounded-full border border-[#ECECEC] text-[#828282] bg-white hover:bg-[#F7F7F7] hover:text-[#1515F5] transition-colors dark:bg-gray-900 dark:border-gray-700 dark:hover:bg-gray-800 cursor-pointer"
                       >
                         {displayText}
                       </button>
@@ -933,7 +933,7 @@ export default function Chat() {
                   {faqs.length > 0 && (
                     <button
                       onClick={() => setShowFaqModal(true)}
-                      className="text-sm px-4 py-2 rounded-full border border-[#ECECEC] text-[#828282] bg-white hover:bg-[#F7F7F7] hover:text-[#1515F5] transition-colors dark:bg-gray-900 dark:border-gray-700 dark:hover:bg-gray-800"
+                      className="text-sm px-4 py-2 rounded-full border border-[#ECECEC] text-[#828282] bg-white hover:bg-[#F7F7F7] hover:text-[#1515F5] transition-colors dark:bg-gray-900 dark:border-gray-700 dark:hover:bg-gray-800 cursor-pointer"
                     >
                       More FAQ&apos;s
                     </button>
@@ -1079,7 +1079,7 @@ export default function Chat() {
               <button
                 key={i}
                 onClick={() => handleFlowOption(option.name, getFlowLabel(option))}
-                className="text-base font-semibold px-4 py-2 rounded-full border border-[#ECECEC] bg-[#F7F7F7] text-[#030213] hover:bg-[#1515F5] hover:text-white hover:border-[#1515F5] transition-colors flex items-center gap-1.5"
+                className="text-base font-semibold px-4 py-2 rounded-full border border-[#ECECEC] bg-[#F7F7F7] text-[#030213] hover:bg-[#1515F5] hover:text-white hover:border-[#1515F5] transition-colors flex items-center gap-1.5 cursor-pointer"
               >
                 {option.icon && (
                   option.icon.startsWith("http") ? (

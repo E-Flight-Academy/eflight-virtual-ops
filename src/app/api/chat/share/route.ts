@@ -4,7 +4,7 @@ import { setKvSharedChat, type KvSharedChat } from "@/lib/kv-cache";
 
 export async function POST(request: NextRequest) {
   try {
-    const { messages, flowContext, lang } = await request.json();
+    const { messages, flowContext, lang, currentFlowStepName, flowPhase } = await request.json();
 
     if (!Array.isArray(messages) || messages.length === 0) {
       return NextResponse.json(
@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
     }
 
     for (const msg of messages) {
-      if (!msg.role || !msg.content || !["user", "assistant"].includes(msg.role)) {
+      if (!msg.role || typeof msg.content !== "string" || !["user", "assistant"].includes(msg.role)) {
         return NextResponse.json(
           { error: "Invalid message format" },
           { status: 400 }
@@ -32,6 +32,8 @@ export async function POST(request: NextRequest) {
       flowContext: flowContext && typeof flowContext === "object" ? flowContext : {},
       lang: lang || "en",
       sharedAt: Date.now(),
+      currentFlowStepName: currentFlowStepName || undefined,
+      flowPhase: flowPhase || undefined,
     };
 
     const saved = await setKvSharedChat(id, data);

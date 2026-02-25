@@ -177,6 +177,8 @@ export interface KvSharedChat {
   flowContext: Record<string, string>;
   lang: string;
   sharedAt: number;
+  currentFlowStepName?: string;
+  flowPhase?: string;
 }
 
 // --- Redis client (lazy) ---

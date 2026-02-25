@@ -173,36 +173,37 @@ export default function Chat() {
       .then((res) => res.json())
       .then((data) => setFaqs(data))
       .catch(() => {});
-    // Fetch guided flows (skip if loading a shared chat)
-    if (sharedChatIdRef.current) {
-      setFlowPhase("completed");
-    } else {
-      fetch("/api/guided-flows")
-        .then((res) => res.json())
-        .then((data: FlowStep[]) => {
-          setFlowSteps(data);
-          if (data.length > 0) {
-            const welcome = data.find((s) => s.name.toLowerCase() === "welcome");
-            if (welcome) {
-              setCurrentFlowStep(welcome);
-              setFlowPhase("active");
-              setMessages([{ role: "assistant", content: getFlowMessage(welcome) }]);
-            } else {
-              setFlowPhase("skipped");
-            }
+    // Fetch guided flows
+    const isSharedChat = !!sharedChatIdRef.current;
+    fetch("/api/guided-flows")
+      .then((res) => res.json())
+      .then((data: FlowStep[]) => {
+        setFlowSteps(data);
+        // Don't start welcome flow if loading a shared chat
+        if (isSharedChat) return;
+        if (data.length > 0) {
+          const welcome = data.find((s) => s.name.toLowerCase() === "welcome");
+          if (welcome) {
+            setCurrentFlowStep(welcome);
+            setFlowPhase("active");
+            setMessages([{ role: "assistant", content: getFlowMessage(welcome) }]);
           } else {
             setFlowPhase("skipped");
           }
-        })
-        .catch(() => {
+        } else {
           setFlowPhase("skipped");
-        });
-    }
+        }
+      })
+      .catch(() => {
+        if (!isSharedChat) setFlowPhase("skipped");
+      });
     return () => stopPolling();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchKbStatus, startPolling, stopPolling]);
 
   // Load shared chat from URL parameter
+  const [pendingFlowStepName, setPendingFlowStepName] = useState<string | null>(null);
+
   useEffect(() => {
     const chatId = sharedChatIdRef.current;
     if (!chatId) return;
@@ -219,8 +220,13 @@ export default function Chat() {
           if (data.lang && data.lang !== "en") {
             switchLanguage(data.lang);
           }
-          setFlowPhase("completed");
-          setCurrentFlowStep(null);
+          // Save flow step name to restore once flowSteps are loaded
+          if (data.flowPhase === "active" && data.currentFlowStepName) {
+            setPendingFlowStepName(data.currentFlowStepName);
+          } else {
+            setFlowPhase("completed");
+            setCurrentFlowStep(null);
+          }
         }
       })
       .catch(() => {
@@ -235,6 +241,19 @@ export default function Chat() {
       });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Restore flow state once both pendingFlowStepName and flowSteps are available
+  useEffect(() => {
+    if (!pendingFlowStepName || flowSteps.length === 0) return;
+    const step = flowSteps.find((s) => s.name === pendingFlowStepName);
+    if (step) {
+      setCurrentFlowStep(step);
+      setFlowPhase("active");
+    } else {
+      setFlowPhase("completed");
+    }
+    setPendingFlowStepName(null);
+  }, [pendingFlowStepName, flowSteps]);
 
   // Check Shopify session on mount and when window regains focus (for iframe login flow)
   const checkSession = useCallback(() => {
@@ -721,7 +740,7 @@ export default function Chat() {
       const res = await fetch("/api/chat/share", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages, flowContext, lang }),
+        body: JSON.stringify({ messages, flowContext, lang, currentFlowStepName: currentFlowStep?.name, flowPhase }),
       });
       if (!res.ok) throw new Error("Failed to share");
       const { id } = await res.json();

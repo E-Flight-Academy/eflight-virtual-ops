@@ -828,7 +828,7 @@ export default function Chat() {
         </div>
       </header>
 
-      <div className={`flex-1 overflow-y-auto p-2 sm:p-4 bg-gradient-to-b from-[#EFEFEF] to-[#F7F7F7] dark:from-gray-950 dark:to-gray-900 ${hasUserMessages ? "space-y-6" : "flex flex-col items-center justify-center"}`}>
+      <div className={`flex-1 overflow-y-auto p-2 sm:p-4 bg-gradient-to-b from-[#EFEFEF] to-[#F7F7F7] dark:from-gray-950 dark:to-gray-900 ${hasUserMessages ? "space-y-6" : `flex flex-col items-center ${client === "briefing" ? "justify-end pb-4" : "justify-center"}`}`}>
         {!hasUserMessages && (
           <div className="w-full max-w-2xl px-1 sm:px-4 space-y-3 sm:space-y-6">
             {/* Skeleton loader for welcome message */}

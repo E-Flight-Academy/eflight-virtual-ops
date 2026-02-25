@@ -79,7 +79,7 @@ export default function FaqModal({ faqs, lang, onClose, onSelectFaq }: FaqModalP
           <h2 className="text-2xl font-semibold text-[#1A1A1A]">Frequently Asked Questions</h2>
           <button
             onClick={onClose}
-            className="bg-transparent hover:bg-[#F7F7F7] text-[#1A1A1A] rounded-full h-10 w-10 p-0 flex items-center justify-center transition-colors"
+            className="bg-transparent hover:bg-[#F7F7F7] text-[#1A1A1A] rounded-full h-10 w-10 p-0 flex items-center justify-center transition-colors cursor-pointer"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="18" y1="6" x2="6" y2="18" />
@@ -114,7 +114,7 @@ export default function FaqModal({ faqs, lang, onClose, onSelectFaq }: FaqModalP
                 <div className="relative flex-1">
                   <button
                     onClick={() => { setCategoryOpen(!categoryOpen); setAudienceOpen(false); }}
-                    className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium transition-colors bg-[#F7F7F7] text-[#1A1A1A] hover:bg-[#ECECEC] border border-[#ECECEC]"
+                    className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium transition-colors bg-[#F7F7F7] text-[#1A1A1A] hover:bg-[#ECECEC] border border-[#ECECEC] cursor-pointer"
                   >
                     <span className="truncate">{selectedCategory || "All topics"}</span>
                     <svg
@@ -133,7 +133,7 @@ export default function FaqModal({ faqs, lang, onClose, onSelectFaq }: FaqModalP
                       <div className="absolute left-0 top-full mt-1 w-full bg-white border border-[#ECECEC] rounded-xl shadow-lg z-20 max-h-60 overflow-y-auto">
                         <button
                           onClick={() => { setSelectedCategory(null); setCategoryOpen(false); }}
-                          className={`w-full text-left px-4 py-2.5 text-sm font-medium transition-colors first:rounded-t-xl last:rounded-b-xl ${
+                          className={`w-full text-left px-4 py-2.5 text-sm font-medium transition-colors cursor-pointer first:rounded-t-xl last:rounded-b-xl ${
                             selectedCategory === null
                               ? "bg-[#1515F5] text-white"
                               : "text-[#1A1A1A] hover:bg-[#F7F7F7]"
@@ -147,7 +147,7 @@ export default function FaqModal({ faqs, lang, onClose, onSelectFaq }: FaqModalP
                             <button
                               key={cat}
                               onClick={() => { setSelectedCategory(cat); setCategoryOpen(false); }}
-                              className={`w-full text-left px-4 py-2.5 text-sm font-medium transition-colors flex items-center gap-2 first:rounded-t-xl last:rounded-b-xl ${
+                              className={`w-full text-left px-4 py-2.5 text-sm font-medium transition-colors cursor-pointer flex items-center gap-2 first:rounded-t-xl last:rounded-b-xl ${
                                 selectedCategory === cat
                                   ? "bg-[#1515F5] text-white"
                                   : "text-[#1A1A1A] hover:bg-[#F7F7F7]"
@@ -169,7 +169,7 @@ export default function FaqModal({ faqs, lang, onClose, onSelectFaq }: FaqModalP
                 <div className="relative flex-1">
                   <button
                     onClick={() => { setAudienceOpen(!audienceOpen); setCategoryOpen(false); }}
-                    className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium transition-colors bg-[#F7F7F7] text-[#1A1A1A] hover:bg-[#ECECEC] border border-[#ECECEC]"
+                    className="w-full flex items-center justify-between px-4 py-2.5 rounded-xl text-sm font-medium transition-colors bg-[#F7F7F7] text-[#1A1A1A] hover:bg-[#ECECEC] border border-[#ECECEC] cursor-pointer"
                   >
                     <span className="truncate">{selectedAudience || "Everybody"}</span>
                     <svg
@@ -188,7 +188,7 @@ export default function FaqModal({ faqs, lang, onClose, onSelectFaq }: FaqModalP
                       <div className="absolute left-0 top-full mt-1 w-full bg-white border border-[#ECECEC] rounded-xl shadow-lg z-20 max-h-60 overflow-y-auto">
                         <button
                           onClick={() => { setSelectedAudience(null); setAudienceOpen(false); }}
-                          className={`w-full text-left px-4 py-2.5 text-sm font-medium transition-colors first:rounded-t-xl last:rounded-b-xl ${
+                          className={`w-full text-left px-4 py-2.5 text-sm font-medium transition-colors cursor-pointer first:rounded-t-xl last:rounded-b-xl ${
                             selectedAudience === null
                               ? "bg-[#1515F5] text-white"
                               : "text-[#1A1A1A] hover:bg-[#F7F7F7]"
@@ -200,7 +200,7 @@ export default function FaqModal({ faqs, lang, onClose, onSelectFaq }: FaqModalP
                           <button
                             key={aud}
                             onClick={() => { setSelectedAudience(aud); setAudienceOpen(false); }}
-                            className={`w-full text-left px-4 py-2.5 text-sm font-medium transition-colors first:rounded-t-xl last:rounded-b-xl ${
+                            className={`w-full text-left px-4 py-2.5 text-sm font-medium transition-colors cursor-pointer first:rounded-t-xl last:rounded-b-xl ${
                               selectedAudience === aud
                                 ? "bg-[#1515F5] text-white"
                                 : "text-[#1A1A1A] hover:bg-[#F7F7F7]"
@@ -225,7 +225,7 @@ export default function FaqModal({ faqs, lang, onClose, onSelectFaq }: FaqModalP
               <p className="text-[#ABABAB] mb-4">No matching questions found</p>
               <button
                 onClick={onClose}
-                className="px-6 py-2.5 rounded-full bg-[#1515F5] text-white font-medium hover:bg-[#1212D0] transition-colors"
+                className="px-6 py-2.5 rounded-full bg-[#1515F5] text-white font-medium hover:bg-[#1212D0] transition-colors cursor-pointer"
               >
                 Ask Steward!
               </button>
@@ -238,7 +238,7 @@ export default function FaqModal({ faqs, lang, onClose, onSelectFaq }: FaqModalP
                   <button
                     key={i}
                     onClick={() => onSelectFaq(getQ(faq))}
-                    className="w-full text-left rounded-lg p-3 transition-all group hover:shadow-md bg-[#F7F7F7] hover:bg-[#ECECEC]"
+                    className="w-full text-left rounded-lg p-3 transition-all group hover:shadow-md bg-[#F7F7F7] hover:bg-[#ECECEC] cursor-pointer"
                   >
                     <div className="flex items-center justify-between gap-3">
                       <p className="font-medium text-[#1A1A1A] text-sm group-hover:text-[#1515F5] transition-colors flex-1">

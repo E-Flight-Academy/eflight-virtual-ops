@@ -711,7 +711,7 @@ export default function Chat() {
           <button
             onClick={() => setShowFaqModal(true)}
             title="FAQ"
-            className="flex items-center gap-2 text-e-grey hover:text-e-indigo transition-colors"
+            className="flex items-center gap-2 text-e-grey hover:text-e-indigo transition-colors cursor-pointer"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="12" cy="12" r="10" />
@@ -723,7 +723,7 @@ export default function Chat() {
           <div className="relative">
             <button
               onClick={() => setLangOpen(!langOpen)}
-              className="flex items-center gap-2 px-3 py-2 rounded-md bg-[#F7F7F7] text-[#828282] text-sm font-medium hover:bg-[#ECECEC] transition-colors dark:bg-gray-800 dark:hover:bg-gray-700"
+              className="flex items-center gap-2 px-3 py-2 rounded-md bg-[#F7F7F7] text-[#828282] text-sm font-medium hover:bg-[#ECECEC] transition-colors dark:bg-gray-800 dark:hover:bg-gray-700 cursor-pointer"
             >
               {lang.toUpperCase()}
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -738,7 +738,7 @@ export default function Chat() {
                     <button
                       key={code}
                       onClick={() => { switchLanguage(code); setLangOpen(false); }}
-                      className={`w-full px-4 py-2 text-left text-sm transition-colors ${
+                      className={`w-full px-4 py-2 text-left text-sm transition-colors cursor-pointer ${
                         lang === code
                           ? "bg-[#1515F5] text-white"
                           : "text-[#828282] hover:bg-[#F7F7F7] dark:hover:bg-gray-800"
@@ -755,7 +755,7 @@ export default function Chat() {
             onClick={handleNewChat}
             disabled={messages.length === 0}
             title={t("header.newChat")}
-            className="flex items-center gap-2 text-e-grey hover:text-e-indigo transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 text-e-grey hover:text-e-indigo transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -769,7 +769,7 @@ export default function Chat() {
             onClick={handleShare}
             disabled={messages.length === 0 || shareStatus === "sharing"}
             title={shareStatus === "copied" ? "Link copied!" : shareStatus === "error" ? "Failed to share" : t("header.share")}
-            className="flex items-center gap-2 text-e-grey hover:text-e-indigo transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            className="flex items-center gap-2 text-e-grey hover:text-e-indigo transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
           >
             {shareStatus === "copied" ? (
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-500">
@@ -801,7 +801,7 @@ export default function Chat() {
               <button
                 onClick={handleShopifyLogout}
                 title={t("header.logout")}
-                className="flex items-center gap-2 text-e-grey hover:text-e-indigo transition-colors"
+                className="flex items-center gap-2 text-e-grey hover:text-e-indigo transition-colors cursor-pointer"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -815,7 +815,7 @@ export default function Chat() {
             <button
               onClick={handleShopifyLogin}
               title={t("header.login")}
-              className="flex items-center gap-2 text-e-grey hover:text-e-indigo transition-colors"
+              className="flex items-center gap-2 text-e-grey hover:text-e-indigo transition-colors cursor-pointer"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
@@ -949,7 +949,7 @@ export default function Chat() {
                   <button
                     key={i}
                     onClick={() => sendMessage(suggestion)}
-                    className="w-full text-left px-4 py-3 text-sm text-foreground hover:bg-[#F7F7F7] dark:hover:bg-gray-800 transition-colors border-b border-[#ECECEC] dark:border-gray-700 last:border-b-0"
+                    className="w-full text-left px-4 py-3 text-sm text-foreground hover:bg-[#F7F7F7] dark:hover:bg-gray-800 transition-colors border-b border-[#ECECEC] dark:border-gray-700 last:border-b-0 cursor-pointer"
                   >
                     {suggestion}
                   </button>
@@ -983,7 +983,7 @@ export default function Chat() {
                 <button
                   type="submit"
                   disabled={!input.trim()}
-                  className="w-11 h-11 shrink-0 flex items-center justify-center rounded-full bg-e-indigo-light text-white hover:bg-e-indigo disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  className="w-11 h-11 shrink-0 flex items-center justify-center rounded-full bg-e-indigo-light text-white hover:bg-e-indigo disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="22" y1="2" x2="11" y2="13" />
@@ -1041,7 +1041,7 @@ export default function Chat() {
                     <span className={`flex gap-2 transition-opacity ${message.rating ? "" : "touch-visible opacity-0 group-hover/msg:opacity-100"}`}>
                       <button
                         onClick={() => rateMessage(index, "👍")}
-                        className={`p-1.5 rounded transition-colors ${
+                        className={`p-1.5 rounded transition-colors cursor-pointer ${
                           message.rating === "👍"
                             ? "bg-[#1515F5] text-white"
                             : "bg-[#F7F7F7] text-[#828282] hover:bg-[#ECECEC]"
@@ -1054,7 +1054,7 @@ export default function Chat() {
                       </button>
                       <button
                         onClick={() => rateMessage(index, "👎")}
-                        className={`p-1.5 rounded transition-colors ${
+                        className={`p-1.5 rounded transition-colors cursor-pointer ${
                           message.rating === "👎"
                             ? "bg-[#1515F5] text-white"
                             : "bg-[#F7F7F7] text-[#828282] hover:bg-[#ECECEC]"
@@ -1118,7 +1118,7 @@ export default function Chat() {
                     <button
                       key={i}
                       onClick={() => sendMessage(suggestion)}
-                      className="w-full text-left px-4 py-3 text-sm text-foreground hover:bg-[#F7F7F7] dark:hover:bg-gray-800 transition-colors border-b border-[#ECECEC] dark:border-gray-700 last:border-b-0"
+                      className="w-full text-left px-4 py-3 text-sm text-foreground hover:bg-[#F7F7F7] dark:hover:bg-gray-800 transition-colors border-b border-[#ECECEC] dark:border-gray-700 last:border-b-0 cursor-pointer"
                     >
                       {suggestion}
                     </button>
@@ -1160,7 +1160,7 @@ export default function Chat() {
       <div className="border-t border-e-pale dark:border-gray-800">
         <button
           onClick={() => setKbExpanded(!kbExpanded)}
-          className="w-full px-4 py-2 flex items-center justify-center gap-2 text-xs text-e-grey hover:bg-e-pale-light dark:hover:bg-gray-900 transition-colors"
+          className="w-full px-4 py-2 flex items-center justify-center gap-2 text-xs text-e-grey hover:bg-e-pale-light dark:hover:bg-gray-900 transition-colors cursor-pointer"
         >
           <span
             className={`inline-block w-2 h-2 rounded-full ${

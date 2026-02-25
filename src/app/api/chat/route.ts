@@ -410,6 +410,12 @@ export async function POST(request: NextRequest) {
           const langChanged = detectedLang !== (clientLang || "en");
           const done: Record<string, unknown> = { type: "done" };
 
+          // Sanitize: strip newlines and pipe characters from title to prevent source tag parsing issues
+          if (sourceTitle) sourceTitle = sourceTitle.replace(/[\n\r|]/g, " ").replace(/\s+/g, " ").trim();
+          if (sourceTitle && sourceUrl) {
+            processedSource = processedSource?.replace(/\|[^|]*\]$/, `| ${sourceTitle}]`) || null;
+          }
+
           if (processedSource) {
             done.source = processedSource;
             if (sourceTitle) done.sourceTitle = sourceTitle;

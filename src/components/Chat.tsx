@@ -655,7 +655,7 @@ export default function Chat() {
               // Apply source post-processing
               if (msg.source) {
                 accumulated = accumulated.replace(
-                  /\[source:\s*(?:Website|FAQ)\s*(?:\|[^\]]*)?\]/i,
+                  /\[source:\s*(?:Website|FAQ|Products?)\s*(?:\|[^\]]*)?\]/i,
                   msg.source
                 );
                 setMessages([...displayMessages, { role: "assistant", content: accumulated }]);

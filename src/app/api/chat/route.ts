@@ -147,7 +147,7 @@ export async function POST(request: NextRequest) {
     // Fixed formatting rules (always applied)
     instructionParts.push(
       "IMPORTANT: When mentioning URLs, email addresses, or phone numbers, always format them as clickable markdown links. For websites use [visible text](https://example.com). For email addresses always show the full address as link text: [info@eflight.nl](mailto:info@eflight.nl). For phone numbers always show the full number as link text: [055 203 2230](tel:+31552032230). Never hide the address or number behind generic words like 'email' or 'phone'. Never use raw HTML tags.",
-      "MANDATORY: You MUST end EVERY response with a source tag on a new line. Format: [source: X] where X is one of: FAQ, Website, Knowledge Base, General Knowledge. When the source is Website, include the page URL like this: [source: Website | https://www.eflight.nl/page]. When the source is FAQ, include the original FAQ question (in English) like this: [source: FAQ | What does the training cost?]. If the answer comes from a FAQ entry, ALWAYS use FAQ as the source, even if similar information exists on the website. This is required for every single response without exception."
+      "MANDATORY: You MUST end EVERY response with a source tag on a new line. Format: [source: X] where X is one of: FAQ, Website, Products, Knowledge Base, General Knowledge. When the source is Website, include the page URL like this: [source: Website | https://www.eflight.nl/page]. When the source is FAQ, include the original FAQ question (in English) like this: [source: FAQ | What does the training cost?]. When the source is Products (Shop Products & Prices section), include the product URL like this: [source: Products | https://www.eflight.nl/products/product-name]. If the answer comes from a FAQ entry, ALWAYS use FAQ as the source, even if similar information exists on the website. If the answer is about product pricing from the Shop Products section, use Products as the source. This is required for every single response without exception."
     );
 
     instructionParts.push(
@@ -300,6 +300,49 @@ export async function POST(request: NextRequest) {
             }
 
             processedSource = `[source: Website | ${sourceUrl} | ${sourceTitle}]`;
+          }
+
+          // Post-process: ensure [source: Products] tags include proper URL and title
+          const productsSourceMatch = fullText.match(/\[source:\s*Products?\s*(?:\|\s*(https?:\/\/[^\s\]|]+))?\s*(?:\|[^\]]*)?\]/i);
+          if (!processedSource && productsSourceMatch && products.length > 0) {
+            const geminiProductUrl = productsSourceMatch[1]?.trim();
+            let matchedProduct = geminiProductUrl
+              ? products.find(p => p.url === geminiProductUrl || p.url.includes(geminiProductUrl) || geminiProductUrl.includes(p.url))
+              : undefined;
+            if (!matchedProduct) {
+              // Match by price mentioned in response
+              const responseText = fullText.replace(/\[source:[^\]]*\]/gi, "").toLowerCase();
+              const priceMatches = responseText.match(/€\s?[\d,.]+/g);
+              if (priceMatches) {
+                for (const p of products) {
+                  for (const pm of priceMatches) {
+                    const priceNum = parseFloat(pm.replace("€", "").replace(/\s/g, "").replace(",", "."));
+                    if (priceNum === p.minPrice || priceNum === p.maxPrice ||
+                        p.variants.some(v => v.price === priceNum)) {
+                      matchedProduct = p;
+                      break;
+                    }
+                  }
+                  if (matchedProduct) break;
+                }
+              }
+            }
+            if (!matchedProduct) {
+              // Word-match against product titles and tags
+              const responseText = fullText.replace(/\[source:[^\]]*\]/gi, "").toLowerCase();
+              let bestScore = 0;
+              for (const p of products) {
+                const matchWords = [...p.title.toLowerCase().split(/\s+/), ...p.tags.map(t => t.toLowerCase())].filter(w => w.length > 3);
+                let score = 0;
+                for (const w of matchWords) { if (responseText.includes(w)) score++; }
+                if (score > bestScore) { bestScore = score; matchedProduct = p; }
+              }
+            }
+            if (matchedProduct) {
+              sourceUrl = matchedProduct.url;
+              sourceTitle = matchedProduct.title;
+              processedSource = `[source: Products | ${sourceUrl} | ${sourceTitle}]`;
+            }
           }
 
           // Post-process: ensure [source: FAQ] tags include the FAQ URL when available

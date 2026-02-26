@@ -489,11 +489,9 @@ export default function Chat() {
     }
 
     setCurrentFlowStep(nextStep);
-    setMessages((prev) => [
-      ...prev,
-      userMsg,
-      { role: "assistant", content: getFlowMessage(nextStep) },
-    ]);
+    const baseMessages = [...messages, userMsg];
+    setMessages(baseMessages);
+    showWithThinkingDelay(baseMessages, getFlowMessage(nextStep));
   };
 
   const logChat = useCallback((question: string, answer: string) => {

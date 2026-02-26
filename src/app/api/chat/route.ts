@@ -7,7 +7,7 @@ import { getWebsiteContent, buildWebsiteContext } from "@/lib/website";
 import { getProducts, buildProductsContext } from "@/lib/shopify";
 import { detectLanguage } from "@/lib/i18n/detect";
 import { getTranslations } from "@/lib/i18n/translate";
-import { getSession } from "@/lib/shopify-auth";
+import { getSession, fetchCustomerOrders, buildOrdersContext, type ShopifyOrder } from "@/lib/shopify-auth";
 import { getUserRoles } from "@/lib/airtable";
 import { getFoldersForRoles } from "@/lib/role-access";
 
@@ -31,12 +31,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get user roles for document filtering
+    // Get user roles and access token for document filtering and order fetching
     let userRoles: string[] = [];
+    let accessToken: string | null = null;
     try {
       const session = await getSession();
       if (session?.customer?.email) {
         userRoles = await getUserRoles(session.customer.email);
+        accessToken = session.accessToken;
       }
     } catch (err) {
       console.warn("Failed to get user roles:", err);
@@ -49,7 +51,7 @@ export async function POST(request: NextRequest) {
     const lastMessage = messages[messages.length - 1];
 
     // Load all data sources in parallel (with timeouts)
-    const [config, faqs, ragResult, binaryContext, websitePages, products] = await Promise.all([
+    const [config, faqs, ragResult, binaryContext, websitePages, products, orders] = await Promise.all([
       withTimeout(
         getConfig().catch((err) => { console.error("Failed to load config:", err); return null; }),
         5000, null
@@ -79,6 +81,15 @@ export async function POST(request: NextRequest) {
           return [] as never[];
         }),
         5000, []
+      ),
+      withTimeout(
+        accessToken
+          ? fetchCustomerOrders(accessToken).catch((err) => {
+              console.error("Failed to fetch orders:", err);
+              return [] as ShopifyOrder[];
+            })
+          : Promise.resolve([] as ShopifyOrder[]),
+        5000, [] as ShopifyOrder[]
       ),
     ]);
 
@@ -130,6 +141,13 @@ export async function POST(request: NextRequest) {
       stepNum++;
     }
 
+    if (orders.length > 0) {
+      searchSteps.push(
+        `${stepNum}. For questions about the customer's orders, purchases, or booking status, refer to the Customer Order History section.`
+      );
+      stepNum++;
+    }
+
     searchSteps.push(
       `${stepNum}. ${fallbackInstruction}`
     );
@@ -147,7 +165,7 @@ export async function POST(request: NextRequest) {
     // Fixed formatting rules (always applied)
     instructionParts.push(
       "IMPORTANT: When mentioning URLs, email addresses, or phone numbers, always format them as clickable markdown links. For websites use [visible text](https://example.com). For email addresses always show the full address as link text: [info@eflight.nl](mailto:info@eflight.nl). For phone numbers always show the full number as link text: [055 203 2230](tel:+31552032230). Never hide the address or number behind generic words like 'email' or 'phone'. Never use raw HTML tags.",
-      "MANDATORY: You MUST end EVERY response with a source tag on a new line. Format: [source: X] where X is one of: FAQ, Website, Products, Knowledge Base, General Knowledge. When the source is Website, include the page URL like this: [source: Website | https://www.eflight.nl/page]. When the source is FAQ, include the original FAQ question (in English) like this: [source: FAQ | What does the training cost?]. When the source is Products (Shop Products & Prices section), include the product URL like this: [source: Products | https://www.eflight.nl/products/product-name]. If the answer comes from a FAQ entry, ALWAYS use FAQ as the source, even if similar information exists on the website. If the answer is about product pricing from the Shop Products section, use Products as the source. This is required for every single response without exception."
+      "MANDATORY: You MUST end EVERY response with a source tag on a new line. Format: [source: X] where X is one of: FAQ, Website, Products, Orders, Knowledge Base, General Knowledge. When the source is Website, include the page URL like this: [source: Website | https://www.eflight.nl/page]. When the source is FAQ, include the original FAQ question (in English) like this: [source: FAQ | What does the training cost?]. When the source is Products (Shop Products & Prices section), include the product URL like this: [source: Products | https://www.eflight.nl/products/product-name]. If the answer comes from a FAQ entry, ALWAYS use FAQ as the source, even if similar information exists on the website. If the answer is about product pricing from the Shop Products section, use Products as the source. This is required for every single response without exception."
     );
 
     instructionParts.push(
@@ -189,6 +207,16 @@ export async function POST(request: NextRequest) {
     // Append Products context
     if (products.length > 0) {
       instructionParts.push("", buildProductsContext(products));
+    }
+
+    // Append Orders context (only for authenticated users)
+    if (orders.length > 0) {
+      instructionParts.push("", buildOrdersContext(orders));
+    } else if (!accessToken) {
+      instructionParts.push(
+        "",
+        "NOTE: The user is NOT logged in. If they ask about their orders, purchases, bookings, or account information, tell them they need to log in first to view their order history. Mention they can log in using the login button in the top right corner of the screen."
+      );
     }
 
     const systemInstruction = instructionParts.join("\n");

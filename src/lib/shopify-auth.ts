@@ -225,6 +225,99 @@ export async function getAndClearCodeVerifier(): Promise<string | null> {
   return value;
 }
 
+// Fetch customer orders from Customer Account API
+export interface ShopifyOrder {
+  id: string;
+  name: string;
+  processedAt: string;
+  financialStatus: string;
+  fulfillmentStatus: string;
+  totalPrice: { amount: string; currencyCode: string };
+  lineItems: {
+    title: string;
+    quantity: number;
+    originalTotalPrice: { amount: string; currencyCode: string };
+  }[];
+}
+
+export async function fetchCustomerOrders(accessToken: string): Promise<ShopifyOrder[]> {
+  const query = `
+    query {
+      customer {
+        orders(first: 20, sortKey: PROCESSED_AT, reverse: true) {
+          edges {
+            node {
+              id
+              name
+              processedAt
+              financialStatus
+              fulfillmentStatus
+              totalPrice { amount currencyCode }
+              lineItems(first: 10) {
+                edges {
+                  node {
+                    title
+                    quantity
+                    originalTotalPrice { amount currencyCode }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  const response = await fetch(GRAPHQL_ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: accessToken,
+    },
+    body: JSON.stringify({ query }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch orders: ${response.status}`);
+  }
+
+  const data = await response.json();
+  if (data.errors) {
+    throw new Error(`GraphQL error: ${JSON.stringify(data.errors)}`);
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data.data?.customer?.orders?.edges || []).map(({ node }: any) => ({
+    id: node.id,
+    name: node.name,
+    processedAt: node.processedAt,
+    financialStatus: node.financialStatus,
+    fulfillmentStatus: node.fulfillmentStatus,
+    totalPrice: node.totalPrice,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    lineItems: (node.lineItems?.edges || []).map(({ node: li }: any) => ({
+      title: li.title,
+      quantity: li.quantity,
+      originalTotalPrice: li.originalTotalPrice,
+    })),
+  }));
+}
+
+export function buildOrdersContext(orders: ShopifyOrder[]): string {
+  if (orders.length === 0) return "";
+
+  const entries = orders.map((o) => {
+    const date = new Date(o.processedAt).toLocaleDateString("en-GB");
+    const items = o.lineItems
+      .map((li) => `${li.title} x${li.quantity} (${li.originalTotalPrice.currencyCode} ${parseFloat(li.originalTotalPrice.amount).toFixed(2)})`)
+      .join(", ");
+    return `- Order ${o.name} (${date}): ${items} | Total: ${o.totalPrice.currencyCode} ${parseFloat(o.totalPrice.amount).toFixed(2)} | Payment: ${o.financialStatus} | Fulfillment: ${o.fulfillmentStatus}`;
+  }).join("\n");
+
+  return `=== Customer Order History ===\nThe following are the logged-in customer's orders from the E-Flight Academy shop. Use this to answer questions about their purchases, order status, and training packages.\n${entries}`;
+}
+
 // Get logout URL
 export function getLogoutUrl(returnUrl: string = "https://steward.eflight.nl"): string {
   const params = new URLSearchParams({

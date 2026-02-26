@@ -236,7 +236,7 @@ export interface ShopifyOrder {
   lineItems: {
     title: string;
     quantity: number;
-    originalTotalPrice: { amount: string; currencyCode: string };
+    totalPrice: { amount: string; currencyCode: string };
   }[];
 }
 
@@ -258,7 +258,7 @@ export async function fetchCustomerOrders(accessToken: string): Promise<ShopifyO
                   node {
                     title
                     quantity
-                    originalTotalPrice { amount currencyCode }
+                    totalPrice { amount currencyCode }
                   }
                 }
               }
@@ -299,7 +299,7 @@ export async function fetchCustomerOrders(accessToken: string): Promise<ShopifyO
     lineItems: (node.lineItems?.edges || []).map(({ node: li }: any) => ({
       title: li.title,
       quantity: li.quantity,
-      originalTotalPrice: li.originalTotalPrice,
+      totalPrice: li.totalPrice,
     })),
   }));
 }
@@ -310,7 +310,7 @@ export function buildOrdersContext(orders: ShopifyOrder[]): string {
   const entries = orders.map((o) => {
     const date = new Date(o.processedAt).toLocaleDateString("en-GB");
     const items = o.lineItems
-      .map((li) => `${li.title} x${li.quantity} (${li.originalTotalPrice.currencyCode} ${parseFloat(li.originalTotalPrice.amount).toFixed(2)})`)
+      .map((li) => `${li.title} x${li.quantity} (${li.totalPrice.currencyCode} ${parseFloat(li.totalPrice.amount).toFixed(2)})`)
       .join(", ");
     return `- Order ${o.name} (${date}): ${items} | Total: ${o.totalPrice.currencyCode} ${parseFloat(o.totalPrice.amount).toFixed(2)} | Payment: ${o.financialStatus} | Fulfillment: ${o.fulfillmentStatus}`;
   }).join("\n");

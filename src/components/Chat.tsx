@@ -94,7 +94,7 @@ export default function Chat() {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [sessionId] = useState(() => crypto.randomUUID().slice(0, 8));
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const sharedChatIdRef = useRef(searchParams.get("chat"));
@@ -857,7 +857,21 @@ export default function Chat() {
     }
   }, [messages]);
 
-  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Enter without Shift submits the form
+    if (e.key === "Enter" && !e.shiftKey) {
+      if (faqSuggestions.length > 0 && selectedSuggestion >= 0) {
+        e.preventDefault();
+        sendMessage(faqSuggestions[selectedSuggestion]);
+        return;
+      }
+      e.preventDefault();
+      if (input.trim()) {
+        const form = e.currentTarget.closest("form");
+        form?.requestSubmit();
+      }
+      return;
+    }
     if (faqSuggestions.length === 0) return;
     if (e.key === "ArrowUp") {
       e.preventDefault();
@@ -869,14 +883,25 @@ export default function Chat() {
       setSelectedSuggestion((prev) =>
         prev >= faqSuggestions.length - 1 ? 0 : prev + 1
       );
-    } else if (e.key === "Enter" && selectedSuggestion >= 0) {
-      e.preventDefault();
-      sendMessage(faqSuggestions[selectedSuggestion]);
     } else if (e.key === "Escape") {
       setSelectedSuggestion(-1);
     }
   };
 
+  const autoResizeTextarea = useCallback(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    const lineHeight = 24;
+    const maxHeight = lineHeight * 10; // 10 lines
+    el.style.height = `${Math.min(el.scrollHeight, maxHeight)}px`;
+    el.style.overflowY = el.scrollHeight > maxHeight ? "auto" : "hidden";
+  }, []);
+
+  // Reset textarea height when input is cleared
+  useEffect(() => {
+    autoResizeTextarea();
+  }, [input, autoResizeTextarea]);
 
   return (
     <div className="flex flex-col h-screen">
@@ -1178,17 +1203,17 @@ export default function Chat() {
                       ))}
                     </div>
                   )}
-                  <input
+                  <textarea
                     ref={inputRef}
-                    type="text"
                     name="message"
                     id="message-input"
                     autoComplete="off"
+                    rows={1}
                     value={input}
-                    onChange={(e) => setInput(e.target.value)}
+                    onChange={(e) => { setInput(e.target.value); autoResizeTextarea(); }}
                     onKeyDown={handleInputKeyDown}
                     placeholder={undefined}
-                    className={`w-full border border-e-grey-light dark:border-gray-700 px-5 py-3 focus:outline-none focus:ring-2 focus:ring-e-indigo-light bg-white dark:bg-gray-900 ${faqSuggestions.length > 0 ? "rounded-b-2xl rounded-t-none" : "rounded-full"}`}
+                    className={`w-full border border-e-grey-light dark:border-gray-700 px-5 py-3 focus:outline-none focus:ring-2 focus:ring-e-indigo-light bg-white dark:bg-gray-900 resize-none leading-6 ${faqSuggestions.length > 0 ? "rounded-b-2xl rounded-t-none" : "rounded-3xl"}`}
                   />
                   {!input && (
                     <span
@@ -1426,17 +1451,17 @@ export default function Chat() {
                     ))}
                   </div>
                 )}
-                <input
+                <textarea
                   ref={inputRef}
-                  type="text"
                   name="message"
                   id="message-input-bottom"
                   autoComplete="off"
+                  rows={1}
                   value={input}
-                  onChange={(e) => setInput(e.target.value)}
+                  onChange={(e) => { setInput(e.target.value); autoResizeTextarea(); }}
                   onKeyDown={handleInputKeyDown}
                   placeholder={t("chat.placeholder")}
-                  className={`w-full border border-e-grey-light dark:border-gray-700 px-5 py-3 focus:outline-none focus:ring-2 focus:ring-e-indigo-light bg-white dark:bg-gray-900 ${faqSuggestions.length > 0 ? "rounded-b-2xl rounded-t-none" : "rounded-full"}`}
+                  className={`w-full border border-e-grey-light dark:border-gray-700 px-5 py-3 focus:outline-none focus:ring-2 focus:ring-e-indigo-light bg-white dark:bg-gray-900 resize-none leading-6 ${faqSuggestions.length > 0 ? "rounded-b-2xl rounded-t-none" : "rounded-3xl"}`}
                 />
               </div>
               <button

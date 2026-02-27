@@ -61,7 +61,7 @@ export const DEFAULT_LABELS: UiLabels = {
   "chat.welcomeSub": "Ask me anything about flight training, scheduling, or academy operations.",
   "chat.placeholder": "Type your message...",
   "chat.send": "Send",
-  "chat.error": "Failed to connect to the server.",
+  "chat.error": "Something went wrong. Please try again in a moment.",
   "chat.timeout": "Sorry, the response took too long. Please try again or ask a simpler question.",
   "kb.label": "Knowledge base",
   "kb.files": "files",

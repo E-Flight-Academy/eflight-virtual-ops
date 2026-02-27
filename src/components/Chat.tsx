@@ -388,14 +388,14 @@ export default function Chat() {
       s.questionNl.toLowerCase() === q ||
       s.questionDe.toLowerCase() === q
     );
-    if (starter) { const a = getA(starter); if (a) return { answer: a, question: starter.question }; }
+    if (starter) { const a = getA(starter); if (a) return { answer: a, question: getQ(starter) }; }
     // Check all FAQs (match any language version)
     const faq = faqs.find((f) =>
       f.question.toLowerCase() === q ||
       f.questionNl.toLowerCase() === q ||
       f.questionDe.toLowerCase() === q
     );
-    if (faq) { const a = getA(faq); if (a) return { answer: a, url: faq.url || undefined, question: faq.question }; }
+    if (faq) { const a = getA(faq); if (a) return { answer: a, url: faq.url || undefined, question: getQ(faq) }; }
     return null;
   };
 

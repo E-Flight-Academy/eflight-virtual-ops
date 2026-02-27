@@ -204,6 +204,7 @@ export default function Chat() {
 
   // Load shared chat from URL parameter
   const [pendingFlowStepName, setPendingFlowStepName] = useState<string | null>(null);
+  const [pendingFeedbackLogId, setPendingFeedbackLogId] = useState<string | null>(null);
 
   useEffect(() => {
     const chatId = sharedChatIdRef.current;
@@ -528,6 +529,17 @@ export default function Chat() {
       // Optimistic UI update
       const updated = prev.map((m, i) => (i === msgIndex ? { ...m, rating } : m));
 
+      // Show feedback message
+      const feedbackMsg: Message = {
+        role: "assistant",
+        content: rating === "👍" ? t("feedback.thanksUp") : t("feedback.askDown"),
+      };
+      const withFeedback = [...updated, feedbackMsg];
+
+      const resolveLogId = (logId: string) => {
+        if (rating === "👎") setPendingFeedbackLogId(logId);
+      };
+
       if (msg.logId) {
         // Already logged — just update rating
         fetch(`/api/chat/log/${encodeURIComponent(msg.logId)}/rate`, {
@@ -535,6 +547,7 @@ export default function Chat() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ rating }),
         }).catch(() => {});
+        resolveLogId(msg.logId);
       } else {
         // Not yet logged — find the preceding user message and log first
         let question = "";
@@ -559,17 +572,34 @@ export default function Chat() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ rating }),
               }).catch(() => {});
+              resolveLogId(data.logId);
             }
           })
           .catch(() => {});
       }
 
-      return updated;
+      return withFeedback;
     });
-  }, [lang, sessionId]);
+  }, [lang, sessionId, t]);
 
   const sendMessage = async (text: string, baseMessages?: Message[], hidden = false) => {
     if (!text.trim()) return;
+
+    // Intercept feedback mode: save feedback to Notion instead of sending to Gemini
+    if (pendingFeedbackLogId && !hidden) {
+      const logId = pendingFeedbackLogId;
+      setPendingFeedbackLogId(null);
+      const userMsg: Message = { role: "user", content: text };
+      const confirmMsg: Message = { role: "assistant", content: t("feedback.saved") };
+      setMessages((prev) => [...prev, userMsg, confirmMsg]);
+      setInput("");
+      fetch(`/api/chat/log/${encodeURIComponent(logId)}/feedback`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ feedback: text }),
+      }).catch(() => {});
+      return;
+    }
 
     // Abort any in-flight request
     if (abortControllerRef.current) {

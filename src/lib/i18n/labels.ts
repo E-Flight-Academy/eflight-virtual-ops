@@ -32,6 +32,9 @@ export interface UiLabels {
   "header.role.student": string;
   "header.role.instructor": string;
   "header.role.visitor": string;
+  "feedback.thanksUp": string;
+  "feedback.askDown": string;
+  "feedback.saved": string;
 }
 
 export const DEFAULT_LABELS: UiLabels = {
@@ -68,4 +71,7 @@ export const DEFAULT_LABELS: UiLabels = {
   "header.role.student": "Student",
   "header.role.instructor": "Instructor",
   "header.role.visitor": "Visitor",
+  "feedback.thanksUp": "Thanks for the feedback! I'll pass it on to the team.",
+  "feedback.askDown": "Sorry I couldn't help you better. If you tell me what went wrong or what could be improved, I'll pass it directly to Team E-Flight so we can fix it!",
+  "feedback.saved": "Thanks! Your feedback has been passed on to the team.",
 };

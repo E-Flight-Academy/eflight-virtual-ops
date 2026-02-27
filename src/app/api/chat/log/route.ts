@@ -3,13 +3,12 @@ import { Client } from "@notionhq/client";
 
 export async function POST(request: NextRequest) {
   try {
+    const clientIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "";
+
     // Check if this IP is blocked from logging
     const blockedIps = process.env.LOG_BLOCKED_IPS?.split(",").map((ip) => ip.trim()).filter(Boolean) || [];
-    if (blockedIps.length > 0) {
-      const clientIp = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || request.headers.get("x-real-ip") || "";
-      if (blockedIps.includes(clientIp)) {
-        return NextResponse.json({ logId: null, skipped: true });
-      }
+    if (blockedIps.length > 0 && blockedIps.includes(clientIp)) {
+      return NextResponse.json({ logId: null, skipped: true });
     }
 
     const apiKey = process.env.NOTION_API_KEY;
@@ -21,7 +20,6 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       );
     }
-
     const { question, answer, source, lang, sessionId } = await request.json();
 
     if (!question) {
@@ -54,6 +52,11 @@ export async function POST(request: NextRequest) {
         Timestamp: {
           date: { start: new Date().toISOString() },
         },
+        ...(clientIp ? {
+          IPaddress: {
+            rich_text: [{ text: { content: clientIp } }],
+          },
+        } : {}),
       },
     });
 

@@ -282,10 +282,6 @@ export default function Chat() {
     "Type your question in English...",
     "Stel je vraag in het Nederlands...",
     "Stelle deine Frage auf Deutsch...",
-    "Posez votre question en français...",
-    "Escribe tu pregunta en español...",
-    "用中文输入您的问题...",
-    "Ketik pertanyaan Anda dalam Bahasa Indonesia...",
   ], []);
 
   useEffect(() => {

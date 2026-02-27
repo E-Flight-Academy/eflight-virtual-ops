@@ -91,6 +91,7 @@ export default function Chat() {
   const [currentFlowStep, setCurrentFlowStep] = useState<FlowStep | null>(null);
   const [shareStatus, setShareStatus] = useState<"idle" | "sharing" | "copied" | "error">("idle");
   const [langOpen, setLangOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [sessionId] = useState(() => crypto.randomUUID().slice(0, 8));
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -758,6 +759,17 @@ export default function Chat() {
 
   // Fuzzy search: match FAQ questions when user types 2+ characters
   const hasUserMessages = useMemo(() => messages.some((m) => m.role === "user"), [messages]);
+
+  const displayRole = useMemo(() => {
+    if (userRoles.length === 0) return t("header.role.visitor");
+    const roleMap: Record<string, keyof UiLabels> = {
+      student: "header.role.student",
+      instructor: "header.role.instructor",
+    };
+    return userRoles
+      .map((r) => { const key = roleMap[r.toLowerCase()]; return key ? t(key) : r; })
+      .join(", ");
+  }, [userRoles, t]);
   const faqSuggestions = useMemo(() => {
     const query = input.trim().toLowerCase();
     if (query.length < 2) return [];
@@ -894,22 +906,59 @@ export default function Chat() {
             </span>
           </button>
           {shopifyUser ? (
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-e-grey hidden sm:inline">
-                {shopifyUser.firstName || shopifyUser.email}
-              </span>
+            <div className="relative">
               <button
-                onClick={handleShopifyLogout}
-                title={t("header.logout")}
+                onClick={() => setUserMenuOpen(!userMenuOpen)}
                 className="flex items-center gap-2 text-e-grey hover:text-e-indigo transition-colors cursor-pointer"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                  <polyline points="16 17 21 12 16 7" />
-                  <line x1="21" y1="12" x2="9" y2="12" />
+                  <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                  <circle cx="12" cy="7" r="4" />
                 </svg>
-                <span className="hidden sm:inline text-sm">{t("header.logout")}</span>
+                <span className="hidden sm:inline text-sm">{shopifyUser.firstName || shopifyUser.email}</span>
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="hidden sm:inline">
+                  <path d="m6 9 6 6 6-6" />
+                </svg>
               </button>
+              {userMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setUserMenuOpen(false)} />
+                  <div className="absolute top-full mt-2 right-0 bg-white dark:bg-gray-900 border border-[#ECECEC] dark:border-gray-700 rounded-lg shadow-lg z-20 min-w-[220px] py-3">
+                    <div className="px-4 pb-3 border-b border-[#ECECEC] dark:border-gray-700">
+                      <div className="text-sm font-semibold text-[#4A4A4A] dark:text-gray-200">{shopifyUser.displayName || `${shopifyUser.firstName} ${shopifyUser.lastName}`.trim()}</div>
+                      <div className="text-xs text-e-grey mt-0.5">{shopifyUser.email}</div>
+                      <div className="text-xs text-e-indigo mt-1">{displayRole}</div>
+                    </div>
+                    <div className="pt-1">
+                      <a
+                        href="https://account.eflight.nl"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={() => setUserMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-2 text-sm text-[#4A4A4A] dark:text-gray-300 hover:bg-[#F7F7F7] dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                          <polyline points="15 3 21 3 21 9" />
+                          <line x1="10" y1="14" x2="21" y2="3" />
+                        </svg>
+                        {t("header.myAccount")}
+                      </a>
+                      <button
+                        onClick={() => { setUserMenuOpen(false); handleShopifyLogout(); }}
+                        className="flex items-center gap-3 w-full px-4 py-2 text-sm text-[#4A4A4A] dark:text-gray-300 hover:bg-[#F7F7F7] dark:hover:bg-gray-800 transition-colors cursor-pointer"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                          <polyline points="16 17 21 12 16 7" />
+                          <line x1="21" y1="12" x2="9" y2="12" />
+                        </svg>
+                        {t("header.logout")}
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           ) : (
             <button

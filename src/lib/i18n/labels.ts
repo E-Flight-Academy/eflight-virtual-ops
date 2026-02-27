@@ -28,6 +28,10 @@ export interface UiLabels {
   "header.share": string;
   "chat.sourceWebsite": string;
   "chat.sourceFaq": string;
+  "header.myAccount": string;
+  "header.role.student": string;
+  "header.role.instructor": string;
+  "header.role.visitor": string;
 }
 
 export const DEFAULT_LABELS: UiLabels = {
@@ -60,4 +64,8 @@ export const DEFAULT_LABELS: UiLabels = {
   "header.share": "Share",
   "chat.sourceWebsite": "Read more on our website",
   "chat.sourceFaq": "View frequently asked questions",
+  "header.myAccount": "My account",
+  "header.role.student": "Student",
+  "header.role.instructor": "Instructor",
+  "header.role.visitor": "Visitor",
 };

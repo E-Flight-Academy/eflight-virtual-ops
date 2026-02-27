@@ -817,7 +817,7 @@ export default function Chat() {
     <div className="flex flex-col h-screen">
       <header className={`flex items-center ${client === "briefing" ? "justify-end" : "justify-between"} p-4 border-b border-e-pale dark:border-gray-800`}>
         {client !== "briefing" && <div>
-          <h1 className="text-2xl font-extrabold text-e-indigo cursor-pointer" onClick={handleNewChat}>Steward <span className="hidden sm:inline text-sm font-normal text-e-grey">E-Flight Academy Virtual Assistant</span></h1>
+          <h1 className="text-2xl font-extrabold text-e-indigo cursor-pointer" onClick={handleNewChat}>Steward <span className="hidden min-[900px]:inline text-sm font-normal text-e-grey">E-Flight Academy Virtual Assistant</span></h1>
         </div>}
         <div className="flex items-center gap-4">
           <button

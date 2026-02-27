@@ -15,24 +15,33 @@ export async function POST(
     }
 
     const { id } = await params;
-    const { feedback } = await request.json();
+    const { feedback, contact } = await request.json();
 
-    if (!feedback || typeof feedback !== "string") {
+    if (!feedback && !contact) {
       return NextResponse.json(
-        { error: "Invalid feedback" },
+        { error: "Invalid request: provide feedback or contact" },
         { status: 400 }
       );
     }
 
     const notion = new Client({ auth: apiKey });
 
+    // Build update properties dynamically
+    const properties: Record<string, { rich_text: { text: { content: string } }[] }> = {};
+    if (feedback && typeof feedback === "string") {
+      properties.Feedback = {
+        rich_text: [{ text: { content: feedback.slice(0, 2000) } }],
+      };
+    }
+    if (contact && typeof contact === "string") {
+      properties.Contact = {
+        rich_text: [{ text: { content: contact.slice(0, 500) } }],
+      };
+    }
+
     await notion.pages.update({
       page_id: id,
-      properties: {
-        Feedback: {
-          rich_text: [{ text: { content: feedback.slice(0, 2000) } }],
-        },
-      },
+      properties: properties as Parameters<typeof notion.pages.update>[0]["properties"],
     });
 
     return NextResponse.json({ success: true });

@@ -35,6 +35,13 @@ export interface UiLabels {
   "feedback.thanksUp": string;
   "feedback.askDown": string;
   "feedback.saved": string;
+  "feedback.followUp": string;
+  "feedback.yesPlease": string;
+  "feedback.noThanks": string;
+  "feedback.followUpConfirm": string;
+  "feedback.followUpDecline": string;
+  "feedback.askContact": string;
+  "feedback.contactSaved": string;
 }
 
 export const DEFAULT_LABELS: UiLabels = {
@@ -74,4 +81,11 @@ export const DEFAULT_LABELS: UiLabels = {
   "feedback.thanksUp": "Thanks for the feedback! I'll pass it on to the team.",
   "feedback.askDown": "Sorry I couldn't help you better. If you tell me what went wrong or what could be improved, I'll pass it directly to Team E-Flight so we can fix it!",
   "feedback.saved": "Thanks! Your feedback has been passed on to the team.",
+  "feedback.followUp": "Would you like us to get back to you about this?",
+  "feedback.yesPlease": "Yes, please",
+  "feedback.noThanks": "No, thanks",
+  "feedback.followUpConfirm": "Got it! We'll get back to you about this.",
+  "feedback.followUpDecline": "No problem! If you have any other questions, feel free to ask.",
+  "feedback.askContact": "Please share your email address or phone number so we can reach you.",
+  "feedback.contactSaved": "Thanks! We'll get back to you as soon as possible.",
 };

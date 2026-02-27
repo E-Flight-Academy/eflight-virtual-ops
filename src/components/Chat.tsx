@@ -205,6 +205,8 @@ export default function Chat() {
   // Load shared chat from URL parameter
   const [pendingFlowStepName, setPendingFlowStepName] = useState<string | null>(null);
   const [pendingFeedbackLogId, setPendingFeedbackLogId] = useState<string | null>(null);
+  const [feedbackFollowUpLogId, setFeedbackFollowUpLogId] = useState<string | null>(null);
+  const [feedbackContactLogId, setFeedbackContactLogId] = useState<string | null>(null);
 
   useEffect(() => {
     const chatId = sharedChatIdRef.current;
@@ -591,12 +593,30 @@ export default function Chat() {
       setPendingFeedbackLogId(null);
       const userMsg: Message = { role: "user", content: text };
       const confirmMsg: Message = { role: "assistant", content: t("feedback.saved") };
+      const followUpMsg: Message = { role: "assistant", content: t("feedback.followUp") };
+      setMessages((prev) => [...prev, userMsg, confirmMsg, followUpMsg]);
+      setInput("");
+      setFeedbackFollowUpLogId(logId);
+      fetch(`/api/chat/log/${encodeURIComponent(logId)}/feedback`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ feedback: text }),
+      }).catch(() => {});
+      return;
+    }
+
+    // Intercept feedback contact mode: save contact info to Notion
+    if (feedbackContactLogId && !hidden) {
+      const logId = feedbackContactLogId;
+      setFeedbackContactLogId(null);
+      const userMsg: Message = { role: "user", content: text };
+      const confirmMsg: Message = { role: "assistant", content: t("feedback.contactSaved") };
       setMessages((prev) => [...prev, userMsg, confirmMsg]);
       setInput("");
       fetch(`/api/chat/log/${encodeURIComponent(logId)}/feedback`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ feedback: text }),
+        body: JSON.stringify({ contact: text }),
       }).catch(() => {});
       return;
     }
@@ -1327,6 +1347,45 @@ export default function Chat() {
                 {getFlowLabel(option)}
               </button>
             ))}
+          </div>
+        )}
+
+        {feedbackFollowUpLogId && !isLoading && (
+          <div className="max-w-4xl mx-auto w-full pl-11 flex flex-wrap gap-2">
+            <button
+              onClick={() => {
+                const logId = feedbackFollowUpLogId;
+                setFeedbackFollowUpLogId(null);
+                if (shopifyUser) {
+                  // Logged in: save email directly
+                  const confirmMsg: Message = { role: "assistant", content: t("feedback.followUpConfirm") };
+                  setMessages((prev) => [...prev, confirmMsg]);
+                  fetch(`/api/chat/log/${encodeURIComponent(logId)}/feedback`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ contact: shopifyUser.email }),
+                  }).catch(() => {});
+                } else {
+                  // Not logged in: ask for contact info
+                  const askMsg: Message = { role: "assistant", content: t("feedback.askContact") };
+                  setMessages((prev) => [...prev, askMsg]);
+                  setFeedbackContactLogId(logId);
+                }
+              }}
+              className="text-base font-semibold px-4 py-2 rounded-full border border-[#ECECEC] bg-[#F7F7F7] text-[#030213] hover:bg-[#1515F5] hover:text-white hover:border-[#1515F5] transition-colors cursor-pointer"
+            >
+              {t("feedback.yesPlease")}
+            </button>
+            <button
+              onClick={() => {
+                setFeedbackFollowUpLogId(null);
+                const declineMsg: Message = { role: "assistant", content: t("feedback.followUpDecline") };
+                setMessages((prev) => [...prev, declineMsg]);
+              }}
+              className="text-base font-semibold px-4 py-2 rounded-full border border-[#ECECEC] bg-[#F7F7F7] text-[#030213] hover:bg-[#1515F5] hover:text-white hover:border-[#1515F5] transition-colors cursor-pointer"
+            >
+              {t("feedback.noThanks")}
+            </button>
           </div>
         )}
 

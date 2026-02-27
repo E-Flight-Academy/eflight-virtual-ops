@@ -312,10 +312,13 @@ export function buildOrdersContext(orders: ShopifyOrder[]): string {
     const items = o.lineItems
       .map((li) => `${li.title} x${li.quantity} (${li.totalPrice.currencyCode} ${parseFloat(li.totalPrice.amount).toFixed(2)})`)
       .join(", ");
-    return `- Order ${o.name} (${date}): ${items} | Total: ${o.totalPrice.currencyCode} ${parseFloat(o.totalPrice.amount).toFixed(2)} | Payment: ${o.financialStatus} | Fulfillment: ${o.fulfillmentStatus}`;
+    // Extract numeric ID from GID (gid://shopify/Order/12345)
+    const numericId = o.id.split("/").pop() || "";
+    const orderUrl = `https://${CUSTOMER_ACCOUNT_DOMAIN}/orders/${numericId}`;
+    return `- Order ${o.name} (${date}): ${items} | Total: ${o.totalPrice.currencyCode} ${parseFloat(o.totalPrice.amount).toFixed(2)} | Payment: ${o.financialStatus} | Fulfillment: ${o.fulfillmentStatus} | Link: ${orderUrl}`;
   }).join("\n");
 
-  return `=== Customer Order History ===\nThe following are the logged-in customer's orders from the E-Flight Academy shop. Use this to answer questions about their purchases, order status, and training packages.\n${entries}`;
+  return `=== Customer Order History ===\nThe following are the logged-in customer's orders from the E-Flight Academy shop. Use this to answer questions about their purchases, order status, and training packages. When mentioning an order, include a clickable markdown link to the order detail page.\n${entries}`;
 }
 
 // Get logout URL

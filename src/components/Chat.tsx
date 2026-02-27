@@ -788,6 +788,19 @@ export default function Chat() {
     setSelectedSuggestion(-1);
   }, [faqSuggestions]);
 
+  // Update page title with last user question (improves share previews)
+  useEffect(() => {
+    const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
+    if (lastUserMsg) {
+      const q = lastUserMsg.content.length > 60
+        ? lastUserMsg.content.slice(0, 57) + "..."
+        : lastUserMsg.content;
+      document.title = `${q} · Steward · E-Flight Academy`;
+    } else {
+      document.title = "Steward · E-Flight Academy Virtual Assistant";
+    }
+  }, [messages]);
+
   const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (faqSuggestions.length === 0) return;
     if (e.key === "ArrowUp") {

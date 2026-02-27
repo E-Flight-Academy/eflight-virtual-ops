@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
 
     instructionParts.push(
       `You are the Steward assistant. ${companyContext}`,
-      `Your tone of voice is: ${toneOfVoice}. Always use informal language — in Dutch use "je/jij", never "u".`,
+      `Your tone of voice is: ${toneOfVoice}.`,
     );
 
     // Build search priority instructions

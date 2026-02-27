@@ -1217,7 +1217,7 @@ export default function Chat() {
                   />
                   {!input && (
                     <span
-                      className={`absolute left-5 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 transition-opacity duration-400 ${phVisible ? "opacity-70" : "opacity-0"}`}
+                      className={`absolute left-5 top-3 pointer-events-none text-gray-400 leading-6 transition-opacity duration-400 ${phVisible ? "opacity-70" : "opacity-0"}`}
                     >
                       {cyclingPlaceholders[phIndex]}
                     </span>

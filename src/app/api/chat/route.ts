@@ -187,7 +187,7 @@ export async function POST(request: NextRequest) {
 
     // Append FAQ context
     if (searchOrder.includes("faq") && faqs.length > 0) {
-      instructionParts.push("", buildFaqContext(faqs, clientLang || "nl"));
+      instructionParts.push("", buildFaqContext(faqs, clientLang || "en"));
     }
 
     // Append Drive document context (RAG excerpts or full text fallback)

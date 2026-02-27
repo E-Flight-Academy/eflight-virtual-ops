@@ -473,7 +473,7 @@ export default function Chat() {
         showWithThinkingDelay(baseMessages, answerWithSource);
         return;
       }
-      // Otherwise use endPrompt with Gemini
+      // Otherwise use endPrompt with Gemini, or show the pre-translated message directly
       const prompt = getFlowEndPrompt(nextStep);
       if (prompt) {
         const updatedMessages = nextMsg
@@ -482,10 +482,9 @@ export default function Chat() {
         setMessages(updatedMessages);
         sendMessage(prompt, updatedMessages, true);
       } else if (nextMsg) {
-        // No endPrompt — send the message itself through Gemini so it gets translated
         const updatedMessages = [...messages, userMsg];
         setMessages(updatedMessages);
-        sendMessage(`Relay this information to the user exactly as-is (translate to their language, keep all formatting and bullet points): ${nextMsg}`, updatedMessages, true);
+        showWithThinkingDelay(updatedMessages, nextMsg);
       } else {
         setMessages([...messages, userMsg]);
       }

@@ -1158,17 +1158,44 @@ export default function Chat() {
               </div>
             ) : (() => {
               const sourceMatch = message.content.match(/\n?\[source:\s*(.+?)\]\s*$/i);
-              const body = sourceMatch ? message.content.slice(0, sourceMatch.index).trimEnd() : message.content;
+              const bodyRaw = sourceMatch ? message.content.slice(0, sourceMatch.index).trimEnd() : message.content;
               const sourceRaw = sourceMatch?.[1] || "";
               const sourceParts = sourceRaw.split("|").map((s) => s.trim());
               const source = sourceParts[0] || null;
               const sourceUrl = sourceParts[1] && sourceParts[1].startsWith("http") ? sourceParts[1] : null;
               const sourceLabel = sourceParts.length >= 3 ? sourceParts[2] : (sourceParts[1] && !sourceParts[1].startsWith("http") ? sourceParts[1] : null);
+              // Parse inline [link: url | label] tags
+              const linkTagRegex = /\[link:\s*(https?:\/\/[^\s|]+)\s*\|\s*([^\]]+)\]/gi;
+              const inlineLinks: { url: string; label: string }[] = [];
+              let linkMatch;
+              while ((linkMatch = linkTagRegex.exec(bodyRaw)) !== null) {
+                inlineLinks.push({ url: linkMatch[1].trim(), label: linkMatch[2].trim() });
+              }
+              const body = bodyRaw.replace(linkTagRegex, "").trimEnd();
               return (
                 <div className="max-w-[85%] bg-white dark:bg-gray-900 px-4 py-3 rounded-2xl rounded-tl-sm text-foreground group/msg">
                   <div className="prose dark:prose-invert max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-headings:my-2 prose-headings:text-e-indigo">
                     <ReactMarkdown components={{ a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer" className="text-e-indigo underline hover:text-e-indigo-hover">{children}</a> }}>{body}</ReactMarkdown>
                   </div>
+                  {inlineLinks.length > 0 && (
+                    <div className="flex flex-col gap-1.5 mt-3">
+                      {inlineLinks.map((link, i) => (
+                        <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 px-3 py-2 bg-[#F7F7F7] dark:bg-gray-800 rounded-lg hover:bg-[#ECECEC] dark:hover:bg-gray-700 transition-colors cursor-pointer no-underline">
+                          <div className="flex items-center justify-center w-6 h-6 rounded-md bg-[#1515F5]/10 text-[#1515F5] shrink-0">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                              <polyline points="15 3 21 3 21 9" />
+                              <line x1="10" y1="14" x2="21" y2="3" />
+                            </svg>
+                          </div>
+                          <span className="text-sm font-medium text-foreground truncate flex-1">{link.label}</span>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-e-grey dark:text-gray-400 shrink-0">
+                            <polyline points="9 18 15 12 9 6" />
+                          </svg>
+                        </a>
+                      ))}
+                    </div>
+                  )}
                   <div className="flex items-center gap-2 mt-3">
                     {source && (source === "General Knowledge" || source === "Knowledge Base") && !sourceLabel ? (
                       <span className="text-[10px] text-e-grey dark:text-gray-400 select-none">{source}</span>

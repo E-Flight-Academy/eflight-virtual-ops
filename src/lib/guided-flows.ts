@@ -218,7 +218,8 @@ async function translateFlowStrings(
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-lite" });
 
     const joined = strings.join(`\n${DELIM}\n`);
-    const prompt = `Translate each block below to ${targetLang}. Blocks are separated by "${DELIM}". Return ONLY the translations separated by "${DELIM}" on its own line. Preserve all formatting, bullet points, and line breaks within each block. Do not add explanations.\n\n${joined}`;
+    const toneNote = targetLang === "Dutch" ? " IMPORTANT: Always use informal language — use \"je/jij\", never \"u/uw\"." : "";
+    const prompt = `Translate each block below to ${targetLang}. Blocks are separated by "${DELIM}". Return ONLY the translations separated by "${DELIM}" on its own line. Preserve all formatting, bullet points, line breaks, and markdown links within each block. Do not add explanations.${toneNote}\n\n${joined}`;
 
     const result = await model.generateContent(prompt);
     const text = result.response.text();

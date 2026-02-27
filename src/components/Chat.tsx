@@ -475,12 +475,19 @@ export default function Chat() {
       }
       // Otherwise use endPrompt with Gemini
       const prompt = getFlowEndPrompt(nextStep);
-      const updatedMessages = nextMsg
-        ? [...messages, userMsg, { role: "assistant" as const, content: nextMsg }]
-        : [...messages, userMsg];
-      setMessages(updatedMessages);
       if (prompt) {
+        const updatedMessages = nextMsg
+          ? [...messages, userMsg, { role: "assistant" as const, content: nextMsg }]
+          : [...messages, userMsg];
+        setMessages(updatedMessages);
         sendMessage(prompt, updatedMessages, true);
+      } else if (nextMsg) {
+        // No endPrompt — send the message itself through Gemini so it gets translated
+        const updatedMessages = [...messages, userMsg];
+        setMessages(updatedMessages);
+        sendMessage(`Relay this information to the user exactly as-is (translate to their language, keep all formatting and bullet points): ${nextMsg}`, updatedMessages, true);
+      } else {
+        setMessages([...messages, userMsg]);
       }
       return;
     }

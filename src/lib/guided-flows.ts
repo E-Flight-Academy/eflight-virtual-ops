@@ -71,7 +71,7 @@ export async function fetchFlowsFromNotion(): Promise<KvFlowStep[]> {
           label = (v.rich_text as { plain_text: string }[]).map((t) => t.plain_text).join("");
         }
         if (key === "Message" && v.type === "rich_text" && Array.isArray(v.rich_text) && v.rich_text.length > 0) {
-          message = (v.rich_text as { plain_text: string }[]).map((t) => t.plain_text).join("");
+          message = getRichTextMd(props, "Message");
         }
         if (key === "Next Steps" && v.type === "rich_text" && Array.isArray(v.rich_text) && v.rich_text.length > 0) {
           const raw = (v.rich_text as { plain_text: string }[]).map((t) => t.plain_text).join("");
@@ -211,27 +211,23 @@ async function translateFlowStrings(
   const geminiKey = process.env.GEMINI_API_KEY;
   if (!geminiKey) return strings.map(() => "");
 
+  const DELIM = "---NEXT---";
+
   try {
     const genAI = new GoogleGenerativeAI(geminiKey);
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-lite" });
 
-    const numbered = strings.map((s, i) => `${i + 1}. ${s}`).join("\n");
-    const prompt = `Translate each numbered line below to ${targetLang}. Return ONLY the translations, one per line, in the same numbered format (e.g. "1. translation"). Keep the same numbering. Do not add explanations.\n\n${numbered}`;
+    const joined = strings.join(`\n${DELIM}\n`);
+    const prompt = `Translate each block below to ${targetLang}. Blocks are separated by "${DELIM}". Return ONLY the translations separated by "${DELIM}" on its own line. Preserve all formatting, bullet points, and line breaks within each block. Do not add explanations.\n\n${joined}`;
 
     const result = await model.generateContent(prompt);
     const text = result.response.text();
 
-    // Parse numbered lines back
-    const lines = text.split("\n").filter((l) => l.trim());
+    // Split on delimiter
+    const blocks = text.split(DELIM).map((b) => b.trim());
     const translations: string[] = new Array(strings.length).fill("");
-    for (const line of lines) {
-      const match = line.match(/^(\d+)\.\s*(.+)/);
-      if (match) {
-        const idx = parseInt(match[1], 10) - 1;
-        if (idx >= 0 && idx < strings.length) {
-          translations[idx] = match[2].trim();
-        }
-      }
+    for (let i = 0; i < Math.min(blocks.length, strings.length); i++) {
+      if (blocks[i]) translations[i] = blocks[i];
     }
     return translations;
   } catch (err) {

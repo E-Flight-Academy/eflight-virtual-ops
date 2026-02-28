@@ -207,6 +207,7 @@ export default function Chat() {
   const [pendingFeedbackLogId, setPendingFeedbackLogId] = useState<string | null>(null);
   const [feedbackFollowUpLogId, setFeedbackFollowUpLogId] = useState<string | null>(null);
   const [feedbackContactLogId, setFeedbackContactLogId] = useState<string | null>(null);
+  const [followUpSuggestions, setFollowUpSuggestions] = useState<string[]>([]);
 
   useEffect(() => {
     const chatId = sharedChatIdRef.current;
@@ -586,6 +587,7 @@ export default function Chat() {
 
   const sendMessage = async (text: string, baseMessages?: Message[], hidden = false) => {
     if (!text.trim()) return;
+    setFollowUpSuggestions([]);
 
     // Intercept feedback mode: save feedback to Notion instead of sending to Gemini
     if (pendingFeedbackLogId && !hidden) {
@@ -703,15 +705,21 @@ export default function Chat() {
               accumulated += msg.text;
               setMessages([...displayMessages, { role: "assistant", content: accumulated }]);
             } else if (msg.type === "done") {
+              // Strip [suggestions:] tag from accumulated text (already streamed to client)
+              accumulated = accumulated.replace(/\n?\[suggestions:\s*[^\]]+\]/i, "").trimEnd();
               // Apply source post-processing
               if (msg.source) {
                 accumulated = accumulated.replace(
                   /\[source:\s*(?:Website|FAQ|Products?)\s*(?:\|[^\]]*)?\]/i,
                   msg.source
                 );
-                setMessages([...displayMessages, { role: "assistant", content: accumulated }]);
               }
+              setMessages([...displayMessages, { role: "assistant", content: accumulated }]);
               logChat(text, accumulated);
+              // Show follow-up suggestions
+              if (msg.suggestions && Array.isArray(msg.suggestions)) {
+                setFollowUpSuggestions(msg.suggestions);
+              }
               // Handle language changes
               if (msg.lang) {
                 if (msg.translations) {
@@ -1411,6 +1419,20 @@ export default function Chat() {
             >
               {t("feedback.noThanks")}
             </button>
+          </div>
+        )}
+
+        {followUpSuggestions.length > 0 && !isLoading && (
+          <div className="max-w-4xl mx-auto w-full pl-11 flex flex-wrap gap-2">
+            {followUpSuggestions.map((suggestion, i) => (
+              <button
+                key={i}
+                onClick={() => sendMessage(suggestion)}
+                className="text-sm px-4 py-2 rounded-full border border-[#ECECEC] text-[#828282] bg-white hover:bg-[#F7F7F7] hover:text-[#1515F5] transition-colors dark:bg-gray-900 dark:border-gray-700 dark:hover:bg-gray-800 cursor-pointer"
+              >
+                {suggestion}
+              </button>
+            ))}
           </div>
         )}
 

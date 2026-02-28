@@ -1263,7 +1263,7 @@ export default function Chat() {
                 <button
                   type="submit"
                   disabled={!input.trim()}
-                  className={`w-12 h-12 mb-px shrink-0 flex items-center justify-center rounded-full bg-e-indigo-light text-white hover:bg-e-indigo disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors ${sendAnimating ? "animate-send-pulse" : ""}`}
+                  className={`w-[50px] h-[50px] shrink-0 flex items-center justify-center rounded-full bg-e-indigo-light text-white hover:bg-e-indigo disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors ${sendAnimating ? "animate-send-pulse" : ""}`}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="22" y1="2" x2="11" y2="13" />

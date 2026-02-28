@@ -1298,11 +1298,11 @@ export default function Chat() {
                       ))}
                     </div>
                   )}
-                  <div className="flex items-center gap-2 mt-3">
-                    {source && (source === "General Knowledge" || source === "Knowledge Base") && !sourceLabel ? (
-                      <span className="text-[10px] text-e-grey dark:text-gray-400 select-none">{source}</span>
-                    ) : source && (
-                      sourceUrl ? (
+                  {source && (
+                    <div className="mt-3">
+                      {(source === "General Knowledge" || source === "Knowledge Base") && !sourceLabel ? (
+                        <span className="text-[10px] text-e-grey dark:text-gray-400 select-none">{source}</span>
+                      ) : sourceUrl ? (
                         <a href={sourceUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 w-full px-3 py-2.5 bg-[#F7F7F7] dark:bg-gray-800 rounded-xl hover:bg-[#ECECEC] dark:hover:bg-gray-700 transition-colors group/source cursor-pointer no-underline">
                           <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#1515F5]/10 text-[#1515F5] shrink-0">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1325,40 +1325,42 @@ export default function Chat() {
                         </button>
                       ) : (
                         <span className="text-[10px] text-e-grey dark:text-gray-400 select-none">{source}</span>
-                      )
-                    )}
-                    <span className={`flex gap-2 transition-opacity ${message.rating ? "" : "touch-visible opacity-0 group-hover/msg:opacity-100"}`}>
-                      <button
-                        onClick={() => rateMessage(index, "👍")}
-                        className={`p-1.5 rounded transition-colors cursor-pointer ${
-                          message.rating === "👍"
-                            ? "bg-[#1515F5] text-white"
-                            : "bg-[#F7F7F7] text-[#828282] hover:bg-[#ECECEC]"
-                        }`}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill={message.rating === "👍" ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M7 10v12" />
-                          <path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z" />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={() => rateMessage(index, "👎")}
-                        className={`p-1.5 rounded transition-colors cursor-pointer ${
-                          message.rating === "👎"
-                            ? "bg-[#1515F5] text-white"
-                            : "bg-[#F7F7F7] text-[#828282] hover:bg-[#ECECEC]"
-                        }`}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill={message.rating === "👎" ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M17 14V2" />
-                          <path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z" />
-                        </svg>
-                      </button>
-                    </span>
-                  </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })()}
+            {message.role === "assistant" && (
+              <span className={`flex gap-1 ml-11 -mt-1 transition-opacity ${message.rating ? "" : "touch-visible opacity-0 group-hover/msg:opacity-100"}`}>
+                <button
+                  onClick={() => rateMessage(index, "👍")}
+                  className={`p-1 rounded transition-colors cursor-pointer ${
+                    message.rating === "👍"
+                      ? "bg-[#1515F5] text-white"
+                      : "text-[#ABABAB] hover:text-[#828282]"
+                  }`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill={message.rating === "👍" ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M7 10v12" />
+                    <path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z" />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => rateMessage(index, "👎")}
+                  className={`p-1 rounded transition-colors cursor-pointer ${
+                    message.rating === "👎"
+                      ? "bg-[#1515F5] text-white"
+                      : "text-[#ABABAB] hover:text-[#828282]"
+                  }`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill={message.rating === "👎" ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M17 14V2" />
+                    <path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z" />
+                  </svg>
+                </button>
+              </span>
+            )}
           </div>
         ))}
 

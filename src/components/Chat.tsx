@@ -608,14 +608,15 @@ export default function Chat() {
 
     // If the user picks a FAQ suggestion while in feedback mode, exit feedback mode
     // and handle it as a normal question
-    if ((pendingFeedbackLogId || feedbackContactLogId) && faqSuggestions.some((s) => s === text)) {
+    const exitFeedback = (pendingFeedbackLogId || feedbackContactLogId) && faqSuggestions.some((s) => s === text);
+    if (exitFeedback) {
       setPendingFeedbackLogId(null);
       setFeedbackContactLogId(null);
       setFeedbackFollowUpLogId(null);
     }
 
     // Intercept feedback mode: save feedback to Notion instead of sending to Gemini
-    if (pendingFeedbackLogId && !hidden) {
+    if (pendingFeedbackLogId && !exitFeedback && !hidden) {
       const logId = pendingFeedbackLogId;
       setPendingFeedbackLogId(null);
       const userMsg: Message = { role: "user", content: text };
@@ -633,7 +634,7 @@ export default function Chat() {
     }
 
     // Intercept feedback contact mode: save contact info to Notion
-    if (feedbackContactLogId && !hidden) {
+    if (feedbackContactLogId && !exitFeedback && !hidden) {
       const logId = feedbackContactLogId;
       setFeedbackContactLogId(null);
       const userMsg: Message = { role: "user", content: text };
@@ -1486,7 +1487,7 @@ export default function Chat() {
         <div className="border-t border-e-pale dark:border-gray-800 relative">
           <form onSubmit={handleSubmit} className="p-4 max-w-4xl mx-auto w-full">
             <div className="flex gap-2 items-end">
-              <div className="flex-1">
+              <div className="relative flex-1 flex flex-col">
                 {faqSuggestions.length > 0 && (
                   <div className="bg-white dark:bg-gray-900 border border-[#ECECEC] dark:border-gray-700 border-b-0 rounded-t-2xl overflow-y-auto max-h-64">
                     {faqSuggestions.map((suggestion, i) => (

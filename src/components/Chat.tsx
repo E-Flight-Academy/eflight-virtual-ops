@@ -1275,7 +1275,8 @@ export default function Chat() {
               }
               const body = bodyRaw.replace(linkTagRegex, "").trimEnd();
               return (
-                <div className="max-w-[85%] bg-white dark:bg-gray-900 px-4 py-3 rounded-2xl rounded-tl-sm text-foreground group/msg">
+                <div className="max-w-[85%] group/msg">
+                <div className="bg-white dark:bg-gray-900 px-4 py-3 rounded-2xl rounded-tl-sm text-foreground">
                   <div className="prose dark:prose-invert max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-headings:my-2 prose-headings:text-e-indigo">
                     <ReactMarkdown components={{ a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer" className="text-e-indigo underline hover:text-e-indigo-hover">{children}</a> }}>{body}</ReactMarkdown>
                   </div>
@@ -1329,38 +1330,37 @@ export default function Chat() {
                     </div>
                   )}
                 </div>
+                <span className={`flex gap-1 mt-1 transition-opacity ${message.rating ? "" : "touch-visible opacity-0 delay-[1500ms] group-hover/msg:opacity-100 group-hover/msg:delay-0"}`}>
+                  <button
+                    onClick={() => rateMessage(index, "👍")}
+                    className={`p-1 rounded transition-colors cursor-pointer ${
+                      message.rating === "👍"
+                        ? "bg-[#1515F5] text-white"
+                        : "text-[#ABABAB] hover:text-[#828282]"
+                    }`}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill={message.rating === "👍" ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M7 10v12" />
+                      <path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z" />
+                    </svg>
+                  </button>
+                  <button
+                    onClick={() => rateMessage(index, "👎")}
+                    className={`p-1 rounded transition-colors cursor-pointer ${
+                      message.rating === "👎"
+                        ? "bg-[#1515F5] text-white"
+                        : "text-[#ABABAB] hover:text-[#828282]"
+                    }`}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill={message.rating === "👎" ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17 14V2" />
+                      <path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z" />
+                    </svg>
+                  </button>
+                </span>
+              </div>
               );
             })()}
-            {message.role === "assistant" && (
-              <span className={`flex gap-1 ml-11 -mt-1 transition-opacity ${message.rating ? "" : "touch-visible opacity-0 group-hover/msg:opacity-100"}`}>
-                <button
-                  onClick={() => rateMessage(index, "👍")}
-                  className={`p-1 rounded transition-colors cursor-pointer ${
-                    message.rating === "👍"
-                      ? "bg-[#1515F5] text-white"
-                      : "text-[#ABABAB] hover:text-[#828282]"
-                  }`}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill={message.rating === "👍" ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M7 10v12" />
-                    <path d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z" />
-                  </svg>
-                </button>
-                <button
-                  onClick={() => rateMessage(index, "👎")}
-                  className={`p-1 rounded transition-colors cursor-pointer ${
-                    message.rating === "👎"
-                      ? "bg-[#1515F5] text-white"
-                      : "text-[#ABABAB] hover:text-[#828282]"
-                  }`}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill={message.rating === "👎" ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M17 14V2" />
-                    <path d="M9 18.12 10 14H4.17a2 2 0 0 1-1.92-2.56l2.33-8A2 2 0 0 1 6.5 2H20a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-2.76a2 2 0 0 0-1.79 1.11L12 22a3.13 3.13 0 0 1-3-3.88Z" />
-                  </svg>
-                </button>
-              </span>
-            )}
           </div>
         ))}
 

@@ -1221,7 +1221,7 @@ export default function Chat() {
             {/* Centered input with FAQ suggestions */}
             <form onSubmit={handleSubmit}>
               <div className="flex gap-2 items-end">
-                <div className="relative flex-1">
+                <div className="relative flex-1 flex flex-col">
                   {faqSuggestions.length > 0 && (
                     <div className="bg-white dark:bg-gray-900 border border-[#ECECEC] dark:border-gray-700 border-b-0 rounded-t-2xl overflow-y-auto max-h-64">
                       {faqSuggestions.map((suggestion, i) => (

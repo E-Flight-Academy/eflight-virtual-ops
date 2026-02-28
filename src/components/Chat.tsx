@@ -6,6 +6,7 @@ import ReactMarkdown from "react-markdown";
 import { useI18n } from "@/lib/i18n/context";
 import type { UiLabels } from "@/lib/i18n/labels";
 import FaqModal from "./FaqModal";
+import confetti from "canvas-confetti";
 
 interface Message {
   role: "user" | "assistant";
@@ -78,6 +79,7 @@ export default function Chat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [sendAnimating, setSendAnimating] = useState(false);
   const [kbStatus, setKbStatus] = useState<KbStatus | null>(null);
   const [kbExpanded, setKbExpanded] = useState(false);
   const [starters, setStarters] = useState<{ question: string; questionNl: string; questionDe: string; answer: string; answerNl: string; answerDe: string }[]>([]);
@@ -524,7 +526,22 @@ export default function Chat() {
       .catch(() => {}); // Non-fatal
   }, [lang, sessionId]);
 
-  const rateMessage = useCallback((msgIndex: number, rating: "👍" | "👎") => {
+  const rateMessage = useCallback((msgIndex: number, rating: "👍" | "👎", e?: React.MouseEvent) => {
+    if (rating === "👍" && e) {
+      const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      confetti({
+        particleCount: 50,
+        spread: 60,
+        origin: {
+          x: (rect.left + rect.width / 2) / window.innerWidth,
+          y: (rect.top + rect.height / 2) / window.innerHeight,
+        },
+        colors: ["#1515F5", "#A1A1FB", "#85D9BF", "#6666FF"],
+        scalar: 0.8,
+        gravity: 1.2,
+        ticks: 60,
+      });
+    }
     setMessages((prev) => {
       const msg = prev[msgIndex];
       if (!msg) return prev;
@@ -588,6 +605,14 @@ export default function Chat() {
   const sendMessage = async (text: string, baseMessages?: Message[], hidden = false) => {
     if (!text.trim()) return;
     setFollowUpSuggestions([]);
+
+    // If the user picks a FAQ suggestion while in feedback mode, exit feedback mode
+    // and handle it as a normal question
+    if ((pendingFeedbackLogId || feedbackContactLogId) && faqSuggestions.some((s) => s === text)) {
+      setPendingFeedbackLogId(null);
+      setFeedbackContactLogId(null);
+      setFeedbackFollowUpLogId(null);
+    }
 
     // Intercept feedback mode: save feedback to Notion instead of sending to Gemini
     if (pendingFeedbackLogId && !hidden) {
@@ -767,6 +792,9 @@ export default function Chat() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!input.trim()) return;
+    setSendAnimating(true);
+    setTimeout(() => setSendAnimating(false), 400);
     sendMessage(input);
   };
 
@@ -1104,7 +1132,8 @@ export default function Chat() {
             {flowPhase !== "loading" && messages.map((message, index) => (
               <div
                 key={index}
-                className="flex justify-start items-start gap-3"
+                className="flex justify-start items-start gap-3 animate-fade-in-up"
+                style={{ animationDelay: `${index * 150}ms` }}
               >
                 <img src="/avatar.png" alt="Steward" className="w-8 h-8 rounded-full shrink-0 mt-0.5 transition-transform duration-200 hover:scale-150" />
                 <div className="max-w-[85%] bg-white dark:bg-gray-900 px-4 py-3 rounded-2xl rounded-tl-sm text-foreground">
@@ -1116,7 +1145,7 @@ export default function Chat() {
             ))}
 
             {flowPhase === "active" && currentFlowStep && !isLoading && (
-              <div className="flex flex-wrap gap-2 ml-11">
+              <div className="flex flex-wrap gap-2 ml-11 animate-fade-in-up">
                 {(currentFlowStep.nextDialogFlow || []).map((option, i) => (
                   <button
                     key={i}
@@ -1155,7 +1184,7 @@ export default function Chat() {
 
             {/* Suggested questions */}
             {starters.length > 0 && (
-              <div className="max-w-[56rem] mx-auto px-2 sm:px-6 py-2 sm:py-4">
+              <div className="max-w-[56rem] mx-auto px-2 sm:px-6 py-2 sm:py-4 animate-fade-in-up">
                 <div className="flex items-center gap-2 mb-3">
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#828282" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="12" cy="12" r="10" />
@@ -1234,7 +1263,7 @@ export default function Chat() {
                 <button
                   type="submit"
                   disabled={!input.trim()}
-                  className="w-11 h-11 shrink-0 flex items-center justify-center rounded-full bg-e-indigo-light text-white hover:bg-e-indigo disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors"
+                  className={`w-12 h-12 mb-px shrink-0 flex items-center justify-center rounded-full bg-e-indigo-light text-white hover:bg-e-indigo disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors ${sendAnimating ? "animate-send-pulse" : ""}`}
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <line x1="22" y1="2" x2="11" y2="13" />
@@ -1249,7 +1278,7 @@ export default function Chat() {
         {hasUserMessages && messages.map((message, index) => (
           <div
             key={index}
-            className={`flex max-w-4xl mx-auto w-full ${message.role === "user" ? "justify-end" : "justify-start items-start gap-3"}`}
+            className={`flex max-w-4xl mx-auto w-full ${message.role === "user" ? "justify-end animate-slide-in-right" : "justify-start items-start gap-3 animate-slide-in-left"}`}
           >
             {message.role === "assistant" && (
               <img src="/avatar.png" alt="Steward" className="w-8 h-8 rounded-full shrink-0 mt-0.5 transition-transform duration-200 hover:scale-150" />
@@ -1332,7 +1361,7 @@ export default function Chat() {
                 </div>
                 <span className={`flex gap-1 mt-1 transition-opacity ${message.rating ? "" : "touch-visible opacity-0 delay-[1500ms] group-hover/msg:opacity-100 group-hover/msg:delay-0"}`}>
                   <button
-                    onClick={() => rateMessage(index, "👍")}
+                    onClick={(e) => rateMessage(index, "👍", e)}
                     className={`p-1 rounded transition-colors cursor-pointer ${
                       message.rating === "👍"
                         ? "bg-[#1515F5] text-white"
@@ -1430,7 +1459,8 @@ export default function Chat() {
               <button
                 key={i}
                 onClick={() => sendMessage(suggestion)}
-                className="text-sm px-4 py-2 rounded-full border border-[#ECECEC] text-[#828282] bg-white hover:bg-[#F7F7F7] hover:text-[#1515F5] transition-colors dark:bg-gray-900 dark:border-gray-700 dark:hover:bg-gray-800 cursor-pointer"
+                className="text-sm px-4 py-2 rounded-full border border-[#ECECEC] text-[#828282] bg-white hover:bg-[#F7F7F7] hover:text-[#1515F5] transition-colors dark:bg-gray-900 dark:border-gray-700 dark:hover:bg-gray-800 cursor-pointer animate-pop-in"
+                style={{ animationDelay: `${i * 100}ms` }}
               >
                 {suggestion}
               </button>
@@ -1439,7 +1469,7 @@ export default function Chat() {
         )}
 
         {isLoading && (
-          <div className="flex items-start gap-3 max-w-4xl mx-auto w-full">
+          <div className="flex items-start gap-3 max-w-4xl mx-auto w-full animate-slide-in-left">
             <img src="/avatar.png" alt="Steward" className="w-8 h-8 rounded-full shrink-0 transition-transform duration-200 hover:scale-150" />
             <div className="flex space-x-2 pt-2">
               <div className="w-2 h-2 bg-e-indigo-light rounded-full animate-bounce" />
@@ -1491,7 +1521,7 @@ export default function Chat() {
               <button
                 type="submit"
                 disabled={!input.trim()}
-                className="w-11 h-11 shrink-0 flex items-center justify-center rounded-full bg-e-indigo-light text-white hover:bg-e-indigo disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className={`w-12 h-12 mb-px shrink-0 flex items-center justify-center rounded-full bg-e-indigo-light text-white hover:bg-e-indigo disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer ${sendAnimating ? "animate-send-pulse" : ""}`}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="22" y1="2" x2="11" y2="13" />

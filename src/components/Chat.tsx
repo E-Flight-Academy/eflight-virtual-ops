@@ -1220,7 +1220,7 @@ export default function Chat() {
 
             {/* Centered input with FAQ suggestions */}
             <form onSubmit={handleSubmit}>
-              <div className="flex gap-3 items-end">
+              <div className="flex gap-2 items-end">
                 <div className="relative flex-1">
                   {faqSuggestions.length > 0 && (
                     <div className="bg-white dark:bg-gray-900 border border-[#ECECEC] dark:border-gray-700 border-b-0 rounded-t-2xl overflow-y-auto max-h-64">
@@ -1485,7 +1485,7 @@ export default function Chat() {
       {hasUserMessages && (
         <div className="border-t border-e-pale dark:border-gray-800 relative">
           <form onSubmit={handleSubmit} className="p-4 max-w-4xl mx-auto w-full">
-            <div className="flex gap-3 items-end">
+            <div className="flex gap-2 items-end">
               <div className="flex-1">
                 {faqSuggestions.length > 0 && (
                   <div className="bg-white dark:bg-gray-900 border border-[#ECECEC] dark:border-gray-700 border-b-0 rounded-t-2xl overflow-y-auto max-h-64">
@@ -1521,7 +1521,7 @@ export default function Chat() {
               <button
                 type="submit"
                 disabled={!input.trim()}
-                className={`w-12 h-12 mb-px shrink-0 flex items-center justify-center rounded-full bg-e-indigo-light text-white hover:bg-e-indigo disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer ${sendAnimating ? "animate-send-pulse" : ""}`}
+                className={`w-[50px] h-[50px] shrink-0 flex items-center justify-center rounded-full bg-e-indigo-light text-white hover:bg-e-indigo disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors ${sendAnimating ? "animate-send-pulse" : ""}`}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="22" y1="2" x2="11" y2="13" />

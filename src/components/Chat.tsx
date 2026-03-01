@@ -6,6 +6,7 @@ import { useI18n } from "@/lib/i18n/context";
 import type { UiLabels } from "@/lib/i18n/labels";
 import FaqModal from "./FaqModal";
 import type { Message, FlowOption, FlowStep } from "@/types/chat";
+import { fetchRetry } from "@/lib/fetch-retry";
 
 import { useKbStatus } from "@/hooks/useKbStatus";
 import { useFaqSuggestions } from "@/hooks/useFaqSuggestions";
@@ -284,11 +285,14 @@ export default function Chat() {
       });
 
       if (!response.ok) {
-        const data = await response.json();
-        setMessages([
-          ...displayMessages,
-          { role: "assistant", content: `Error: ${data.error}` },
-        ]);
+        let errorMsg = t("chat.error");
+        try {
+          const data = await response.json();
+          if (data.error) errorMsg = `Error: ${data.error}`;
+        } catch {
+          // Response body empty or not JSON
+        }
+        setMessages([...displayMessages, { role: "assistant", content: errorMsg }]);
         return;
       }
 
@@ -382,16 +386,16 @@ export default function Chat() {
         fetch("/api/knowledge-base/warm", { method: "POST" }).catch(() => {});
       }
     });
-    fetch("/api/starters")
+    fetchRetry("/api/starters")
       .then((res) => res.json())
       .then((data) => setStarters(data))
       .catch(() => {});
-    fetch("/api/faqs")
+    fetchRetry("/api/faqs")
       .then((res) => res.json())
       .then((data) => setFaqs(data))
       .catch(() => {});
     const isSharedChat = !!sharedChatIdRef.current;
-    fetch("/api/guided-flows")
+    fetchRetry("/api/guided-flows")
       .then((res) => res.json())
       .then((data: FlowStep[]) => {
         setFlowSteps(data);

@@ -62,7 +62,7 @@ export default function WelcomeScreen({
     <div className="w-full max-w-2xl px-1 sm:px-4 space-y-3 sm:space-y-6">
       {/* Skeleton loader for welcome message */}
       {flowPhase === "loading" && (
-        <div className="flex justify-start items-start gap-3 animate-pulse">
+        <div aria-busy="true" className="flex justify-start items-start gap-3 animate-pulse">
           <div className="w-8 h-8 rounded-full bg-[#E0E0E0] shrink-0 mt-0.5" />
           <div className="max-w-[85%] bg-white dark:bg-gray-900 px-4 py-3 rounded-2xl rounded-tl-sm">
             <div className="space-y-2">
@@ -75,7 +75,7 @@ export default function WelcomeScreen({
 
       {/* Skeleton loader for flow buttons */}
       {flowPhase === "loading" && (
-        <div className="flex flex-wrap gap-2 ml-11 animate-pulse">
+        <div aria-busy="true" className="flex flex-wrap gap-2 ml-11 animate-pulse">
           <div className="h-10 bg-[#E0E0E0] rounded-full w-32" />
           <div className="h-10 bg-[#E0E0E0] rounded-full w-40" />
           <div className="h-10 bg-[#E0E0E0] rounded-full w-28" />
@@ -110,7 +110,7 @@ export default function WelcomeScreen({
 
       {/* Skeleton loader for suggested questions */}
       {starters.length === 0 && flowPhase === "loading" && (
-        <div className="max-w-[56rem] mx-auto px-2 sm:px-6 py-2 sm:py-4 animate-pulse">
+        <div aria-busy="true" className="max-w-[56rem] mx-auto px-2 sm:px-6 py-2 sm:py-4 animate-pulse">
           <div className="flex items-center gap-2 mb-3">
             <div className="w-4 h-4 bg-[#E0E0E0] rounded-full" />
             <div className="h-4 bg-[#E0E0E0] rounded w-32" />

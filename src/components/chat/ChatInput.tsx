@@ -42,11 +42,13 @@ export default function ChatInput({
       <div className="flex gap-2 items-end">
         <div className="relative flex-1 flex flex-col">
           {faqSuggestions.length > 0 && (
-            <div className="bg-white dark:bg-gray-900 border border-[#ECECEC] dark:border-gray-700 border-b-0 rounded-t-2xl overflow-y-auto max-h-64">
+            <div role="listbox" className="bg-white dark:bg-gray-900 border border-[#ECECEC] dark:border-gray-700 border-b-0 rounded-t-2xl overflow-y-auto max-h-64">
               {faqSuggestions.map((suggestion, i) => (
                 <button
                   key={i}
                   type="button"
+                  role="option"
+                  aria-selected={i === selectedSuggestion}
                   onClick={() => onFaqSelect(suggestion)}
                   className={`w-full text-left px-5 py-3 text-sm text-foreground hover:bg-[#F7F7F7] dark:hover:bg-gray-800 transition-colors border-b border-[#ECECEC] dark:border-gray-700 cursor-pointer flex items-center gap-3 ${i === selectedSuggestion ? "bg-[#F7F7F7] dark:bg-gray-800" : ""}`}
                 >
@@ -82,6 +84,7 @@ export default function ChatInput({
         <button
           type="submit"
           disabled={!input.trim()}
+          aria-label="Send message"
           className={`w-12 h-12 shrink-0 flex items-center justify-center rounded-full bg-e-indigo-light text-white hover:bg-e-indigo disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors ${sendAnimating ? "animate-send-pulse" : ""}`}
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

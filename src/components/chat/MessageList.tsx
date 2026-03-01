@@ -49,7 +49,7 @@ export default function MessageList({
   messagesEndRef,
 }: MessageListProps) {
   return (
-    <>
+    <div role="log" aria-live="polite" aria-label="Chat messages">
       {messages.map((message, index) => (
         <MessageBubble
           key={index}
@@ -111,6 +111,6 @@ export default function MessageList({
       {isLoading && <TypingIndicator />}
 
       <div ref={messagesEndRef} />
-    </>
+    </div>
   );
 }

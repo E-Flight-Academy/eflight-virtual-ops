@@ -50,14 +50,14 @@ export default function MessageBubble({ message, index, onRate, onFaqClick, t }:
                 {inlineLinks.map((link, i) => (
                   <a key={i} href={link.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 px-3 py-2 bg-[#F7F7F7] dark:bg-gray-800 rounded-lg hover:bg-[#ECECEC] dark:hover:bg-gray-700 transition-colors cursor-pointer no-underline">
                     <div className="flex items-center justify-center w-6 h-6 rounded-md bg-[#1515F5]/10 text-[#1515F5] shrink-0">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
                         <polyline points="15 3 21 3 21 9" />
                         <line x1="10" y1="14" x2="21" y2="3" />
                       </svg>
                     </div>
                     <span className="text-sm font-medium text-foreground truncate flex-1">{link.label}</span>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-e-grey dark:text-gray-400 shrink-0">
+                    <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-e-grey dark:text-gray-400 shrink-0">
                       <polyline points="9 18 15 12 9 6" />
                     </svg>
                   </a>
@@ -71,7 +71,7 @@ export default function MessageBubble({ message, index, onRate, onFaqClick, t }:
                 ) : sourceUrl ? (
                   <a href={sourceUrl} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 w-full px-3 py-2.5 bg-[#F7F7F7] dark:bg-gray-800 rounded-xl hover:bg-[#ECECEC] dark:hover:bg-gray-700 transition-colors group/source cursor-pointer no-underline">
                     <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#1515F5]/10 text-[#1515F5] shrink-0">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
                         <polyline points="15 3 21 3 21 9" />
                         <line x1="10" y1="14" x2="21" y2="3" />
@@ -81,7 +81,7 @@ export default function MessageBubble({ message, index, onRate, onFaqClick, t }:
                       <p className="text-sm font-medium text-foreground truncate">{sourceLabel || source}</p>
                       <p className="text-xs text-e-grey dark:text-gray-400">{t("chat.sourceWebsite")}</p>
                     </div>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-e-grey dark:text-gray-400 group-hover/source:text-[#1515F5] transition-colors shrink-0">
+                    <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-e-grey dark:text-gray-400 group-hover/source:text-[#1515F5] transition-colors shrink-0">
                       <polyline points="9 18 15 12 9 6" />
                     </svg>
                   </a>
@@ -97,6 +97,7 @@ export default function MessageBubble({ message, index, onRate, onFaqClick, t }:
           </div>
           <span className={`flex gap-1 mt-1 transition-opacity ${message.rating ? "" : "touch-visible opacity-0 delay-[1500ms] group-hover/msg:opacity-100 group-hover/msg:delay-0"}`}>
             <button
+              aria-label="Helpful"
               onClick={(e) => onRate(index, "\u{1F44D}", e)}
               className={`p-1 rounded transition-colors cursor-pointer ${
                 message.rating === "\u{1F44D}"
@@ -110,6 +111,7 @@ export default function MessageBubble({ message, index, onRate, onFaqClick, t }:
               </svg>
             </button>
             <button
+              aria-label="Not helpful"
               onClick={() => onRate(index, "\u{1F44E}")}
               className={`p-1 rounded transition-colors cursor-pointer ${
                 message.rating === "\u{1F44E}"

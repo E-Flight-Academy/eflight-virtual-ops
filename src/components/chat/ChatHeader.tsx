@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import type { UiLabels } from "@/lib/i18n/labels";
 
 interface ChatHeaderProps {
@@ -39,6 +40,17 @@ export default function ChatHeader({
   onLogout,
   t,
 }: ChatHeaderProps) {
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (langOpen) setLangOpen(false);
+        if (userMenuOpen) setUserMenuOpen(false);
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [langOpen, userMenuOpen, setLangOpen, setUserMenuOpen]);
+
   return (
     <header className={`flex items-center ${client === "briefing" ? "justify-end" : "justify-between"} p-4 border-b border-e-pale dark:border-gray-800`}>
       {client !== "briefing" && <div>
@@ -48,9 +60,10 @@ export default function ChatHeader({
         <button
           onClick={onFaqOpen}
           title="FAQ"
+          aria-label="Open FAQ"
           className="flex items-center gap-2 text-e-grey hover:text-e-indigo transition-colors cursor-pointer"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="10" />
             <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
             <path d="M12 17h.01" />
@@ -60,10 +73,11 @@ export default function ChatHeader({
         <div className="relative">
           <button
             onClick={() => setLangOpen(!langOpen)}
+            aria-expanded={langOpen}
             className="flex items-center gap-2 px-3 py-2 rounded-md bg-[#F7F7F7] text-[#828282] text-sm font-medium hover:bg-[#ECECEC] transition-colors dark:bg-gray-800 dark:hover:bg-gray-700 cursor-pointer"
           >
             {lang.toUpperCase()}
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="m6 9 6 6 6-6" />
             </svg>
           </button>
@@ -92,9 +106,10 @@ export default function ChatHeader({
           onClick={onNewChat}
           disabled={messagesLength === 0}
           title={t("header.newChat")}
+          aria-label="New chat"
           className="flex items-center gap-2 text-e-grey hover:text-e-indigo transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
             <polyline points="14 2 14 8 20 8" />
             <line x1="12" y1="18" x2="12" y2="12" />
@@ -106,19 +121,20 @@ export default function ChatHeader({
           onClick={onShare}
           disabled={messagesLength === 0 || shareStatus === "sharing"}
           title={shareStatus === "copied" ? "Link copied!" : shareStatus === "error" ? "Failed to share" : t("header.share")}
+          aria-label="Share chat"
           className="flex items-center gap-2 text-e-grey hover:text-e-indigo transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
         >
           {shareStatus === "copied" ? (
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-500">
+            <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-500">
               <polyline points="20 6 9 17 4 12" />
             </svg>
           ) : shareStatus === "error" ? (
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-500">
+            <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-500">
               <line x1="18" y1="6" x2="6" y2="18" />
               <line x1="6" y1="6" x2="18" y2="18" />
             </svg>
           ) : (
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="18" cy="5" r="3" />
               <circle cx="6" cy="12" r="3" />
               <circle cx="18" cy="19" r="3" />
@@ -134,14 +150,16 @@ export default function ChatHeader({
           <div className="relative">
             <button
               onClick={() => setUserMenuOpen(!userMenuOpen)}
+              aria-label="User menu"
+              aria-expanded={userMenuOpen}
               className="flex items-center gap-2 text-e-grey hover:text-e-indigo transition-colors cursor-pointer"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
                 <circle cx="12" cy="7" r="4" />
               </svg>
               <span className="hidden sm:inline text-sm">{shopifyUser.firstName || shopifyUser.email}</span>
-              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="hidden sm:inline">
+              <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="hidden sm:inline">
                 <path d="m6 9 6 6 6-6" />
               </svg>
             </button>
@@ -189,9 +207,10 @@ export default function ChatHeader({
           <button
             onClick={onLogin}
             title={t("header.login")}
+            aria-label="Login"
             className="flex items-center gap-2 text-e-grey hover:text-e-indigo transition-colors cursor-pointer"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
               <polyline points="10 17 15 12 10 7" />
               <line x1="15" y1="12" x2="3" y2="12" />

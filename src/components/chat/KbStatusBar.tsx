@@ -13,6 +13,8 @@ export default function KbStatusBar({ kbStatus, kbExpanded, onToggle, t }: KbSta
     <div className="border-t border-e-pale dark:border-gray-800">
       <button
         onClick={onToggle}
+        aria-expanded={kbExpanded}
+        aria-label="Knowledge base status"
         className="w-full px-4 py-2 flex items-center justify-center gap-2 text-xs text-e-grey hover:bg-e-pale-light dark:hover:bg-gray-900 transition-colors cursor-pointer"
       >
         <span

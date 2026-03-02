@@ -8,7 +8,7 @@ interface FlowOptionsProps {
 
 export default function FlowOptions({ options, onSelect, getFlowLabel }: FlowOptionsProps) {
   return (
-    <div role="group" aria-label="Options">
+    <div role="group" aria-label="Options" className="flex flex-wrap gap-2">
       {options.map((option, i) => (
         <button
           key={i}

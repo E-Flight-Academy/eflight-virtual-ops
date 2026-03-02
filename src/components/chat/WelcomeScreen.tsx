@@ -194,7 +194,7 @@ export default function WelcomeScreen({
               <button
                 key={lang}
                 onClick={() => onTapAndTalk(lang)}
-                className={`flex-1 flex items-center gap-3 px-5 py-4 rounded-2xl text-base font-medium cursor-pointer transition-all ${
+                className={`flex-1 flex items-center justify-start gap-3 px-5 py-4 rounded-2xl text-base font-medium cursor-pointer transition-all ${
                   active
                     ? "bg-red-500 text-white animate-mic-pulse"
                     : "bg-e-mint-light text-foreground hover:bg-e-mint"

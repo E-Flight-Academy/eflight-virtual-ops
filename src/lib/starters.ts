@@ -36,7 +36,11 @@ function getRichTextMd(props: Record<string, unknown>, key: string): string {
     .map((t) => {
       let text = t.plain_text;
       if (t.annotations.code) text = `\`${text}\``;
-      if (t.annotations.bold) text = `**${text}**`;
+      if (t.annotations.bold) {
+        // Bold markers must be on the same line to render correctly
+        const trailing = text.match(/(\n+)$/)?.[1] || "";
+        text = `**${text.trimEnd()}**${trailing}`;
+      }
       if (t.annotations.italic) text = `*${text}*`;
       if (t.annotations.strikethrough) text = `~~${text}~~`;
       return text;

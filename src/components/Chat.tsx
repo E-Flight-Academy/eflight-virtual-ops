@@ -637,6 +637,7 @@ export default function Chat() {
             getQ={getQ}
             sendMessage={sendMessage}
             onFaqOpen={() => setShowFaqModal(true)}
+            onAvatarClick={handleAvatarClick}
             input={input}
             setInput={setInput}
             onSubmit={handleSubmit}

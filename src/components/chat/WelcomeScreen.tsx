@@ -16,6 +16,7 @@ interface WelcomeScreenProps {
   getQ: (item: { question: string; questionNl: string; questionDe: string }) => string;
   sendMessage: (text: string) => void;
   onFaqOpen: () => void;
+  onAvatarClick: () => void;
   // ChatInput props
   input: string;
   setInput: (v: string) => void;
@@ -44,6 +45,7 @@ export default function WelcomeScreen({
   getQ,
   sendMessage,
   onFaqOpen,
+  onAvatarClick,
   input,
   setInput,
   onSubmit,
@@ -89,7 +91,9 @@ export default function WelcomeScreen({
           className="flex justify-start items-start gap-3 animate-fade-in-up"
           style={{ animationDelay: `${index * 150}ms` }}
         >
-          <img src="/avatar.png" alt="Steward" className="w-8 h-8 rounded-full shrink-0 mt-0.5 transition-transform duration-200 hover:scale-150" />
+          <button onClick={onAvatarClick} aria-label="Who is Steward?" className="cursor-pointer shrink-0 mt-0.5">
+            <img src="/avatar.png" alt="Steward" className="w-8 h-8 rounded-full transition-transform duration-200 hover:scale-125" />
+          </button>
           <div className="max-w-[85%] bg-white dark:bg-gray-900 px-4 py-3 rounded-2xl rounded-tl-sm text-foreground">
             <div className="prose dark:prose-invert max-w-none prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 prose-headings:my-2 prose-headings:text-e-indigo">
               <ReactMarkdown components={{ a: ({ href, children }) => <a href={href} target="_blank" rel="noopener noreferrer" className="text-e-indigo underline hover:text-e-indigo-hover">{children}</a> }}>{message.content}</ReactMarkdown>

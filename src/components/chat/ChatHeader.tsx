@@ -52,7 +52,7 @@ export default function ChatHeader({
   }, [langOpen, userMenuOpen, setLangOpen, setUserMenuOpen]);
 
   return (
-    <header className={`flex items-center ${client === "briefing" ? "justify-end" : "justify-between"} p-4 border-b border-e-pale dark:border-gray-800`}>
+    <header className={`flex items-center ${client === "briefing" ? "justify-end" : "justify-between"} p-4 border-b border-e-pale dark:border-gray-800 sticky top-0 z-50 bg-white dark:bg-gray-950`}>
       {client !== "briefing" && <div>
         <h1 className="text-2xl font-extrabold text-e-indigo cursor-pointer" onClick={onNewChat}>Steward <span className="hidden min-[900px]:inline text-sm font-normal text-e-grey">E-Flight Academy Virtual Assistant</span></h1>
       </div>}

@@ -46,6 +46,10 @@ export default function Chat() {
   const debugMode = searchParams.get("debug") === "true";
   const client = searchParams.get("client");
 
+  const [isTouchDevice] = useState(() =>
+    typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0)
+  );
+
   const { kbStatus, kbExpanded, setKbExpanded, fetchKbStatus, startPolling, stopPolling } = useKbStatus();
 
   const scrollToBottom = () => {
@@ -704,7 +708,7 @@ export default function Chat() {
             isMicSupported={isMicSupported}
             micStartLabel={t("chat.micStart")}
             micStopLabel={t("chat.micStop")}
-            onTapAndTalk={handleTapAndTalk}
+            onTapAndTalk={isTouchDevice && client !== "briefing" ? handleTapAndTalk : undefined}
             listeningLang={listeningLang}
           />
         )}

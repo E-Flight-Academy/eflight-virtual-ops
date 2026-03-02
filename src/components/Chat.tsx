@@ -508,6 +508,7 @@ export default function Chat() {
     setSendAnimating(true);
     setTimeout(() => setSendAnimating(false), 400);
     sendMessage(input);
+    inputRef.current?.focus();
   };
 
   const handleFaqSelect = (question: string) => {

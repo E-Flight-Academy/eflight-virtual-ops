@@ -38,6 +38,7 @@ interface WelcomeScreenProps {
   micStopLabel?: string;
   onTapAndTalk?: (lang: string) => void;
   listeningLang?: string | null;
+  kiosk?: boolean;
 }
 
 export default function WelcomeScreen({
@@ -73,6 +74,7 @@ export default function WelcomeScreen({
   micStopLabel,
   onTapAndTalk,
   listeningLang,
+  kiosk,
 }: WelcomeScreenProps) {
   return (
     <div className="w-full max-w-2xl px-1 sm:px-4 space-y-3 sm:space-y-6">
@@ -161,7 +163,7 @@ export default function WelcomeScreen({
                 <button
                   key={i}
                   onClick={() => sendMessage(displayText)}
-                  className="text-sm px-4 py-2 rounded-full border border-[#ECECEC] text-[#828282] bg-white hover:bg-[#F7F7F7] hover:text-[#1515F5] transition-colors dark:bg-gray-900 dark:border-gray-700 dark:hover:bg-gray-800 cursor-pointer"
+                  className={`${kiosk ? "text-base px-5 py-3" : "text-sm px-4 py-2"} rounded-full border border-[#ECECEC] text-[#828282] bg-white hover:bg-[#F7F7F7] hover:text-[#1515F5] transition-colors dark:bg-gray-900 dark:border-gray-700 dark:hover:bg-gray-800 cursor-pointer`}
                 >
                   {displayText}
                 </button>
@@ -170,7 +172,7 @@ export default function WelcomeScreen({
             {faqs.length > 0 && (
               <button
                 onClick={onFaqOpen}
-                className="text-sm px-4 py-2 rounded-full border border-[#ECECEC] text-[#828282] bg-white hover:bg-[#F7F7F7] hover:text-[#1515F5] transition-colors dark:bg-gray-900 dark:border-gray-700 dark:hover:bg-gray-800 cursor-pointer"
+                className={`${kiosk ? "text-base px-5 py-3" : "text-sm px-4 py-2"} rounded-full border border-[#ECECEC] text-[#828282] bg-white hover:bg-[#F7F7F7] hover:text-[#1515F5] transition-colors dark:bg-gray-900 dark:border-gray-700 dark:hover:bg-gray-800 cursor-pointer`}
               >
                 More FAQ&apos;s
               </button>
@@ -231,6 +233,7 @@ export default function WelcomeScreen({
         isMicSupported={isMicSupported}
         micStartLabel={micStartLabel}
         micStopLabel={micStopLabel}
+        kiosk={kiosk}
       />
     </div>
   );

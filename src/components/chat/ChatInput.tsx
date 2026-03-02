@@ -21,6 +21,7 @@ interface ChatInputProps {
   isMicSupported?: boolean;
   micStartLabel?: string;
   micStopLabel?: string;
+  kiosk?: boolean;
 }
 
 export default function ChatInput({
@@ -44,6 +45,7 @@ export default function ChatInput({
   isMicSupported,
   micStartLabel = "Start voice input",
   micStopLabel = "Stop voice input",
+  kiosk,
 }: ChatInputProps) {
   const inputId = centered ? "message-input" : "message-input-bottom";
 
@@ -81,7 +83,7 @@ export default function ChatInput({
             onChange={(e) => { setInput(e.target.value); autoResizeTextarea(); }}
             onKeyDown={onKeyDown}
             placeholder={centered ? undefined : placeholder}
-            className={`w-full border border-e-grey-light dark:border-gray-700 px-5 py-3 focus:outline-none focus:ring-2 focus:ring-e-indigo-light bg-white dark:bg-gray-900 resize-none leading-6 ${faqSuggestions.length > 0 ? "rounded-b-2xl rounded-t-none" : "rounded-3xl"}`}
+            className={`w-full border border-e-grey-light dark:border-gray-700 px-5 focus:outline-none focus:ring-2 focus:ring-e-indigo-light bg-white dark:bg-gray-900 resize-none ${kiosk ? "py-4 text-lg leading-7" : "py-3 leading-6"} ${faqSuggestions.length > 0 ? "rounded-b-2xl rounded-t-none" : "rounded-3xl"}`}
           />
           {centered && !input && cyclingPlaceholders && phIndex !== undefined && phVisible !== undefined && (
             <span
@@ -96,7 +98,7 @@ export default function ChatInput({
             type="button"
             onClick={onMicClick}
             aria-label={isListening ? micStopLabel : micStartLabel}
-            className={`w-12 h-12 shrink-0 flex items-center justify-center rounded-full cursor-pointer transition-colors ${
+            className={`${kiosk ? "w-14 h-14" : "w-12 h-12"} shrink-0 flex items-center justify-center rounded-full cursor-pointer transition-colors ${
               isListening
                 ? "bg-red-500 text-white animate-mic-pulse"
                 : "bg-e-mint-light text-e-grey hover:text-e-indigo hover:bg-e-mint dark:bg-gray-800 dark:hover:bg-gray-700"
@@ -113,7 +115,7 @@ export default function ChatInput({
           type="submit"
           disabled={!input.trim()}
           aria-label="Send message"
-          className={`w-12 h-12 shrink-0 flex items-center justify-center rounded-full bg-e-indigo-light text-white hover:bg-e-indigo disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors ${sendAnimating ? "animate-send-pulse" : ""}`}
+          className={`${kiosk ? "w-14 h-14" : "w-12 h-12"} shrink-0 flex items-center justify-center rounded-full bg-e-indigo-light text-white hover:bg-e-indigo disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer transition-colors ${sendAnimating ? "animate-send-pulse" : ""}`}
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <line x1="22" y1="2" x2="11" y2="13" />

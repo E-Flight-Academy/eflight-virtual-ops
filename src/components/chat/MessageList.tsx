@@ -28,6 +28,7 @@ interface MessageListProps {
   onFollowUpSelect: (s: string) => void;
   t: (key: keyof UiLabels) => string;
   messagesEndRef: React.RefObject<HTMLDivElement | null>;
+  kiosk?: boolean;
 }
 
 export default function MessageList({
@@ -49,6 +50,7 @@ export default function MessageList({
   onFollowUpSelect,
   t,
   messagesEndRef,
+  kiosk,
 }: MessageListProps) {
   return (
     <div role="log" aria-live="polite" aria-label="Chat messages" className="space-y-6">
@@ -61,6 +63,7 @@ export default function MessageList({
           onFaqClick={onFaqClick}
           onAvatarClick={onAvatarClick}
           t={t}
+          kiosk={kiosk}
         />
       ))}
 

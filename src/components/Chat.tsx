@@ -541,6 +541,7 @@ export default function Chat() {
     }
   };
 
+  const isKiosk = client === "kiosk";
   const hasUserMessages = useMemo(() => messages.some((m) => m.role === "user"), [messages]);
 
   const displayRole = useMemo(() => {
@@ -708,8 +709,9 @@ export default function Chat() {
             isMicSupported={isMicSupported}
             micStartLabel={t("chat.micStart")}
             micStopLabel={t("chat.micStop")}
-            onTapAndTalk={isTouchDevice && client !== "briefing" && typeof window !== "undefined" && window.innerWidth >= 768 ? handleTapAndTalk : undefined}
+            onTapAndTalk={isKiosk || (isTouchDevice && client !== "briefing" && typeof window !== "undefined" && window.innerWidth >= 768) ? handleTapAndTalk : undefined}
             listeningLang={listeningLang}
+            kiosk={isKiosk}
           />
         )}
 
@@ -733,6 +735,7 @@ export default function Chat() {
             onFollowUpSelect={(s) => sendMessage(s)}
             t={t}
             messagesEndRef={messagesEndRef}
+            kiosk={isKiosk}
           />
         )}
 
@@ -758,6 +761,7 @@ export default function Chat() {
             isMicSupported={isMicSupported}
             micStartLabel={t("chat.micStart")}
             micStopLabel={t("chat.micStop")}
+            kiosk={isKiosk}
           />
         </div>
       )}

@@ -127,36 +127,38 @@ export default function ChatHeader({
           </svg>
           <span className="hidden sm:inline text-sm">{t("header.newChat")}</span>
         </button>
-        <button
-          onClick={onShare}
-          disabled={messagesLength === 0 || shareStatus === "sharing"}
-          title={shareStatus === "copied" ? "Link copied!" : shareStatus === "error" ? "Failed to share" : t("header.share")}
-          aria-label="Share chat"
-          className="flex items-center gap-2 p-2 rounded-xl text-e-grey hover:text-e-indigo hover:bg-[#F0F0FF] transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
-        >
-          {shareStatus === "copied" ? (
-            <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-500">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-          ) : shareStatus === "error" ? (
-            <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-500">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          ) : (
-            <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="18" cy="5" r="3" />
-              <circle cx="6" cy="12" r="3" />
-              <circle cx="18" cy="19" r="3" />
-              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
-              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
-            </svg>
-          )}
-          <span className="hidden sm:inline text-sm">
-            {shareStatus === "copied" ? "Copied!" : shareStatus === "error" ? "Failed" : t("header.share")}
-          </span>
-        </button>
-        {shopifyUser ? (
+        {client !== "kiosk" && (
+          <button
+            onClick={onShare}
+            disabled={messagesLength === 0 || shareStatus === "sharing"}
+            title={shareStatus === "copied" ? "Link copied!" : shareStatus === "error" ? "Failed to share" : t("header.share")}
+            aria-label="Share chat"
+            className="flex items-center gap-2 p-2 rounded-xl text-e-grey hover:text-e-indigo hover:bg-[#F0F0FF] transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+          >
+            {shareStatus === "copied" ? (
+              <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-emerald-500">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            ) : shareStatus === "error" ? (
+              <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-500">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            ) : (
+              <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="18" cy="5" r="3" />
+                <circle cx="6" cy="12" r="3" />
+                <circle cx="18" cy="19" r="3" />
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+              </svg>
+            )}
+            <span className="hidden sm:inline text-sm">
+              {shareStatus === "copied" ? "Copied!" : shareStatus === "error" ? "Failed" : t("header.share")}
+            </span>
+          </button>
+        )}
+        {client !== "kiosk" && shopifyUser ? (
           <div className="relative">
             <button
               onClick={() => setUserMenuOpen(!userMenuOpen)}
@@ -213,7 +215,7 @@ export default function ChatHeader({
               </>
             )}
           </div>
-        ) : (
+        ) : client !== "kiosk" ? (
           <button
             onClick={onLogin}
             title={t("header.login")}
@@ -227,7 +229,7 @@ export default function ChatHeader({
             </svg>
             <span className="hidden sm:inline text-sm">{t("header.login")}</span>
           </button>
-        )}
+        ) : null}
       </div>
     </header>
   );

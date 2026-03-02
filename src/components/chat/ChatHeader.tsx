@@ -54,7 +54,7 @@ export default function ChatHeader({
   }, [langOpen, userMenuOpen, setLangOpen, setUserMenuOpen]);
 
   return (
-    <header className={`flex items-center ${client === "briefing" ? "justify-end" : "justify-between"} px-5 py-3 border-b border-[#E8E8F8] dark:border-gray-800 sticky top-0 z-50 bg-gradient-to-r from-white via-white to-[#F5F5FF] dark:from-gray-950 dark:via-gray-950 dark:to-gray-900`}>
+    <header className={`flex items-center ${client === "briefing" ? "justify-end" : "justify-between"} px-5 py-3 border-b border-[#E8E8F8] dark:border-gray-800 bg-gradient-to-r from-white via-white to-[#F5F5FF] dark:from-gray-950 dark:via-gray-950 dark:to-gray-900`}>
       {client !== "briefing" && (
         <div className="flex items-center gap-3">
           <button onClick={onAvatarClick} aria-label="Who is Steward?" className="cursor-pointer group">

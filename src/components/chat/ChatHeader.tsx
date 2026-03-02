@@ -60,7 +60,7 @@ export default function ChatHeader({
           <button onClick={onAvatarClick} aria-label="Who is Steward?" className="cursor-pointer group">
             <img src="/avatar.png" alt="Steward" className="w-9 h-9 rounded-full ring-2 ring-[#1515F5]/15 group-hover:ring-[#1515F5]/30 transition-all" />
           </button>
-          <button onClick={onNewChat} className="text-left cursor-pointer">
+          <button onClick={() => window.location.reload()} className="text-left cursor-pointer">
             <h1 className="text-xl font-extrabold text-e-indigo leading-tight">Steward</h1>
             <p className="hidden min-[900px]:block text-xs text-e-grey leading-tight">E-Flight Academy Virtual Assistant</p>
           </button>

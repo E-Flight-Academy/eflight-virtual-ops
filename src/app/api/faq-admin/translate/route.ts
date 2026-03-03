@@ -7,7 +7,7 @@ const ADMIN_EMAILS = ["matthijs@eflight.nl", "matthijscollard@gmail.com", "wesle
 
 export async function POST(request: Request) {
   const session = await getSession();
-  if (!session?.customer?.email || !ADMIN_EMAILS.includes(session.customer.email)) {
+  if (!session?.customer?.email || !ADMIN_EMAILS.includes(session.customer.email.toLowerCase())) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
   }
 

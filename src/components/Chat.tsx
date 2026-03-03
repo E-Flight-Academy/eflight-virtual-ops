@@ -232,7 +232,7 @@ export default function Chat() {
   } = useRating(messages, setMessages, lang, sessionId, t);
 
   const adminEmails = ["matthijs@eflight.nl", "matthijscollard@gmail.com", "wesley@eflight.nl", "paulien@eflight.nl"];
-  const isAdmin = !!shopifyUser?.email && adminEmails.includes(shopifyUser.email);
+  const isAdmin = !!shopifyUser?.email && adminEmails.includes(shopifyUser.email.toLowerCase());
 
   const {
     phase: adminPhase,

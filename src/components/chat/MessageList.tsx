@@ -37,6 +37,7 @@ interface MessageListProps {
   onAdminRevise?: () => void;
   onAdminInput?: (text: string) => void;
   adminCategories?: string[];
+  adminAudiences?: string[];
   lang?: string;
 }
 
@@ -67,10 +68,11 @@ export default function MessageList({
   onAdminRevise,
   onAdminInput,
   adminCategories = [],
+  adminAudiences = [],
   lang = "en",
 }: MessageListProps) {
   return (
-    <div role="log" aria-live="polite" aria-label="Chat messages" className="space-y-6">
+    <div role="log" aria-live="polite" aria-label="Chat messages" className="space-y-4">
       {messages.map((message, index) => (
         <MessageBubble
           key={index}
@@ -114,11 +116,26 @@ export default function MessageList({
           {adminCategories.map((cat, i) => (
             <button
               key={cat}
-              onClick={() => onAdminInput(String(i + 1))}
+              onClick={() => onAdminInput(cat)}
               className="text-sm px-4 py-2 rounded-full border border-[#ECECEC] text-[#828282] bg-white hover:bg-[#F7F7F7] hover:text-[#1515F5] transition-colors cursor-pointer dark:bg-gray-900 dark:border-gray-700 dark:hover:bg-gray-800 animate-pop-in"
               style={{ animationDelay: `${i * 60}ms` }}
             >
               {cat}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {adminPhase === "choose-audience" && onAdminInput && !isLoading && (
+        <div className="max-w-4xl mx-auto w-full pl-11 flex flex-wrap gap-2">
+          {adminAudiences.map((aud, i) => (
+            <button
+              key={aud}
+              onClick={() => onAdminInput(aud)}
+              className="text-sm px-4 py-2 rounded-full border border-[#ECECEC] text-[#828282] bg-white hover:bg-[#F7F7F7] hover:text-[#1515F5] transition-colors cursor-pointer dark:bg-gray-900 dark:border-gray-700 dark:hover:bg-gray-800 animate-pop-in"
+              style={{ animationDelay: `${i * 60}ms` }}
+            >
+              {aud}
             </button>
           ))}
         </div>
@@ -178,13 +195,16 @@ export default function MessageList({
           {([
             { value: "vraag", label: { en: "Question", nl: "Vraag", de: "Frage" } },
             { value: "antwoord", label: { en: "Answer", nl: "Antwoord", de: "Antwort" } },
-            { value: "beide", label: { en: "Both", nl: "Beide", de: "Beides" } },
+            { value: "categorie", label: { en: "Category", nl: "Categorie", de: "Kategorie" } },
+            { value: "doelgroep", label: { en: "Audience", nl: "Doelgroep", de: "Zielgruppe" } },
+            { value: "link", label: { en: "Link", nl: "Link", de: "Link" } },
+            { value: "alles", label: { en: "All", nl: "Alles", de: "Alles" } },
           ]).map((item, i) => (
             <button
               key={item.value}
               onClick={() => onAdminInput(item.value)}
               className="text-sm px-4 py-2 rounded-full border border-[#ECECEC] text-[#828282] bg-white hover:bg-[#F7F7F7] hover:text-[#1515F5] transition-colors cursor-pointer dark:bg-gray-900 dark:border-gray-700 dark:hover:bg-gray-800 animate-pop-in"
-              style={{ animationDelay: `${i * 100}ms` }}
+              style={{ animationDelay: `${i * 80}ms` }}
             >
               {item.label[lang as keyof typeof item.label] || item.label.en}
             </button>

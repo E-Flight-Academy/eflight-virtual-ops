@@ -237,6 +237,7 @@ export default function Chat() {
   const {
     phase: adminPhase,
     categories: adminCategories,
+    audiences: adminAudiences,
     startAdmin,
     chooseAction,
     apply: applyAdmin,
@@ -777,6 +778,7 @@ export default function Chat() {
             onAdminRevise={isAdmin ? reviseAdmin : undefined}
             onAdminInput={isAdmin ? (text: string) => { handleAdminInput(text); } : undefined}
             adminCategories={isAdmin ? adminCategories : undefined}
+            adminAudiences={isAdmin ? adminAudiences : undefined}
             lang={lang}
           />
         )}

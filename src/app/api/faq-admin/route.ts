@@ -44,6 +44,7 @@ export async function POST(request: Request) {
           "Answer (DE)": richText(data.answerDe),
           "Live": { checkbox: true },
           ...(data.category ? { "Category": { select: { name: data.category } } } : {}),
+          ...(data.audience && data.audience.length > 0 ? { "Audience": { multi_select: data.audience.map((a) => ({ name: a })) } } : {}),
           ...(data.url ? { "Link": { url: data.url } } : {}),
         },
       });
@@ -71,6 +72,7 @@ export async function POST(request: Request) {
           "Answer (NL)": richText(data.answerNl),
           "Answer (DE)": richText(data.answerDe),
           ...(data.category ? { "Category": { select: { name: data.category } } } : {}),
+          ...(data.audience && data.audience.length > 0 ? { "Audience": { multi_select: data.audience.map((a) => ({ name: a })) } } : {}),
           ...(data.url ? { "Link": { url: data.url } } : {}),
         },
       });

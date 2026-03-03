@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import type { KvFaq } from "@/lib/kv-cache";
 
 export type FaqAdminPhase =
@@ -8,6 +8,7 @@ export type FaqAdminPhase =
   | "drafting-question"
   | "drafting-answer"
   | "choose-category"
+  | "choose-audience"
   | "choose-link"
   | "drafting-link"
   | "translating"
@@ -30,7 +31,7 @@ export interface FaqTranslations {
 interface UseFaqAdminOptions {
   faqs: KvFaq[];
   setFaqs: (faqs: KvFaq[]) => void;
-  setMessages: React.Dispatch<React.SetStateAction<{ role: "user" | "assistant"; content: string; logId?: string; rating?: "👍" | "👎" }[]>>;
+  setMessages: React.Dispatch<React.SetStateAction<{ role: "user" | "assistant"; content: string; logId?: string; rating?: "\u{1F44D}" | "\u{1F44E}" }[]>>;
   lang: string;
 }
 
@@ -41,9 +42,21 @@ export function useFaqAdmin({ faqs, setFaqs, setMessages, lang }: UseFaqAdminOpt
   const [draftQuestion, setDraftQuestion] = useState("");
   const [draftAnswer, setDraftAnswer] = useState("");
   const [draftCategory, setDraftCategory] = useState("");
+  const [draftAudience, setDraftAudience] = useState<string[]>([]);
   const [draftUrl, setDraftUrl] = useState("");
   const [translations, setTranslations] = useState<FaqTranslations | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [revisingField, setRevisingField] = useState<string | null>(null);
+
+  // Refs for accessing latest values in callbacks without stale closures
+  const draftCategoryRef = useRef(draftCategory);
+  draftCategoryRef.current = draftCategory;
+  const draftAudienceRef = useRef(draftAudience);
+  draftAudienceRef.current = draftAudience;
+  const draftUrlRef = useRef(draftUrl);
+  draftUrlRef.current = draftUrl;
+  const translationsRef = useRef(translations);
+  translationsRef.current = translations;
 
   const reset = useCallback(() => {
     setPhase("idle");
@@ -52,12 +65,37 @@ export function useFaqAdmin({ faqs, setFaqs, setMessages, lang }: UseFaqAdminOpt
     setDraftQuestion("");
     setDraftAnswer("");
     setDraftCategory("");
+    setDraftAudience([]);
     setDraftUrl("");
     setTranslations(null);
     setError(null);
+    setRevisingField(null);
   }, []);
 
   const categories = [...new Set(faqs.map((f) => f.category).filter(Boolean))];
+  const audiences = [...new Set(faqs.flatMap((f) => f.audience || []).filter(Boolean))];
+
+  const buildMetaString = useCallback((cat: string, aud: string[], url: string) => {
+    return [
+      cat ? `**${lang === "nl" ? "Categorie" : lang === "de" ? "Kategorie" : "Category"}:** ${cat}` : "",
+      aud.length > 0 ? `**${lang === "nl" ? "Doelgroep" : lang === "de" ? "Zielgruppe" : "Audience"}:** ${aud.join(", ")}` : "",
+      url ? `**Link:** ${url}` : "",
+    ].filter(Boolean).join("\n");
+  }, [lang]);
+
+  const showPreview = useCallback((trans: FaqTranslations, cat: string, aud: string[], url: string) => {
+    setPhase("preview");
+    const meta = buildMetaString(cat, aud, url);
+    setMessages((prev) => [
+      ...prev,
+      { role: "assistant", content:
+        (lang === "nl" ? "**Preview in 3 talen:**\n\n" : lang === "de" ? "**Vorschau in 3 Sprachen:**\n\n" : "**Preview in 3 languages:**\n\n") +
+        `🇬🇧 **EN**\n**Q:** ${trans.question_en}\n**A:** ${trans.answer_en}\n\n` +
+        `🇳🇱 **NL**\n**Q:** ${trans.question_nl}\n**A:** ${trans.answer_nl}\n\n` +
+        `🇩🇪 **DE**\n**Q:** ${trans.question_de}\n**A:** ${trans.answer_de}` +
+        (meta ? `\n\n---\n${meta}` : "") },
+    ]);
+  }, [buildMetaString, setMessages, lang]);
 
   const startAdmin = useCallback(() => {
     setPhase("choose-action");
@@ -129,6 +167,10 @@ export function useFaqAdmin({ faqs, setFaqs, setMessages, lang }: UseFaqAdminOpt
           ? "Aktuelle FAQ:\n\n"
           : "Current FAQ:\n\n") +
           `**Q:** ${getQ}\n\n**A:** ${getA}\n\n` +
+          (faq.category ? `**${lang === "nl" ? "Categorie" : lang === "de" ? "Kategorie" : "Category"}:** ${faq.category}\n` : "") +
+          (faq.audience?.length ? `**${lang === "nl" ? "Doelgroep" : lang === "de" ? "Zielgruppe" : "Audience"}:** ${faq.audience.join(", ")}\n` : "") +
+          (faq.url ? `**Link:** ${faq.url}\n` : "") +
+          "\n" +
           (lang === "nl"
             ? "Wat wordt de nieuwe vraag? (of typ 'ok' om de huidige te behouden)"
             : lang === "de"
@@ -140,18 +182,27 @@ export function useFaqAdmin({ faqs, setFaqs, setMessages, lang }: UseFaqAdminOpt
 
   const showCategoryPicker = useCallback(() => {
     setPhase("choose-category");
-    const catList = categories.length > 0
-      ? categories.map((c, i) => `${i + 1}. ${c}`).join("\n")
-      : "";
     setMessages((prev) => [
       ...prev,
       { role: "assistant", content: lang === "nl"
-        ? `In welke categorie valt deze FAQ?\n\n${catList}\n\nTyp een nummer of een nieuwe categorie.`
+        ? "In welke categorie valt deze FAQ?"
         : lang === "de"
-        ? `In welche Kategorie fällt diese FAQ?\n\n${catList}\n\nGib eine Nummer oder eine neue Kategorie ein.`
-        : `Which category does this FAQ belong to?\n\n${catList}\n\nType a number or a new category name.` },
+        ? "In welche Kategorie fällt diese FAQ?"
+        : "Which category does this FAQ belong to?" },
     ]);
-  }, [categories, setMessages, lang]);
+  }, [setMessages, lang]);
+
+  const showAudiencePicker = useCallback(() => {
+    setPhase("choose-audience");
+    setMessages((prev) => [
+      ...prev,
+      { role: "assistant", content: lang === "nl"
+        ? "Wat is de doelgroep? (kies één of typ meerdere, gescheiden door komma's)"
+        : lang === "de"
+        ? "Was ist die Zielgruppe? (wähle eine oder tippe mehrere, durch Kommas getrennt)"
+        : "What is the audience? (choose one or type multiple, separated by commas)" },
+    ]);
+  }, [setMessages, lang]);
 
   const showLinkChoice = useCallback(() => {
     setPhase("choose-link");
@@ -192,16 +243,9 @@ export function useFaqAdmin({ faqs, setFaqs, setMessages, lang }: UseFaqAdminOpt
 
       const result = await res.json() as FaqTranslations;
       setTranslations(result);
-      setPhase("preview");
 
-      setMessages((prev) => [
-        ...prev,
-        { role: "assistant", content:
-          (lang === "nl" ? "**Preview in 3 talen:**\n\n" : lang === "de" ? "**Vorschau in 3 Sprachen:**\n\n" : "**Preview in 3 languages:**\n\n") +
-          `🇬🇧 **EN**\n**Q:** ${result.question_en}\n**A:** ${result.answer_en}\n\n` +
-          `🇳🇱 **NL**\n**Q:** ${result.question_nl}\n**A:** ${result.answer_nl}\n\n` +
-          `🇩🇪 **DE**\n**Q:** ${result.question_de}\n**A:** ${result.answer_de}` },
-      ]);
+      // Use refs to get latest draft values
+      showPreview(result, draftCategoryRef.current, draftAudienceRef.current, draftUrlRef.current);
 
       return result;
     } catch (err) {
@@ -217,7 +261,7 @@ export function useFaqAdmin({ faqs, setFaqs, setMessages, lang }: UseFaqAdminOpt
       ]);
       return null;
     }
-  }, [setMessages, lang]);
+  }, [setMessages, lang, showPreview]);
 
   const apply = useCallback(async () => {
     setPhase("applying");
@@ -239,6 +283,7 @@ export function useFaqAdmin({ faqs, setFaqs, setMessages, lang }: UseFaqAdminOpt
           answerNl: translations.answer_nl,
           answerDe: translations.answer_de,
           category: draftCategory || selectedFaq.category,
+          audience: draftAudience.length > 0 ? draftAudience : selectedFaq.audience,
           url: draftUrl || selectedFaq.url,
         };
       } else if (action === "add" && translations) {
@@ -251,6 +296,7 @@ export function useFaqAdmin({ faqs, setFaqs, setMessages, lang }: UseFaqAdminOpt
           answerNl: translations.answer_nl,
           answerDe: translations.answer_de,
           category: draftCategory,
+          audience: draftAudience,
           url: draftUrl,
         };
       } else {
@@ -306,7 +352,7 @@ export function useFaqAdmin({ faqs, setFaqs, setMessages, lang }: UseFaqAdminOpt
           : "Operation failed. Please try again." },
       ]);
     }
-  }, [action, selectedFaq, translations, draftCategory, draftUrl, setFaqs, setMessages, lang, reset]);
+  }, [action, selectedFaq, translations, draftCategory, draftAudience, draftUrl, setFaqs, setMessages, lang, reset]);
 
   const cancel = useCallback(() => {
     setMessages((prev) => [
@@ -357,10 +403,21 @@ export function useFaqAdmin({ faqs, setFaqs, setMessages, lang }: UseFaqAdminOpt
     if (phase === "drafting-question") {
       setMessages((prev) => [...prev, { role: "user", content: text }]);
 
+      let question: string;
       if (action === "edit" && selectedFaq && text.trim().toLowerCase() === "ok") {
-        setDraftQuestion(selectedFaq.question);
+        question = selectedFaq.question;
       } else {
-        setDraftQuestion(text.trim());
+        question = text.trim();
+      }
+      setDraftQuestion(question);
+
+      // If revising only question, go straight to re-translate
+      if (revisingField === "question") {
+        setRevisingField(null);
+        const answer = draftAnswer || (selectedFaq?.answer ?? "");
+        const sourceLang = detectLanguage(question + " " + answer);
+        translateDraft(question, answer, sourceLang);
+        return true;
       }
 
       setPhase("drafting-answer");
@@ -390,27 +447,74 @@ export function useFaqAdmin({ faqs, setFaqs, setMessages, lang }: UseFaqAdminOpt
     if (phase === "drafting-answer") {
       setMessages((prev) => [...prev, { role: "user", content: text }]);
 
+      let answer: string;
       if (action === "edit" && selectedFaq && text.trim().toLowerCase() === "ok") {
-        setDraftAnswer(selectedFaq.answer);
+        answer = selectedFaq.answer;
       } else {
-        setDraftAnswer(text.trim());
+        answer = text.trim();
+      }
+      setDraftAnswer(answer);
+
+      // If revising only answer, go straight to re-translate
+      if (revisingField === "answer") {
+        setRevisingField(null);
+        const question = draftQuestion || (selectedFaq?.question ?? "");
+        const sourceLang = detectLanguage(question + " " + answer);
+        translateDraft(question, answer, sourceLang);
+        return true;
       }
 
-      // Next: ask for category
       showCategoryPicker();
       return true;
     }
 
     if (phase === "choose-category") {
       setMessages((prev) => [...prev, { role: "user", content: text }]);
-      const num = parseInt(text.trim(), 10);
-      if (!isNaN(num) && num >= 1 && num <= categories.length) {
+      const trimmed = text.trim();
+      // Check if it's a number referencing an existing category
+      const num = parseInt(trimmed, 10);
+      if (!isNaN(num) && num >= 1 && num <= categories.length && !trimmed.includes(",")) {
         setDraftCategory(categories[num - 1]);
       } else {
-        setDraftCategory(text.trim());
+        setDraftCategory(trimmed);
       }
 
-      // Next: ask about link
+      // If revising only category, go back to preview without re-translating
+      if (revisingField === "category") {
+        setRevisingField(null);
+        const cat = !isNaN(num) && num >= 1 && num <= categories.length && !trimmed.includes(",") ? categories[num - 1] : trimmed;
+        if (translationsRef.current) {
+          showPreview(translationsRef.current, cat, draftAudienceRef.current, draftUrlRef.current);
+        }
+        return true;
+      }
+
+      showAudiencePicker();
+      return true;
+    }
+
+    if (phase === "choose-audience") {
+      setMessages((prev) => [...prev, { role: "user", content: text }]);
+      const trimmed = text.trim();
+      // Parse: single number picks existing, comma-separated creates multiple
+      const num = parseInt(trimmed, 10);
+      let values: string[];
+      if (!isNaN(num) && num >= 1 && num <= audiences.length && !trimmed.includes(",")) {
+        values = [audiences[num - 1]];
+      } else {
+        values = trimmed.split(",").map((v) => v.trim()).filter(Boolean);
+      }
+      setDraftAudience(values);
+
+      // If revising only audience, go back to preview without re-translating
+      if (revisingField === "audience") {
+        setRevisingField(null);
+        if (translationsRef.current) {
+          showPreview(translationsRef.current, draftCategoryRef.current, values, draftUrlRef.current);
+        }
+        return true;
+      }
+
       showLinkChoice();
       return true;
     }
@@ -431,7 +535,14 @@ export function useFaqAdmin({ faqs, setFaqs, setMessages, lang }: UseFaqAdminOpt
         ]);
       } else {
         setDraftUrl("");
-        // Start translation with collected data
+        // If revising link and chose "no", go back to preview
+        if (revisingField === "link") {
+          setRevisingField(null);
+          if (translationsRef.current) {
+            showPreview(translationsRef.current, draftCategoryRef.current, draftAudienceRef.current, "");
+          }
+          return true;
+        }
         const question = draftQuestion || (selectedFaq?.question ?? "");
         const answer = draftAnswer || (selectedFaq?.answer ?? "");
         const sourceLang = detectLanguage(question + " " + answer);
@@ -442,9 +553,18 @@ export function useFaqAdmin({ faqs, setFaqs, setMessages, lang }: UseFaqAdminOpt
 
     if (phase === "drafting-link") {
       setMessages((prev) => [...prev, { role: "user", content: text }]);
-      setDraftUrl(text.trim());
+      const url = text.trim();
+      setDraftUrl(url);
 
-      // Start translation with collected data
+      // If revising only link, go back to preview
+      if (revisingField === "link") {
+        setRevisingField(null);
+        if (translationsRef.current) {
+          showPreview(translationsRef.current, draftCategoryRef.current, draftAudienceRef.current, url);
+        }
+        return true;
+      }
+
       const question = draftQuestion || (selectedFaq?.question ?? "");
       const answer = draftAnswer || (selectedFaq?.answer ?? "");
       const sourceLang = detectLanguage(question + " " + answer);
@@ -457,6 +577,7 @@ export function useFaqAdmin({ faqs, setFaqs, setMessages, lang }: UseFaqAdminOpt
       setMessages((prev) => [...prev, { role: "user", content: text }]);
 
       if (["vraag", "question", "frage", "q"].includes(lower)) {
+        setRevisingField("question");
         setPhase("drafting-question");
         setMessages((prev) => [
           ...prev,
@@ -467,6 +588,7 @@ export function useFaqAdmin({ faqs, setFaqs, setMessages, lang }: UseFaqAdminOpt
             : "What should the new question be?" },
         ]);
       } else if (["antwoord", "answer", "antwort", "a"].includes(lower)) {
+        setRevisingField("answer");
         setPhase("drafting-answer");
         setMessages((prev) => [
           ...prev,
@@ -476,7 +598,17 @@ export function useFaqAdmin({ faqs, setFaqs, setMessages, lang }: UseFaqAdminOpt
             ? "Was wird die neue Antwort?"
             : "What should the new answer be?" },
         ]);
+      } else if (["categorie", "category", "kategorie", "cat"].includes(lower)) {
+        setRevisingField("category");
+        showCategoryPicker();
+      } else if (["doelgroep", "audience", "zielgruppe", "aud"].includes(lower)) {
+        setRevisingField("audience");
+        showAudiencePicker();
+      } else if (["link", "url"].includes(lower)) {
+        setRevisingField("link");
+        showLinkChoice();
       } else if (["beide", "both", "beides", "alles", "all"].includes(lower)) {
+        setRevisingField(null);
         setPhase("drafting-question");
         setMessages((prev) => [
           ...prev,
@@ -490,17 +622,17 @@ export function useFaqAdmin({ faqs, setFaqs, setMessages, lang }: UseFaqAdminOpt
         setMessages((prev) => [
           ...prev,
           { role: "assistant", content: lang === "nl"
-            ? "Kies: vraag, antwoord of beide"
+            ? "Kies: Vraag, Antwoord, Categorie, Doelgroep, Link of Alles"
             : lang === "de"
-            ? "Wähle: Frage, Antwort oder beides"
-            : "Choose: question, answer, or both" },
+            ? "Wähle: Frage, Antwort, Kategorie, Zielgruppe, Link oder Alles"
+            : "Choose: Question, Answer, Category, Audience, Link, or All" },
         ]);
       }
       return true;
     }
 
     return false;
-  }, [phase, action, selectedFaq, draftQuestion, draftAnswer, faqs, categories, chooseFaq, translateDraft, showCategoryPicker, showLinkChoice, setMessages, lang]);
+  }, [phase, action, selectedFaq, draftQuestion, draftAnswer, faqs, categories, audiences, revisingField, chooseFaq, translateDraft, showCategoryPicker, showAudiencePicker, showLinkChoice, showPreview, setMessages, lang]);
 
   return {
     phase,
@@ -509,6 +641,7 @@ export function useFaqAdmin({ faqs, setFaqs, setMessages, lang }: UseFaqAdminOpt
     translations,
     error,
     categories,
+    audiences,
     startAdmin,
     chooseAction,
     chooseFaq,

@@ -1,0 +1,29 @@
+name: Scheduled tasks
+
+on:
+  schedule:
+    # Warm knowledge base daily at 05:00 UTC
+    - cron: "0 5 * * *"
+    # Sync Notion daily at 06:00 UTC
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+env:
+  BASE_URL: https://steward18cc86cd-steward.functions.fnc.nl-ams.scw.cloud
+
+jobs:
+  warm:
+    if: github.event.schedule == '0 5 * * *' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Warm knowledge base
+        run: |
+          curl -s -f -m 120 "$BASE_URL/api/knowledge-base/warm" || echo "Warm-up failed"
+
+  sync:
+    if: github.event.schedule == '0 6 * * *' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sync Notion
+        run: |
+          curl -s -f -m 120 -H "Authorization: Bearer ${{ secrets.SCW_SYNC_SECRET }}" "$BASE_URL/api/sync-notion" || echo "Sync failed"

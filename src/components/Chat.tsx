@@ -59,6 +59,7 @@ export default function Chat() {
 
   useEffect(() => {
     scrollToBottom();
+    inputRef.current?.focus();
   }, [messages]);
 
   // Resize container to visual viewport so input stays above iOS keyboard

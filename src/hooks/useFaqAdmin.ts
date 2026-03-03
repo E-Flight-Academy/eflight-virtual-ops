@@ -156,9 +156,26 @@ export function useFaqAdmin({ faqs, setFaqs, setMessages, lang }: UseFaqAdminOpt
           : `Are you sure you want to delete this FAQ?\n\n**${faq.question}**`) },
       ]);
     } else if (action === "edit") {
-      setPhase("drafting-question");
+      // Pre-populate drafts from existing FAQ
+      setDraftQuestion(faq.question);
+      setDraftAnswer(faq.answer);
+      setDraftCategory(faq.category || "");
+      setDraftAudience(faq.audience || []);
+      setDraftUrl(faq.url || "");
+      // Pre-populate translations from existing FAQ so metadata-only edits don't need re-translation
+      const existingTranslations: FaqTranslations = {
+        question_en: faq.question,
+        answer_en: faq.answer,
+        question_nl: faq.questionNl || "",
+        answer_nl: faq.answerNl || "",
+        question_de: faq.questionDe || "",
+        answer_de: faq.answerDe || "",
+      };
+      setTranslations(existingTranslations);
+
       const getQ = lang === "nl" && faq.questionNl ? faq.questionNl : lang === "de" && faq.questionDe ? faq.questionDe : faq.question;
       const getA = lang === "nl" && faq.answerNl ? faq.answerNl : lang === "de" && faq.answerDe ? faq.answerDe : faq.answer;
+      setPhase("revise");
       setMessages((prev) => [
         ...prev,
         { role: "assistant", content: (lang === "nl"
@@ -172,10 +189,10 @@ export function useFaqAdmin({ faqs, setFaqs, setMessages, lang }: UseFaqAdminOpt
           (faq.url ? `**Link:** ${faq.url}\n` : "") +
           "\n" +
           (lang === "nl"
-            ? "Wat wordt de nieuwe vraag? (of typ 'ok' om de huidige te behouden)"
+            ? "Wat wil je aanpassen?"
             : lang === "de"
-            ? "Was wird die neue Frage? (oder tippe 'ok' um die aktuelle zu behalten)"
-            : "What should the new question be? (or type 'ok' to keep the current one)") },
+            ? "Was möchtest du ändern?"
+            : "What would you like to change?") },
       ]);
     }
   }, [faqs, action, setMessages, lang]);
@@ -471,18 +488,25 @@ export function useFaqAdmin({ faqs, setFaqs, setMessages, lang }: UseFaqAdminOpt
     if (phase === "choose-category") {
       setMessages((prev) => [...prev, { role: "user", content: text }]);
       const trimmed = text.trim();
-      // Check if it's a number referencing an existing category
-      const num = parseInt(trimmed, 10);
-      if (!isNaN(num) && num >= 1 && num <= categories.length && !trimmed.includes(",")) {
-        setDraftCategory(categories[num - 1]);
+      const lower = trimmed.toLowerCase();
+
+      let cat: string;
+      if (lower === "ok" && action === "edit" && selectedFaq) {
+        // Keep current category
+        cat = selectedFaq.category || "";
       } else {
-        setDraftCategory(trimmed);
+        const num = parseInt(trimmed, 10);
+        if (!isNaN(num) && num >= 1 && num <= categories.length && !trimmed.includes(",")) {
+          cat = categories[num - 1];
+        } else {
+          cat = trimmed;
+        }
       }
+      setDraftCategory(cat);
 
       // If revising only category, go back to preview without re-translating
       if (revisingField === "category") {
         setRevisingField(null);
-        const cat = !isNaN(num) && num >= 1 && num <= categories.length && !trimmed.includes(",") ? categories[num - 1] : trimmed;
         if (translationsRef.current) {
           showPreview(translationsRef.current, cat, draftAudienceRef.current, draftUrlRef.current);
         }
@@ -496,13 +520,19 @@ export function useFaqAdmin({ faqs, setFaqs, setMessages, lang }: UseFaqAdminOpt
     if (phase === "choose-audience") {
       setMessages((prev) => [...prev, { role: "user", content: text }]);
       const trimmed = text.trim();
-      // Parse: single number picks existing, comma-separated creates multiple
-      const num = parseInt(trimmed, 10);
+      const lower = trimmed.toLowerCase();
+
       let values: string[];
-      if (!isNaN(num) && num >= 1 && num <= audiences.length && !trimmed.includes(",")) {
-        values = [audiences[num - 1]];
+      if (lower === "ok" && action === "edit" && selectedFaq) {
+        // Keep current audience
+        values = selectedFaq.audience || [];
       } else {
-        values = trimmed.split(",").map((v) => v.trim()).filter(Boolean);
+        const num = parseInt(trimmed, 10);
+        if (!isNaN(num) && num >= 1 && num <= audiences.length && !trimmed.includes(",")) {
+          values = [audiences[num - 1]];
+        } else {
+          values = trimmed.split(",").map((v) => v.trim()).filter(Boolean);
+        }
       }
       setDraftAudience(values);
 
@@ -522,6 +552,23 @@ export function useFaqAdmin({ faqs, setFaqs, setMessages, lang }: UseFaqAdminOpt
     if (phase === "choose-link") {
       const lower = text.trim().toLowerCase();
       setMessages((prev) => [...prev, { role: "user", content: text }]);
+
+      // "ok" keeps current link when editing
+      if (lower === "ok" && action === "edit" && selectedFaq) {
+        setDraftUrl(selectedFaq.url || "");
+        if (revisingField === "link") {
+          setRevisingField(null);
+          if (translationsRef.current) {
+            showPreview(translationsRef.current, draftCategoryRef.current, draftAudienceRef.current, selectedFaq.url || "");
+          }
+          return true;
+        }
+        const question = draftQuestion || (selectedFaq?.question ?? "");
+        const answer = draftAnswer || (selectedFaq?.answer ?? "");
+        const sourceLang = detectLanguage(question + " " + answer);
+        translateDraft(question, answer, sourceLang);
+        return true;
+      }
 
       if (["ja", "yes", "ja!", "yes!", "y", "j"].includes(lower)) {
         setPhase("drafting-link");

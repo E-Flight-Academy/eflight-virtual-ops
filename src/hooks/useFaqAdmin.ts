@@ -41,7 +41,7 @@ export function useFaqAdmin({ faqs, setFaqs, setMessages, lang }: UseFaqAdminOpt
   const [selectedFaq, setSelectedFaq] = useState<KvFaq | null>(null);
   const [draftQuestion, setDraftQuestion] = useState("");
   const [draftAnswer, setDraftAnswer] = useState("");
-  const [draftCategory, setDraftCategory] = useState("");
+  const [draftCategory, setDraftCategory] = useState<string[]>([]);
   const [draftAudience, setDraftAudience] = useState<string[]>([]);
   const [draftUrl, setDraftUrl] = useState("");
   const [translations, setTranslations] = useState<FaqTranslations | null>(null);
@@ -64,7 +64,7 @@ export function useFaqAdmin({ faqs, setFaqs, setMessages, lang }: UseFaqAdminOpt
     setSelectedFaq(null);
     setDraftQuestion("");
     setDraftAnswer("");
-    setDraftCategory("");
+    setDraftCategory([]);
     setDraftAudience([]);
     setDraftUrl("");
     setTranslations(null);
@@ -72,18 +72,18 @@ export function useFaqAdmin({ faqs, setFaqs, setMessages, lang }: UseFaqAdminOpt
     setRevisingField(null);
   }, []);
 
-  const categories = [...new Set(faqs.map((f) => f.category).filter(Boolean))];
+  const categories = [...new Set(faqs.flatMap((f) => f.category).filter(Boolean))];
   const audiences = [...new Set(faqs.flatMap((f) => f.audience || []).filter(Boolean))];
 
-  const buildMetaString = useCallback((cat: string, aud: string[], url: string) => {
+  const buildMetaString = useCallback((cat: string[], aud: string[], url: string) => {
     return [
-      cat ? `**${lang === "nl" ? "Categorie" : lang === "de" ? "Kategorie" : "Category"}:** ${cat}` : "",
+      cat.length > 0 ? `**${lang === "nl" ? "Categorie" : lang === "de" ? "Kategorie" : "Category"}:** ${cat.join(", ")}` : "",
       aud.length > 0 ? `**${lang === "nl" ? "Doelgroep" : lang === "de" ? "Zielgruppe" : "Audience"}:** ${aud.join(", ")}` : "",
       url ? `**Link:** ${url}` : "",
     ].filter(Boolean).join("\n");
   }, [lang]);
 
-  const showPreview = useCallback((trans: FaqTranslations, cat: string, aud: string[], url: string) => {
+  const showPreview = useCallback((trans: FaqTranslations, cat: string[], aud: string[], url: string) => {
     setPhase("preview");
     const meta = buildMetaString(cat, aud, url);
     setMessages((prev) => [
@@ -159,7 +159,7 @@ export function useFaqAdmin({ faqs, setFaqs, setMessages, lang }: UseFaqAdminOpt
       // Pre-populate drafts from existing FAQ
       setDraftQuestion(faq.question);
       setDraftAnswer(faq.answer);
-      setDraftCategory(faq.category || "");
+      setDraftCategory(faq.category || []);
       setDraftAudience(faq.audience || []);
       setDraftUrl(faq.url || "");
       // Pre-populate translations from existing FAQ so metadata-only edits don't need re-translation
@@ -184,7 +184,7 @@ export function useFaqAdmin({ faqs, setFaqs, setMessages, lang }: UseFaqAdminOpt
           ? "Aktuelle FAQ:\n\n"
           : "Current FAQ:\n\n") +
           `**Q:** ${getQ}\n\n**A:** ${getA}\n\n` +
-          (faq.category ? `**${lang === "nl" ? "Categorie" : lang === "de" ? "Kategorie" : "Category"}:** ${faq.category}\n` : "") +
+          (faq.category?.length ? `**${lang === "nl" ? "Categorie" : lang === "de" ? "Kategorie" : "Category"}:** ${faq.category.join(", ")}\n` : "") +
           (faq.audience?.length ? `**${lang === "nl" ? "Doelgroep" : lang === "de" ? "Zielgruppe" : "Audience"}:** ${faq.audience.join(", ")}\n` : "") +
           (faq.url ? `**Link:** ${faq.url}\n` : "") +
           "\n" +
@@ -490,25 +490,25 @@ export function useFaqAdmin({ faqs, setFaqs, setMessages, lang }: UseFaqAdminOpt
       const trimmed = text.trim();
       const lower = trimmed.toLowerCase();
 
-      let cat: string;
+      let values: string[];
       if (lower === "ok" && action === "edit" && selectedFaq) {
-        // Keep current category
-        cat = selectedFaq.category || "";
+        // Keep current categories
+        values = selectedFaq.category || [];
       } else {
         const num = parseInt(trimmed, 10);
         if (!isNaN(num) && num >= 1 && num <= categories.length && !trimmed.includes(",")) {
-          cat = categories[num - 1];
+          values = [categories[num - 1]];
         } else {
-          cat = trimmed;
+          values = trimmed.split(",").map((v) => v.trim()).filter(Boolean);
         }
       }
-      setDraftCategory(cat);
+      setDraftCategory(values);
 
       // If revising only category, go back to preview without re-translating
       if (revisingField === "category") {
         setRevisingField(null);
         if (translationsRef.current) {
-          showPreview(translationsRef.current, cat, draftAudienceRef.current, draftUrlRef.current);
+          showPreview(translationsRef.current, values, draftAudienceRef.current, draftUrlRef.current);
         }
         return true;
       }

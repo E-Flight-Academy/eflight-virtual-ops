@@ -54,7 +54,7 @@ export const faqAdminAddSchema = z.object({
   answer: z.string().min(1).max(5000),
   answerNl: z.string().max(5000).optional().default(""),
   answerDe: z.string().max(5000).optional().default(""),
-  category: z.string().max(100).optional().default(""),
+  category: z.array(z.string().max(100)).optional().default([]),
   audience: z.array(z.string().max(100)).optional().default([]),
   url: z.string().max(500).optional().default(""),
 });
@@ -68,7 +68,7 @@ export const faqAdminEditSchema = z.object({
   answer: z.string().min(1).max(5000),
   answerNl: z.string().max(5000).optional().default(""),
   answerDe: z.string().max(5000).optional().default(""),
-  category: z.string().max(100).optional().default(""),
+  category: z.array(z.string().max(100)).optional().default([]),
   audience: z.array(z.string().max(100)).optional().default([]),
   url: z.string().max(500).optional().default(""),
 });

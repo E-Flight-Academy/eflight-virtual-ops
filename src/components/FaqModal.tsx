@@ -55,7 +55,7 @@ export default function FaqModal({ faqs, lang, onClose, onSelectFaq }: FaqModalP
   };
 
   const categories = useMemo(() => {
-    const cats = faqs.map((f) => f.category).filter(Boolean);
+    const cats = faqs.flatMap((f) => f.category).filter(Boolean);
     return [...new Set(cats)].sort();
   }, [faqs]);
 
@@ -69,7 +69,7 @@ export default function FaqModal({ faqs, lang, onClose, onSelectFaq }: FaqModalP
     return faqs.filter((faq) => {
       const question = getQ(faq).toLowerCase();
       const matchesSearch = !q || question.includes(q);
-      const matchesCategory = !selectedCategory || faq.category === selectedCategory;
+      const matchesCategory = !selectedCategory || faq.category.includes(selectedCategory);
       const matchesAudience = !selectedAudience || faq.audience.includes(selectedAudience);
       return matchesSearch && matchesCategory && matchesAudience;
     });
@@ -247,7 +247,7 @@ export default function FaqModal({ faqs, lang, onClose, onSelectFaq }: FaqModalP
           ) : (
             <div className="space-y-1.5">
               {filtered.map((faq, i) => {
-                const colors = getColorForCategory(faq.category);
+                const colors = getColorForCategory(faq.category[0] || "");
                 return (
                   <button
                     key={i}
@@ -259,9 +259,9 @@ export default function FaqModal({ faqs, lang, onClose, onSelectFaq }: FaqModalP
                         {getQ(faq)}
                       </p>
                       <div className="flex gap-1.5 items-center flex-shrink-0">
-                        {faq.category && (
+                        {faq.category.length > 0 && (
                           <span className={`text-xs font-medium px-2 py-1 rounded-md ${colors.text} bg-white/60`}>
-                            {faq.category}
+                            {faq.category.join(", ")}
                           </span>
                         )}
                         {faq.audience.length > 0 && faq.audience[0] && (

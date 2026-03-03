@@ -112,19 +112,13 @@ export default function MessageList({
         </div>
       )}
 
-      {adminPhase === "choose-category" && onAdminInput && !isLoading && (
-        <div className="max-w-4xl mx-auto w-full pl-11 flex flex-wrap gap-2">
-          {adminCategories.map((cat, i) => (
-            <button
-              key={cat}
-              onClick={() => onAdminInput(cat)}
-              className="text-sm px-4 py-2 rounded-full border border-[#ECECEC] text-[#828282] bg-white hover:bg-[#F7F7F7] hover:text-[#1515F5] transition-colors cursor-pointer dark:bg-gray-900 dark:border-gray-700 dark:hover:bg-gray-800 animate-pop-in"
-              style={{ animationDelay: `${i * 60}ms` }}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
+      {adminPhase === "choose-category" && onAdminInput && !isLoading && adminCategories.length > 0 && (
+        <MultiSelectPills
+          options={adminCategories}
+          onConfirm={(selected) => onAdminInput(selected.join(", "))}
+          confirmLabel={lang === "nl" ? "Doorgaan" : lang === "de" ? "Weiter" : "Continue"}
+          lang={lang}
+        />
       )}
 
       {adminPhase === "choose-audience" && onAdminInput && !isLoading && adminAudiences.length > 0 && (

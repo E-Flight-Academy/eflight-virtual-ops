@@ -95,9 +95,11 @@ export async function fetchFaqsFromNotion(): Promise<KvFaq[]> {
     const answerNl = getRichTextMd(props, "Answer (NL)");
     const answerDe = getRichTextMd(props, "Answer (DE)");
 
-    // Category (select)
-    const catProp = props["Category"] as { type: string; select?: { name: string } | null } | undefined;
-    const category = catProp?.type === "select" && catProp.select?.name ? catProp.select.name : "";
+    // Category (multi_select)
+    const catProp = props["Category"] as { type: string; multi_select?: { name: string }[] } | undefined;
+    const category = catProp?.type === "multi_select" && catProp.multi_select
+      ? catProp.multi_select.map((s) => s.name)
+      : [];
 
     // Audience (multi_select)
     const audProp = props["Audience"] as { type: string; multi_select?: { name: string }[] } | undefined;

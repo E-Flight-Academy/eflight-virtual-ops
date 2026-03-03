@@ -84,7 +84,7 @@ export interface KvFaq {
   answer: string;
   answerNl: string;
   answerDe: string;
-  category: string;
+  category: string[];
   audience: string[];
   url: string;
 }

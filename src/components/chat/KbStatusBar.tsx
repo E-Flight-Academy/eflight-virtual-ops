@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback } from "react";
 import type { KbStatus } from "@/types/chat";
 import type { UiLabels } from "@/lib/i18n/labels";
 
@@ -49,10 +49,10 @@ export default function KbStatusBar({ kbStatus, kbExpanded, onToggle, t, current
     window.location.assign(url.toString());
   }, []);
 
-  const [currentRole, setCurrentRole] = useState<string | null>(null);
-  useEffect(() => {
-    setCurrentRole(new URLSearchParams(window.location.search).get("role"));
-  }, []);
+  const [currentRole] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return new URLSearchParams(window.location.search).get("role");
+  });
 
   const modes = [
     { key: null, label: "Standard" },

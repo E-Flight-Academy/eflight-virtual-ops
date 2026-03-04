@@ -117,15 +117,15 @@ export async function POST(request: NextRequest) {
         }),
         5000, []
       ), "products", controller, encoder),
-      trackProgress(withTimeout(
-        accessToken
-          ? fetchCustomerOrders(accessToken).catch((err) => {
+      accessToken
+        ? trackProgress(withTimeout(
+            fetchCustomerOrders(accessToken).catch((err) => {
               console.error("Failed to fetch orders:", err);
               return [] as ShopifyOrder[];
-            })
-          : Promise.resolve([] as ShopifyOrder[]),
-        5000, [] as ShopifyOrder[]
-      ), "orders", controller, encoder),
+            }),
+            5000, [] as ShopifyOrder[]
+          ), "orders", controller, encoder)
+        : Promise.resolve([] as ShopifyOrder[]),
     ]);
 
     const searchOrder = config?.search_order ?? ["faq", "drive"];

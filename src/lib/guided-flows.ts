@@ -95,8 +95,8 @@ export async function fetchFlowsFromNotion(): Promise<KvFlowStep[]> {
           const rels = v.relation as { id: string }[];
           if (rels.length > 0) relatedFaqId = rels[0].id;
         }
-        if (key === "Capability" && v.type === "rich_text" && Array.isArray(v.rich_text) && v.rich_text.length > 0) {
-          capability = (v.rich_text as { plain_text: string }[]).map((t) => t.plain_text).join("").trim().toLowerCase() || null;
+        if (key === "Capability" && v.type === "select" && v.select) {
+          capability = ((v.select as { name: string }).name || "").trim().toLowerCase() || null;
         }
       }
 

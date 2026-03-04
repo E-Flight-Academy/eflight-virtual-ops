@@ -146,3 +146,24 @@ export function parseSuggestions(fullText: string): {
 export function sanitizeSourceTitle(title: string): string {
   return title.replace(/[\n\r|]/g, " ").replace(/\s+/g, " ").trim();
 }
+
+/** Parse [link: url | label] and [link: label | url] tags from response text. */
+export function parseLinkCards(text: string): {
+  links: { url: string; label: string }[];
+  cleanedText: string;
+} {
+  const regex = /\[link:\s*([^\]|]+?)\s*\|\s*([^\]]+)\]/gi;
+  const links: { url: string; label: string }[] = [];
+  let match;
+  while ((match = regex.exec(text)) !== null) {
+    const a = match[1].trim();
+    const b = match[2].trim();
+    if (a.startsWith("http")) {
+      links.push({ url: a, label: b });
+    } else if (b.startsWith("http")) {
+      links.push({ url: b, label: a });
+    }
+  }
+  const cleanedText = text.replace(regex, "").trimEnd();
+  return { links, cleanedText };
+}

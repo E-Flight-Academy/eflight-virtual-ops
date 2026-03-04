@@ -4,6 +4,7 @@ import {
   injectFaqLinkCard,
   parseSuggestions,
   sanitizeSourceTitle,
+  parseLinkCards,
   type SimpleFaq,
 } from "@/lib/chat-post-process";
 
@@ -170,5 +171,56 @@ describe("sanitizeSourceTitle", () => {
 
   it("trims leading/trailing whitespace", () => {
     expect(sanitizeSourceTitle("  padded  ")).toBe("padded");
+  });
+});
+
+describe("parseLinkCards", () => {
+  it("parses [link: url | label] format", () => {
+    const text = "Answer\n[link: https://eflight.nl/agenda | Agenda]";
+    const result = parseLinkCards(text);
+    expect(result.links).toEqual([{ url: "https://eflight.nl/agenda", label: "Agenda" }]);
+    expect(result.cleanedText).toBe("Answer");
+  });
+
+  it("parses [link: label | url] format (reversed)", () => {
+    const text = "Answer\n[link: Agenda | https://eflight.nl/agenda]";
+    const result = parseLinkCards(text);
+    expect(result.links).toEqual([{ url: "https://eflight.nl/agenda", label: "Agenda" }]);
+    expect(result.cleanedText).toBe("Answer");
+  });
+
+  it("parses multiple link cards", () => {
+    const text = "Info\n[link: https://eflight.nl/a | Page A]\n[link: Page B | https://eflight.nl/b]";
+    const result = parseLinkCards(text);
+    expect(result.links).toHaveLength(2);
+    expect(result.links[0]).toEqual({ url: "https://eflight.nl/a", label: "Page A" });
+    expect(result.links[1]).toEqual({ url: "https://eflight.nl/b", label: "Page B" });
+  });
+
+  it("returns empty links when no tags present", () => {
+    const text = "Just a normal answer without links.";
+    const result = parseLinkCards(text);
+    expect(result.links).toEqual([]);
+    expect(result.cleanedText).toBe(text);
+  });
+
+  it("ignores link tags where neither part is a URL", () => {
+    const text = "Answer\n[link: Not a URL | Also not a URL]";
+    const result = parseLinkCards(text);
+    expect(result.links).toEqual([]);
+  });
+
+  it("handles URLs with paths and query params", () => {
+    const text = "[link: https://www.eflight.nl/pages/agenda?month=apr | Bekijk de agenda]";
+    const result = parseLinkCards(text);
+    expect(result.links[0].url).toBe("https://www.eflight.nl/pages/agenda?month=apr");
+    expect(result.links[0].label).toBe("Bekijk de agenda");
+  });
+
+  it("strips link tags from cleaned text", () => {
+    const text = "Antwoord hier.\n[link: https://eflight.nl | Site]\n[source: Website]";
+    const result = parseLinkCards(text);
+    expect(result.cleanedText).toBe("Antwoord hier.\n\n[source: Website]");
+    expect(result.links).toHaveLength(1);
   });
 });

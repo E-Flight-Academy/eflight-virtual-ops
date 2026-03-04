@@ -83,12 +83,14 @@ export async function POST(request: NextRequest) {
       async start(controller) {
         try {
 
-    // Load all data sources in parallel (with progress events)
-    const [config, faqs, ragResult, binaryContext, websitePages, products, orders] = await Promise.all([
-      trackProgress(withTimeout(
-        getConfig().catch((err) => { console.error("Failed to load config:", err); return null; }),
-        5000, null
-      ), "config", controller, encoder),
+    // Load config first (needed for website_pages URLs)
+    const config = await trackProgress(withTimeout(
+      getConfig().catch((err) => { console.error("Failed to load config:", err); return null; }),
+      5000, null
+    ), "config", controller, encoder);
+
+    // Load remaining data sources in parallel (with progress events)
+    const [faqs, ragResult, binaryContext, websitePages, products, orders] = await Promise.all([
       trackProgress(withTimeout(
         getFaqs().catch((err) => { console.error("Failed to load FAQs:", err); return [] as never[]; }),
         5000, []
@@ -102,7 +104,7 @@ export async function POST(request: NextRequest) {
         10000, null
       ), "files", controller, encoder),
       trackProgress(withTimeout(
-        getWebsiteContent().catch((err) => {
+        getWebsiteContent(config?.website_pages).catch((err) => {
           console.error("Failed to load website content:", err);
           return [] as never[];
         }),

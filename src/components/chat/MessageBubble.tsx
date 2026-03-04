@@ -1,6 +1,7 @@
 import ReactMarkdown from "react-markdown";
 import type { Message } from "@/types/chat";
 import type { UiLabels } from "@/lib/i18n/labels";
+import { parseLinkCards } from "@/lib/chat-post-process";
 
 interface MessageBubbleProps {
   message: Message;
@@ -36,21 +37,7 @@ export default function MessageBubble({ message, index, onRate, onFaqClick, onAv
         const source = sourceParts[0] || null;
         const sourceUrl = sourceParts[1] && sourceParts[1].startsWith("http") ? sourceParts[1] : null;
         const sourceLabel = sourceParts.length >= 3 ? sourceParts[2] : (sourceParts[1] && !sourceParts[1].startsWith("http") ? sourceParts[1] : null);
-        // Parse inline [link: url | label] or [link: label | url] tags
-        const linkTagRegex = /\[link:\s*([^\]|]+?)\s*\|\s*([^\]]+)\]/gi;
-        const inlineLinks: { url: string; label: string }[] = [];
-        let linkMatch;
-        while ((linkMatch = linkTagRegex.exec(bodyRaw)) !== null) {
-          const a = linkMatch[1].trim();
-          const b = linkMatch[2].trim();
-          // Detect which part is the URL
-          if (a.startsWith("http")) {
-            inlineLinks.push({ url: a, label: b });
-          } else if (b.startsWith("http")) {
-            inlineLinks.push({ url: b, label: a });
-          }
-        }
-        const body = bodyRaw.replace(linkTagRegex, "").trimEnd();
+        const { links: inlineLinks, cleanedText: body } = parseLinkCards(bodyRaw);
         return (
           <div className="max-w-[85%] group/msg">
           <div className="bg-white dark:bg-gray-900 px-4 py-3 rounded-2xl rounded-tl-sm text-foreground">

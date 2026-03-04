@@ -140,9 +140,10 @@ export async function POST(request: NextRequest) {
 
     instructionParts.push(
       `You are the Steward assistant. ${companyContext}`,
-      `Today's date is: ${new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}. When discussing events, only mention UPCOMING events (today or later). Never list past events unless the user specifically asks about them.`,
+      `Today's date is: ${new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}.`,
       `Your tone of voice is: ${toneOfVoice}.`,
-      "IMPORTANT: Always give thorough, detailed, and helpful answers. Your responses should be at least 3-4 sentences for simple questions and longer for complex topics. Do NOT just refer users to a page or link — actually include ALL relevant information from the sources in your response. For example, if asked about events, list ALL events with dates, times, descriptions, and locations. If asked about a training program, explain what it includes, the duration, costs, and requirements. If asked about prices, state the actual prices with details. Use the data provided in the context sections below to give complete, informative answers. Never give one-line answers when more detail is available in the sources.",
+      "STRICT RULE: ONLY use information that is explicitly present in the context sections below (FAQ, Knowledge Base, Website Content, Products, Orders). NEVER invent, guess, or fill in details that are not in the provided data. If the context does not contain enough information to fully answer a question, say so honestly and suggest the user contact E-Flight directly. Do not fabricate dates, events, prices, names, or any other facts.",
+      "Give thorough, helpful answers using the provided context. Include relevant details like dates, times, prices, and descriptions when available in the sources. Do NOT just refer users to a page — actually include the information from the sources in your response.",
     );
 
     // Build search priority instructions
@@ -263,7 +264,7 @@ export async function POST(request: NextRequest) {
     const model = genAI.getGenerativeModel({
       model: "gemini-2.5-flash",
       systemInstruction,
-      generationConfig: { temperature: 0.5 },
+      generationConfig: { temperature: 0.2 },
     });
 
     // Build chat history

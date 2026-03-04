@@ -21,6 +21,31 @@ function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T
   ]);
 }
 
+/**
+ * Simple heuristic language detection based on common function words.
+ * Used as fallback when Gemini doesn't include a [lang: xx] tag.
+ */
+function detectLanguageHeuristic(text: string): string {
+  const clean = text.replace(/\[.*?\]/g, "").toLowerCase();
+  const words = clean.split(/\s+/);
+
+  const nlWords = new Set(["het", "een", "van", "voor", "niet", "ook", "maar", "wel", "nog", "bij", "wordt", "deze", "hebben", "meer", "kunnen", "heeft", "naar", "zijn", "daar", "hier", "waar", "onze", "jouw"]);
+  const deWords = new Set(["der", "das", "ein", "eine", "und", "ist", "auf", "nicht", "auch", "sich", "den", "dem", "des", "werden", "kann", "oder", "nach", "über", "sind", "haben", "wird", "hier", "ihre"]);
+  const enWords = new Set(["the", "and", "for", "are", "but", "not", "you", "all", "can", "was", "our", "has", "have", "will", "been", "from", "with", "this", "that", "they", "your", "about", "would", "which"]);
+
+  let nl = 0, de = 0, en = 0;
+  for (const w of words) {
+    if (nlWords.has(w)) nl++;
+    if (deWords.has(w)) de++;
+    if (enWords.has(w)) en++;
+  }
+
+  if (nl > en && nl > de) return "nl";
+  if (de > en && de > nl) return "de";
+  if (en > nl && en > de) return "en";
+  return "en"; // default
+}
+
 function emitProgress(
   controller: ReadableStreamDefaultController,
   encoder: TextEncoder,
@@ -442,9 +467,11 @@ export async function POST(request: NextRequest) {
           // Removed: aggressive FAQ word-matching override that incorrectly
           // re-attributed Knowledge Base / General Knowledge answers as FAQ
 
-          // Parse language from [lang: xx] tag in response
+          // Parse language from [lang: xx] tag in response, fall back to heuristic
           const langTagMatch = fullText.match(/\[lang:\s*([a-z]{2})\s*\]/i);
-          const detectedLang = langTagMatch ? langTagMatch[1].toLowerCase() : (clientLang || "en");
+          const detectedLang = langTagMatch
+            ? langTagMatch[1].toLowerCase()
+            : detectLanguageHeuristic(fullText);
           fullText = fullText.replace(/\n?\[lang:\s*[a-z]{2}\s*\]/i, "").trimEnd();
           const langChanged = detectedLang !== (clientLang || "en");
           const done: Record<string, unknown> = { type: "done" };

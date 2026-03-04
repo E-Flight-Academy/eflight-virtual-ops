@@ -400,6 +400,9 @@ export default function Chat() {
                   setTranslations(msg.lang, msg.translations as UiLabels);
                 } else if (msg.lang === "en") {
                   resetLanguage();
+                } else {
+                  // Translations not included — fetch them client-side
+                  switchLanguage(msg.lang);
                 }
               }
               // Refresh KB status after chat loads data (populates Redis counts)
@@ -438,7 +441,7 @@ export default function Chat() {
       fetchKbStatus(debugMode);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages, flowPhase, flowContext, pendingFeedbackLogId, feedbackContactLogId, faqSuggestions, lang, sessionId, t, setTranslations, resetLanguage, fetchKbStatus, showWithThinkingDelay, logChat, setFlowPhase, setCurrentFlowStep, setPendingFeedbackLogId, setFeedbackContactLogId, setFeedbackFollowUpLogId, adminPhase, handleAdminInput]);
+  }, [messages, flowPhase, flowContext, pendingFeedbackLogId, feedbackContactLogId, faqSuggestions, lang, sessionId, t, setTranslations, resetLanguage, switchLanguage, fetchKbStatus, showWithThinkingDelay, logChat, setFlowPhase, setCurrentFlowStep, setPendingFeedbackLogId, setFeedbackContactLogId, setFeedbackFollowUpLogId, adminPhase, handleAdminInput]);
 
   // Keep the ref in sync
   sendMessageRef.current = sendMessage;

@@ -39,7 +39,7 @@ export function useSpeechRecognition(onTranscript: (text: string, isFinal: boole
   const [isSupported] = useState(() => getSpeechRecognition() !== null);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const onTranscriptRef = useRef(onTranscript);
-  onTranscriptRef.current = onTranscript;
+  useEffect(() => { onTranscriptRef.current = onTranscript; });
 
   const stopListening = useCallback(() => {
     if (recognitionRef.current) {

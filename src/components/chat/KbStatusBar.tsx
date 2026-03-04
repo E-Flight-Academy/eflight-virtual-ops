@@ -36,16 +36,16 @@ export default function KbStatusBar({ kbStatus, kbExpanded, onToggle, t, current
     dragRef.current = null;
   }, []);
 
-  const navigate = (client: string | null) => {
+  const navigate = useCallback((clientParam: string | null) => {
     const url = new URL(window.location.href);
-    if (client) {
-      url.searchParams.set("client", client);
+    if (clientParam) {
+      url.searchParams.set("client", clientParam);
     } else {
       url.searchParams.delete("client");
     }
     url.searchParams.set("debug", "true");
-    window.location.href = url.toString();
-  };
+    window.location.assign(url.toString());
+  }, []);
 
   const modes = [
     { key: null, label: "Standard" },

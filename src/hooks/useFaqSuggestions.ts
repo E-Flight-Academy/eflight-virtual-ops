@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useRef, useCallback } from "react";
 
 export function useFaqSuggestions(
   input: string,
@@ -8,18 +8,19 @@ export function useFaqSuggestions(
 ) {
   const [debouncedInput, setDebouncedInput] = useState(input);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prevSuggestionsRef = useRef<string[]>([]);
 
-  useEffect(() => {
-    // Clear instantly when input is emptied
+  // Debounce input changes via callback instead of effect
+  const prevInputRef = useRef(input);
+  if (prevInputRef.current !== input) {
+    prevInputRef.current = input;
+    if (timerRef.current) clearTimeout(timerRef.current);
     if (!input.trim()) {
       setDebouncedInput("");
-      return;
+    } else {
+      timerRef.current = setTimeout(() => setDebouncedInput(input), 150);
     }
-    timerRef.current = setTimeout(() => setDebouncedInput(input), 150);
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-  }, [input]);
+  }
 
   const faqSuggestions = useMemo(() => {
     const query = debouncedInput.trim().toLowerCase();
@@ -36,12 +37,22 @@ export function useFaqSuggestions(
       .slice(0, 5);
   }, [debouncedInput, faqs, starters, getQ]);
 
+  // Reset selection when suggestions change (compared by reference)
+  const suggestionsChanged = prevSuggestionsRef.current !== faqSuggestions;
+  if (suggestionsChanged) {
+    prevSuggestionsRef.current = faqSuggestions;
+  }
+
   const [selectedSuggestion, setSelectedSuggestion] = useState(-1);
 
-  // Reset selection when suggestions change
-  useEffect(() => {
-    setSelectedSuggestion(-1);
-  }, [faqSuggestions]);
+  const setSelectedSuggestionWrapped = useCallback((v: number | ((prev: number) => number)) => {
+    setSelectedSuggestion(v);
+  }, []);
 
-  return { faqSuggestions, selectedSuggestion, setSelectedSuggestion };
+  // Reset selection during render when suggestions change
+  if (suggestionsChanged && selectedSuggestion !== -1) {
+    setSelectedSuggestion(-1);
+  }
+
+  return { faqSuggestions, selectedSuggestion, setSelectedSuggestion: setSelectedSuggestionWrapped };
 }

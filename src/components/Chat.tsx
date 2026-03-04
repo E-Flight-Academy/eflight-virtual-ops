@@ -52,6 +52,7 @@ export default function Chat() {
     const param = searchParams.get("role");
     return param ? param.split(",").map(r => r.trim()).filter(Boolean) : undefined;
   }, [searchParams]);
+  const userEmailOverride = searchParams.get("user") || undefined;
 
   const [isTouchDevice] = useState(() =>
     typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0)
@@ -346,7 +347,7 @@ export default function Chat() {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: apiMessages, lang: lang || "en", flowContext, roleOverride }),
+        body: JSON.stringify({ messages: apiMessages, lang: lang || "en", flowContext, roleOverride, userEmail: userEmailOverride }),
         signal: controller.signal,
       });
 
@@ -497,8 +498,11 @@ export default function Chat() {
 
   // Check Shopify session
   const checkSession = useCallback(() => {
-    const sessionUrl = roleOverride
-      ? `/api/auth/shopify/session?roleOverride=${roleOverride.join(",")}`
+    const params = new URLSearchParams();
+    if (userEmailOverride) params.set("userEmail", userEmailOverride);
+    else if (roleOverride) params.set("roleOverride", roleOverride.join(","));
+    const sessionUrl = params.toString()
+      ? `/api/auth/shopify/session?${params}`
       : "/api/auth/shopify/session";
     fetch(sessionUrl)
       .then((res) => res.json())
@@ -510,7 +514,7 @@ export default function Chat() {
         }
       })
       .catch(() => {});
-  }, [roleOverride]);
+  }, [roleOverride, userEmailOverride]);
 
   useEffect(() => {
     checkSession();

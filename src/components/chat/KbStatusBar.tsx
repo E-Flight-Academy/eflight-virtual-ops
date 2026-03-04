@@ -54,6 +54,13 @@ export default function KbStatusBar({ kbStatus, kbExpanded, onToggle, t, current
     return new URLSearchParams(window.location.search).get("role");
   });
 
+  const [currentUserEmail] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return new URLSearchParams(window.location.search).get("user");
+  });
+
+  const [emailInput, setEmailInput] = useState(currentUserEmail || "");
+
   const modes = [
     { key: null, label: "Standard" },
     { key: "kiosk", label: "Kiosk" },
@@ -130,6 +137,34 @@ export default function KbStatusBar({ kbStatus, kbExpanded, onToggle, t, current
                 </button>
               );
             })}
+          </div>
+
+          {/* User email override (dev only) */}
+          <div className="flex gap-1 items-center">
+            <input
+              type="text"
+              value={emailInput}
+              onChange={(e) => setEmailInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && emailInput.trim()) {
+                  navigate({ user: emailInput.trim(), role: null });
+                }
+              }}
+              placeholder="user@email.com"
+              className="flex-1 px-2 py-1 rounded-md text-[11px] border border-[#ECECEC] bg-white outline-none focus:border-e-indigo"
+            />
+            <button
+              onClick={() => {
+                if (emailInput.trim()) {
+                  navigate({ user: emailInput.trim(), role: null });
+                } else {
+                  navigate({ user: null });
+                }
+              }}
+              className="px-2 py-1 rounded-md text-[11px] font-medium bg-e-indigo-dark text-white cursor-pointer hover:bg-e-indigo"
+            >
+              {emailInput.trim() ? "Go" : "Clear"}
+            </button>
           </div>
 
           {/* KB status */}

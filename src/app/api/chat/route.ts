@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
     }
-    const { messages, lang: clientLang, flowContext, roleOverride } = parsed.data;
+    const { messages, lang: clientLang, flowContext, roleOverride, userEmail: userEmailOverride } = parsed.data;
 
     const geminiApiKey = process.env.GEMINI_API_KEY;
     if (!geminiApiKey) {
@@ -90,12 +90,18 @@ export async function POST(request: NextRequest) {
     let wingsUserId: number | null = null;
     let accessToken: string | null = null;
 
-    // Dev-only role override
-    if (process.env.NODE_ENV !== "production" && roleOverride?.length) {
-      userRoles = roleOverride;
+    // Dev-only user/role override
+    if (process.env.NODE_ENV !== "production" && (roleOverride?.length || userEmailOverride)) {
+      if (userEmailOverride) {
+        const userData = await getUserData(userEmailOverride);
+        userRoles = userData.roles;
+        wingsUserId = userData.wingsUserId;
+      } else {
+        userRoles = roleOverride!;
+        wingsUserId = 1062; // Dev mock fallback
+      }
       capabilities = await getCapabilitiesForRoles(userRoles);
-      wingsUserId = 1062; // Dev mock: Matthijs
-      console.log(`[DEV] Chat role override: [${userRoles.join(", ")}], caps: [${capabilities.join(", ")}]`);
+      console.log(`[DEV] Chat override: email=${userEmailOverride || "dev@eflight.nl"}, roles=[${userRoles.join(", ")}], caps=[${capabilities.join(", ")}], wingsUserId=${wingsUserId}`);
     } else {
       try {
         const session = await getSession();

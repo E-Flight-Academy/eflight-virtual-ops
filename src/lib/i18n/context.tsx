@@ -25,7 +25,7 @@ const I18nContext = createContext<I18nContextValue>({
 
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [labels, setLabels] = useState<UiLabels>(DEFAULT_LABELS);
-  const [lang, setLang] = useState("en");
+  const [lang, setLang] = useState("nl");
   const [translatedStarters, setTranslatedStarters] = useState<string[]>([]);
 
   const t = useCallback(

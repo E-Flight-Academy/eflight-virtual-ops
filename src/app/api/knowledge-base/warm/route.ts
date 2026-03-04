@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getDocumentContext, clearDocumentCache } from "@/lib/documents";
 import { getKvStatus, setKvStatus } from "@/lib/kv-cache";
 import { getWebsiteContent } from "@/lib/website";
+import { getFaqs } from "@/lib/faq";
+import { getProducts } from "@/lib/shopify";
 import { getConfig } from "@/lib/config";
 import { syncFlows } from "@/lib/guided-flows";
 import { syncStarters } from "@/lib/starters";
@@ -42,10 +44,18 @@ async function warmUp(force: boolean = false) {
 
   try {
     const config = await getConfig().catch(() => null);
-    const [context, websitePages] = await Promise.all([
+    const [context, websitePages, faqs, products] = await Promise.all([
       getDocumentContext(),
       getWebsiteContent(config?.website_pages).catch((err) => {
         console.warn("Website warm-up failed:", err);
+        return [];
+      }),
+      getFaqs().catch((err) => {
+        console.warn("FAQ warm-up failed:", err);
+        return [];
+      }),
+      getProducts().catch((err) => {
+        console.warn("Products warm-up failed:", err);
         return [];
       }),
       syncFlows().catch((err) => {
@@ -61,7 +71,9 @@ async function warmUp(force: boolean = false) {
     return NextResponse.json({
       status: "ready",
       fileCount: context.fileNames.length,
+      faqCount: faqs.length,
       websitePageCount: websitePages.length,
+      productCount: products.length,
     });
   } catch (err) {
     console.error("Knowledge base warm-up failed:", err);

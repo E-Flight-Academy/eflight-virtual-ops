@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
 import { DEFAULT_LABELS, type UiLabels } from "./labels";
 
 interface I18nContextValue {
@@ -67,6 +67,14 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     } catch {
       // If fetch fails, lang is set but labels remain — acceptable degradation
     }
+  }, []);
+
+  // Load translations for default language on mount
+  useEffect(() => {
+    if (lang !== "en") {
+      switchLanguage(lang);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

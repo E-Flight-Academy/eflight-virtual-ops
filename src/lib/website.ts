@@ -8,7 +8,7 @@ import {
 
 // --- Constants ---
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000; // 6 hours
-const MAX_PAGES = 200;
+const MAX_PAGES = 80;
 const MAX_CHARS_PER_PAGE = 8000;
 const MAX_TOTAL_CHARS = 500000; // 500K chars ≈ 150K tokens
 const FETCH_TIMEOUT_MS = 10000; // 10s per page
@@ -71,9 +71,16 @@ async function fetchSitemap(domain: string): Promise<string[]> {
   if (sitemapLocs.length > 0) {
     console.log(`Sitemap index found with ${sitemapLocs.length} sub-sitemaps`);
 
-    // Prioritize collections and pages over products
-    const priorityOrder = ["collections", "pages", "products", "blogs"];
-    const sortedLocs = [...sitemapLocs].sort((a, b) => {
+    // Filter out translated sub-sitemaps (/de/, /en/) — only fetch primary language
+    const primaryLocs = sitemapLocs.filter((loc) => {
+      const path = new URL(loc).pathname;
+      return !path.startsWith("/de/") && !path.startsWith("/en/") && !path.startsWith("/fr/");
+    });
+    console.log(`Filtered to ${primaryLocs.length} primary-language sub-sitemaps (from ${sitemapLocs.length})`);
+
+    // Prioritize pages and collections over products
+    const priorityOrder = ["pages", "collections", "products", "blogs"];
+    const sortedLocs = [...primaryLocs].sort((a, b) => {
       const aIdx = priorityOrder.findIndex((p) => a.includes(p));
       const bIdx = priorityOrder.findIndex((p) => b.includes(p));
       return (aIdx === -1 ? 99 : aIdx) - (bIdx === -1 ? 99 : bIdx);

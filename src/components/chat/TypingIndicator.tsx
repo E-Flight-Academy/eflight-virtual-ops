@@ -59,7 +59,7 @@ export default function TypingIndicator({ progressSteps = [], lang = "nl" }: Typ
     return labels[idx];
   }
 
-  const completed = progressSteps.slice(0, -1);
+  // Only show the most recent (current) step
   const current = progressSteps.length > 0 ? progressSteps[progressSteps.length - 1] : null;
 
   return (
@@ -75,34 +75,17 @@ export default function TypingIndicator({ progressSteps = [], lang = "nl" }: Typ
             <div className="w-2 h-2 bg-e-indigo-light rounded-full animate-bounce [animation-delay:0.2s]" />
           </div>
 
-          {/* Progress steps */}
-          {progressSteps.length > 0 && (
-            <div className="mt-2 text-sm leading-relaxed text-e-grey">
-              {/* Completed steps — inline, separated by middot */}
-              {completed.length > 0 && (
-                <span className="animate-fade-in-up">
-                  {completed.map((step, i) => (
-                    <span key={step}>
-                      <svg className="w-3 h-3 text-emerald-500 inline-block -mt-0.5 mr-0.5" viewBox="0 0 16 16" fill="none">
-                        <path d="M3 8.5l3.5 3.5 6.5-8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                      <span className="text-e-grey-light">{getLabel(step)}</span>
-                      {i < completed.length - 1 && <span className="mx-1.5 text-e-grey-light">&middot;</span>}
-                    </span>
-                  ))}
-                </span>
-              )}
-
-              {/* Current step — on its own line */}
-              {current && (
-                <div className="flex items-center gap-1.5 mt-1 animate-fade-in-up">
-                  <svg className="w-3 h-3 text-e-indigo animate-spin shrink-0" viewBox="0 0 16 16" fill="none">
-                    <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="2" opacity="0.25" />
-                    <path d="M14 8a6 6 0 0 0-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                  </svg>
-                  <span>{getLabel(current)}...</span>
-                </div>
-              )}
+          {/* Current step — only one visible at a time, fades in on change */}
+          {current && (
+            <div
+              key={current}
+              className="flex items-center gap-1.5 mt-2 text-sm text-e-grey animate-fade-in-up"
+            >
+              <svg className="w-3 h-3 text-e-indigo animate-spin shrink-0" viewBox="0 0 16 16" fill="none">
+                <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="2" opacity="0.25" />
+                <path d="M14 8a6 6 0 0 0-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+              <span>{getLabel(current)}...</span>
             </div>
           )}
         </div>

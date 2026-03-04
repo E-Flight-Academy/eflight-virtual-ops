@@ -36,12 +36,19 @@ export default function MessageBubble({ message, index, onRate, onFaqClick, onAv
         const source = sourceParts[0] || null;
         const sourceUrl = sourceParts[1] && sourceParts[1].startsWith("http") ? sourceParts[1] : null;
         const sourceLabel = sourceParts.length >= 3 ? sourceParts[2] : (sourceParts[1] && !sourceParts[1].startsWith("http") ? sourceParts[1] : null);
-        // Parse inline [link: url | label] tags
-        const linkTagRegex = /\[link:\s*(https?:\/\/[^\s|]+)\s*\|\s*([^\]]+)\]/gi;
+        // Parse inline [link: url | label] or [link: label | url] tags
+        const linkTagRegex = /\[link:\s*([^\]|]+?)\s*\|\s*([^\]]+)\]/gi;
         const inlineLinks: { url: string; label: string }[] = [];
         let linkMatch;
         while ((linkMatch = linkTagRegex.exec(bodyRaw)) !== null) {
-          inlineLinks.push({ url: linkMatch[1].trim(), label: linkMatch[2].trim() });
+          const a = linkMatch[1].trim();
+          const b = linkMatch[2].trim();
+          // Detect which part is the URL
+          if (a.startsWith("http")) {
+            inlineLinks.push({ url: a, label: b });
+          } else if (b.startsWith("http")) {
+            inlineLinks.push({ url: b, label: a });
+          }
         }
         const body = bodyRaw.replace(linkTagRegex, "").trimEnd();
         return (

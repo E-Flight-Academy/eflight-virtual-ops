@@ -39,5 +39,5 @@ jobs:
           curl -s -X PATCH \
             -H "X-Auth-Token: ${{ secrets.SCW_SECRET_KEY }}" \
             -H "Content-Type: application/json" \
-            -d '{"redeploy": true}' \
+            -d '{"redeploy": true, "registry_image": "${{ env.REGISTRY }}/${{ env.IMAGE }}:${{ github.sha }}"}' \
             "https://api.scaleway.com/containers/v1beta1/regions/nl-ams/containers/${{ vars.SCW_CONTAINER_ID }}"

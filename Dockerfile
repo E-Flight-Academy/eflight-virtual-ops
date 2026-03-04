@@ -8,9 +8,11 @@ RUN npm ci
 
 # --- Build ---
 FROM base AS builder
+ARG COMMIT_SHA=dev
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+ENV VERCEL_GIT_COMMIT_SHA=$COMMIT_SHA
 RUN npm run build
 
 # --- Production ---

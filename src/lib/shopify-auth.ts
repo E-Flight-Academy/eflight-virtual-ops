@@ -7,7 +7,7 @@ const CUSTOMER_ACCOUNT_DOMAIN = "account.eflight.nl";
 const AUTH_ENDPOINT = `https://${CUSTOMER_ACCOUNT_DOMAIN}/authentication/oauth/authorize`;
 const TOKEN_ENDPOINT = `https://${CUSTOMER_ACCOUNT_DOMAIN}/authentication/oauth/token`;
 const LOGOUT_ENDPOINT = `https://${CUSTOMER_ACCOUNT_DOMAIN}/authentication/logout`;
-const GRAPHQL_ENDPOINT = `https://${CUSTOMER_ACCOUNT_DOMAIN}/customer/api/2024-10/graphql`;
+const GRAPHQL_ENDPOINT = `https://${CUSTOMER_ACCOUNT_DOMAIN}/customer/api/2025-01/graphql`;
 
 // Callback URL
 const CALLBACK_URL = process.env.SHOPIFY_CALLBACK_URL || "https://steward.eflight.nl/api/auth/shopify/callback";

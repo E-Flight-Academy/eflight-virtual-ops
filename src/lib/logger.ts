@@ -1,5 +1,5 @@
 /**
- * Lightweight structured logger for Vercel serverless.
+ * Lightweight structured logger.
  * Outputs JSON in production for log aggregation, readable text in dev.
  */
 
@@ -15,7 +15,7 @@ interface LogEntry {
 
 function emit(entry: LogEntry) {
   if (isProd) {
-    // JSON for Vercel log drains / Datadog / etc.
+    // JSON for log aggregation
     const output = JSON.stringify(entry);
     if (entry.level === "error") console.error(output);
     else if (entry.level === "warn") console.warn(output);

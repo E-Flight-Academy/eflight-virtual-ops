@@ -10,7 +10,7 @@ const ALLOWED_IPS = [
 ];
 
 export async function GET(request: NextRequest) {
-  // Get client IP from various headers (Vercel/Cloudflare/etc)
+  // Get client IP from various headers
   const forwardedFor = request.headers.get("x-forwarded-for");
   const realIp = request.headers.get("x-real-ip");
 

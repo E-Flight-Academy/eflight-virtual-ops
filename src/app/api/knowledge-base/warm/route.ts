@@ -89,7 +89,7 @@ export async function POST(request: NextRequest) {
   return warmUp(force);
 }
 
-// GET: called by Vercel cron
+// GET: called by cron job
 export async function GET(request: NextRequest) {
   const force = request.nextUrl.searchParams.get("force") === "true";
   return warmUp(force);

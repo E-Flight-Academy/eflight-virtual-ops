@@ -12,7 +12,7 @@ E-Flight Virtual Ops is an AI-powered chat assistant for E-Flight Academy. It an
 - TypeScript
 - Tailwind CSS v4
 - Google Gemini API for AI responses
-- Deployed on Vercel
+- Deployed on Scaleway Serverless Containers
 
 ## Development Commands
 

@@ -21,7 +21,7 @@ function isAuthorized(request: NextRequest): boolean {
   const querySecret = request.nextUrl.searchParams.get("secret");
   if (querySecret === secret) return true;
 
-  // Accept Vercel CRON_SECRET (sent automatically by Vercel cron jobs)
+  // Accept CRON_SECRET (for scheduled jobs)
   const cronSecret = process.env.CRON_SECRET;
   if (cronSecret && authHeader === `Bearer ${cronSecret}`) return true;
 
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
   return handleSync(request);
 }
 
-// GET: for Vercel cron
+// GET: for cron jobs
 export async function GET(request: NextRequest) {
   return handleSync(request);
 }

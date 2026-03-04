@@ -10,7 +10,7 @@ AI-powered chat assistant for E-Flight Academy. Answers questions from students,
 - **AI**: Google Gemini 2.0 Flash Lite
 - **Knowledge Base**: Google Drive + Gemini File API
 - **Conversation Starters**: Notion database
-- **Deployment**: Vercel
+- **Deployment**: Scaleway Serverless Containers
 
 ## Architecture
 
@@ -42,7 +42,7 @@ src/
 - **`google-drive.ts`** — Authenticates with a service account, recursively lists files in the Drive folder, exports Google Workspace files (Docs, Sheets, Slides) to text, and downloads binary files (PDFs, images).
 - **`gemini-files.ts`** — Uploads binary files to the Gemini File API via temp files, caches upload URIs for 47 hours (Gemini expires them after 48h), and builds `Part[]` arrays for chat requests.
 - **`documents.ts`** — Orchestrates the above two modules. Fetches all Drive files, separates text from binary, builds a system instruction string and file parts array. Caches the result for 1 hour with concurrent-fetch locking.
-- **`starters.ts`** — Fetches conversation starters from a Notion database, filtered by "Show as Starter" checkbox and sorted by "Order" property. In-memory cache with 1-hour TTL.
+- **`starters.ts`** — Fetches conversation starters from a Notion database, filtered by "Show as Starter" checkbox and sorted by "Order" property. L1 in-memory + L2 Redis cache with 1-hour TTL.
 
 ## Environment Variables
 
@@ -55,8 +55,8 @@ src/
 | `NOTION_API_KEY` | Yes | Notion internal integration token |
 | `NOTION_DATABASE_ID` | Yes | Notion database ID for conversation starters |
 | `SYNC_SECRET` | Yes | Secret token to authorize `/api/sync-notion` calls |
-| `CRON_SECRET` | No | Vercel auto-injects this for cron job authentication |
-| `EDGE_CONFIG` | No | Vercel Edge Config connection string (reserved for future use) |
+| `UPSTASH_REDIS_REST_URL` | Yes | Upstash Redis REST URL for caching |
+| `UPSTASH_REDIS_REST_TOKEN` | Yes | Upstash Redis REST token |
 
 ### Google Service Account setup
 
@@ -82,7 +82,7 @@ src/
 | GET | `/api/knowledge-base/status` | None | Get KB sync status (file count, names, last synced) |
 | POST/GET | `/api/knowledge-base/warm` | None | Pre-warm the knowledge base cache |
 | GET | `/api/starters` | None | Get conversation starter texts |
-| POST/GET | `/api/sync-notion` | `SYNC_SECRET` or `CRON_SECRET` | Sync starters from Notion |
+| POST/GET | `/api/sync-notion` | `SYNC_SECRET` | Sync starters from Notion |
 
 ### Sync-notion authentication
 
@@ -90,14 +90,12 @@ The `/api/sync-notion` endpoint accepts the `SYNC_SECRET` token in two ways:
 
 ```bash
 # Via Authorization header
-curl -X POST https://your-domain.vercel.app/api/sync-notion \
+curl -X POST https://steward.eflight.nl/api/sync-notion \
   -H "Authorization: Bearer YOUR_SYNC_SECRET"
 
 # Via query parameter
-curl -X POST "https://your-domain.vercel.app/api/sync-notion?secret=YOUR_SYNC_SECRET"
+curl -X POST "https://steward.eflight.nl/api/sync-notion?secret=YOUR_SYNC_SECRET"
 ```
-
-Vercel cron jobs automatically send `CRON_SECRET` in the Authorization header, which is also accepted.
 
 ## Knowledge Base (Google Drive)
 
@@ -118,9 +116,10 @@ Vercel cron jobs automatically send `CRON_SECRET` in the Authorization header, w
 
 ### Cache behavior
 
-- **Document cache**: 1 hour TTL, in-memory, resets on deployment
+- **L1 (in-memory)**: 1 hour TTL, resets on deployment
+- **L2 (Redis)**: 1 hour TTL, persists across deployments
 - **Gemini upload cache**: 47 hours TTL (Gemini expires uploads after 48h)
-- **Pre-warm**: triggered on user login and daily at 05:00 UTC via cron
+- **Pre-warm**: triggered automatically after deploy and daily at 05:00 UTC via cron
 
 ### Updating documents
 
@@ -132,54 +131,31 @@ Starters are fetched from a Notion database and shown as clickable buttons in th
 
 ### Sync triggers
 
-There are three ways starters get synced from Notion:
-
-1. **Vercel cron** — Daily at 06:00 UTC (automatic)
+1. **GitHub Actions cron** — Daily at 06:00 UTC (automatic)
 2. **Make.com webhook** — On Notion database changes (real-time)
 3. **Manual** — Call `/api/sync-notion` with the `SYNC_SECRET`
 
 ### Cache behavior
 
-- In-memory cache with 1-hour TTL
-- If the cache is expired when a user loads the page, `GET /api/starters` triggers a fresh sync automatically
-- Cache resets on deployment
-
-## Make.com Webhook
-
-Make.com is configured to trigger a Notion sync whenever the starters database is updated, providing near-real-time updates without waiting for the daily cron.
-
-### Setup
-
-1. Create a new scenario in Make.com
-2. Add a **Notion — Watch Database Items** trigger module
-   - Connect your Notion account
-   - Select the starters database
-   - Set it to watch for created and updated items
-3. Add an **HTTP — Make a request** action module
-   - **URL**: `https://your-domain.vercel.app/api/sync-notion`
-   - **Method**: POST
-   - **Headers**: `Authorization: Bearer YOUR_SYNC_SECRET`
-4. Turn on the scenario and set the polling interval
-
-When a starter is added, edited, or toggled in Notion, Make.com calls the sync endpoint and the cache is refreshed.
+- L1 in-memory + L2 Redis cache with 1-hour TTL
+- If cache is expired, `GET /api/starters` triggers a fresh sync automatically
+- L1 resets on deployment, L2 persists
 
 ## Cron Jobs
 
-Configured in `vercel.json`:
+Configured in `.github/workflows/cron.yml`:
 
 | Schedule | Path | Purpose |
 |----------|------|---------|
 | `0 5 * * *` (05:00 UTC daily) | `/api/knowledge-base/warm` | Pre-warm Google Drive document cache |
 | `0 6 * * *` (06:00 UTC daily) | `/api/sync-notion` | Sync conversation starters from Notion |
 
-> **Note**: Vercel Hobby plans limit cron jobs to once per day. More frequent schedules will block deployment.
-
 ## Local Development
 
 ```bash
 # Clone the repository
-git clone https://github.com/E-Flight-Academy/eflight-virtual-ops.git
-cd eflight-virtual-ops
+git clone https://github.com/E-Flight-Academy/Steward.git
+cd Steward
 
 # Install dependencies
 npm install
@@ -204,19 +180,17 @@ npm run lint     # Run ESLint
 
 ## Deployment
 
-The project deploys automatically to Vercel on push to `main`.
+The project deploys automatically to Scaleway on push to `main` via GitHub Actions (`.github/workflows/deploy.yml`).
 
-### First-time Vercel setup
+### How it works
 
-1. Import the GitHub repository in Vercel
-2. Framework preset: **Next.js** (auto-detected)
-3. Add all required environment variables in **Settings > Environment Variables**
-4. Set `CRON_SECRET` to enable authenticated cron jobs
-5. Deploy
+1. Docker image is built with the commit SHA baked in
+2. Image is pushed to Scaleway Container Registry (`rg.nl-ams.scw.cloud/steward/steward`)
+3. Serverless Container is redeployed with the new image
+4. After deploy, the knowledge base is automatically warmed up
 
 ### After deployment
 
-- Cron jobs start running automatically on the configured schedule
-- The knowledge base loads on the first user login (or at 05:00 UTC via cron)
-- Conversation starters sync daily at 06:00 UTC and on Notion changes via Make.com
-- All in-memory caches reset on each new deployment
+- The knowledge base is pre-warmed automatically (guided flows, starters, documents)
+- Cron jobs run via GitHub Actions on the configured schedule
+- L1 (in-memory) caches reset, L2 (Redis) caches persist

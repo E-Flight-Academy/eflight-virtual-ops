@@ -119,12 +119,22 @@ query GetUserDocuments($userId: Int!) {
 }
 `;
 
+// --- Document cache (per user, 1 hour TTL) ---
+
+const docCache = new Map<number, { data: WingsUserDocuments | null; cachedAt: number }>();
+const DOC_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+
 // --- Public API ---
 
 /**
- * Fetch all documents for a Wings user by their user ID
+ * Fetch all documents for a Wings user by their user ID (cached)
  */
 export async function getUserDocuments(wingsUserId: number): Promise<WingsUserDocuments | null> {
+  const cached = docCache.get(wingsUserId);
+  if (cached && Date.now() - cached.cachedAt < DOC_CACHE_TTL_MS) {
+    return cached.data;
+  }
+
   try {
     interface QueryResult {
       users: {
@@ -138,13 +148,10 @@ export async function getUserDocuments(wingsUserId: number): Promise<WingsUserDo
 
     const data = await gql<QueryResult>(USER_DOCUMENTS_QUERY, { userId: wingsUserId });
     const user = data.users.data[0];
-    if (!user) return null;
+    const result = user ? { userId: user.id, userName: user.name, documents: user.documents } : null;
 
-    return {
-      userId: user.id,
-      userName: user.name,
-      documents: user.documents,
-    };
+    docCache.set(wingsUserId, { data: result, cachedAt: Date.now() });
+    return result;
   } catch (err) {
     console.error("Wings: failed to fetch user documents:", err);
     return null;

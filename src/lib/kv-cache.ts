@@ -103,6 +103,7 @@ export interface FlowOption {
   labelNl: string;
   labelDe: string;
   icon: string | null;
+  capability: string | null;
 }
 
 export interface KvFlowStep {

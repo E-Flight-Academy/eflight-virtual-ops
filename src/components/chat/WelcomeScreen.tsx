@@ -14,7 +14,7 @@ interface WelcomeScreenProps {
   starters: { question: string; questionNl: string; questionDe: string; answer: string; answerNl: string; answerDe: string }[];
   faqs: { question: string; questionNl: string; questionDe: string; answer: string; answerNl: string; answerDe: string; category: string[]; audience: string[]; url: string }[];
   getQ: (item: { question: string; questionNl: string; questionDe: string }) => string;
-  sendMessage: (text: string, baseMessages?: Message[], hidden?: boolean) => void;
+  sendMessage: (text: string) => void;
   onFaqOpen: () => void;
   onAvatarClick: () => void;
   // ChatInput props
@@ -128,26 +128,8 @@ export default function WelcomeScreen({
             onSelect={handleFlowOption}
             getFlowLabel={getFlowLabel}
             kiosk={kiosk}
+            capabilities={capabilities}
           />
-        </div>
-      )}
-
-      {/* Capability-based action buttons */}
-      {capabilities.includes("doc-validity") && flowPhase !== "loading" && (
-        <div className="flex flex-wrap gap-2 ml-11 animate-fade-in-up">
-          <button
-            onClick={() => sendMessage("Check mijn document validiteit", undefined, true)}
-            className={`${kiosk ? "text-base px-5 py-3" : "text-sm px-4 py-2.5"} rounded-full border border-e-indigo/30 text-e-indigo bg-white hover:bg-e-indigo/5 hover:border-e-indigo transition-colors dark:bg-gray-900 dark:border-e-indigo/40 dark:hover:bg-gray-800 cursor-pointer font-medium flex items-center gap-2`}
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-              <line x1="16" y1="13" x2="8" y2="13" />
-              <line x1="16" y1="17" x2="8" y2="17" />
-              <polyline points="10 9 9 9 8 9" />
-            </svg>
-            Document validiteit
-          </button>
         </div>
       )}
 

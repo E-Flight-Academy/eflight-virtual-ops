@@ -803,6 +803,7 @@ export default function Chat() {
             adminAudiences={isAdmin ? adminAudiences : undefined}
             lang={lang}
             progressSteps={progressSteps}
+            capabilities={capabilities}
           />
         )}
 

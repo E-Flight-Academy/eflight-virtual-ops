@@ -11,6 +11,7 @@ export interface FlowOption {
   labelNl: string;
   labelDe: string;
   icon: string | null;
+  capability: string | null;
 }
 
 export interface FlowStep {
@@ -48,6 +49,7 @@ export interface KbStatus {
     email: string | null;
     roles: string[];
     folders: string[];
+    capabilities?: string[];
   };
   filteredFileCount?: number;
   filteredFileNames?: string[];

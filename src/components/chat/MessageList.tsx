@@ -41,6 +41,7 @@ interface MessageListProps {
   adminAudiences?: string[];
   lang?: string;
   progressSteps?: string[];
+  capabilities?: string[];
 }
 
 export default function MessageList({
@@ -73,6 +74,7 @@ export default function MessageList({
   adminAudiences = [],
   lang = "en",
   progressSteps = [],
+  capabilities = [],
 }: MessageListProps) {
   return (
     <div role="log" aria-live="polite" aria-label="Chat messages" className="space-y-4">
@@ -212,6 +214,7 @@ export default function MessageList({
                 onSelect={handleFlowOption}
                 getFlowLabel={getFlowLabel}
                 kiosk={kiosk}
+                capabilities={capabilities}
               />
             </div>
           )}

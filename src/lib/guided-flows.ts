@@ -51,6 +51,7 @@ export async function fetchFlowsFromNotion(): Promise<KvFlowStep[]> {
       let nextStepNames: string[] = [];
       let relatedFaqId: string | null = null;
       let icon: string | null = null;
+      let capability: string | null = null;
 
       // Extract page icon
       const pageIcon = (page as { icon?: { type: string; emoji?: string; external?: { url: string }; file?: { url: string } } }).icon;
@@ -94,9 +95,12 @@ export async function fetchFlowsFromNotion(): Promise<KvFlowStep[]> {
           const rels = v.relation as { id: string }[];
           if (rels.length > 0) relatedFaqId = rels[0].id;
         }
+        if (key === "Capability" && v.type === "rich_text" && Array.isArray(v.rich_text) && v.rich_text.length > 0) {
+          capability = (v.rich_text as { plain_text: string }[]).map((t) => t.plain_text).join("").trim().toLowerCase() || null;
+        }
       }
 
-      return { pageId, name, label, icon, message, endAction, contextKey, endPrompt, order, nextStepNames, relatedFaqId };
+      return { pageId, name, label, icon, message, endAction, contextKey, endPrompt, order, nextStepNames, relatedFaqId, capability };
     });
 
   // Collect FAQ page IDs to fetch in parallel
@@ -188,6 +192,7 @@ export async function fetchFlowsFromNotion(): Promise<KvFlowStep[]> {
         labelNl: "",
         labelDe: "",
         icon: target.icon,
+        capability: target.capability,
       });
     }
 

@@ -94,36 +94,42 @@ export default function KbStatusBar({ kbStatus, kbExpanded, onToggle, t, current
         <div className="px-3 py-2 space-y-2">
           {/* Client mode buttons */}
           <div className="flex gap-1">
-            {modes.map(({ key, label }) => (
-              <button
-                key={label}
-                onClick={() => navigate({ client: key })}
-                className={`flex-1 px-2 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer ${
-                  currentClient === key
-                    ? "bg-e-indigo-dark text-white"
-                    : "bg-[#F7F7F7] text-e-grey-dark hover:bg-[#ECECEC]"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
+            {modes.map(({ key, label }) => {
+              const active = currentClient === key;
+              return (
+                <button
+                  key={label}
+                  onClick={() => navigate({ client: key })}
+                  className={`flex-1 px-2 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer ${
+                    active
+                      ? "bg-e-indigo-dark text-white"
+                      : "bg-transparent text-e-grey-light hover:bg-[#F7F7F7] hover:text-e-grey-dark"
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
           </div>
 
           {/* Role override buttons (dev only) */}
           <div className="flex gap-1 flex-wrap">
-            {roles.map(({ key, label }) => (
-              <button
-                key={label}
-                onClick={() => navigate({ role: key })}
-                className={`px-2 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer ${
-                  currentRole === key
-                    ? "bg-e-indigo-dark text-white"
-                    : "bg-[#F7F7F7] text-e-grey-dark hover:bg-[#ECECEC]"
-                }`}
-              >
-                {label}
-              </button>
-            ))}
+            {roles.map(({ key, label }) => {
+              const active = currentRole === key;
+              return (
+                <button
+                  key={label}
+                  onClick={() => navigate({ role: key })}
+                  className={`px-2 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer ${
+                    active
+                      ? "bg-e-indigo-dark text-white"
+                      : "bg-transparent text-e-grey-light hover:bg-[#F7F7F7] hover:text-e-grey-dark"
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
           </div>
 
           {/* KB status */}
@@ -148,6 +154,9 @@ export default function KbStatusBar({ kbStatus, kbExpanded, onToggle, t, current
               <>
                 {kbStatus.user?.roles && kbStatus.user.roles.length > 0 && (
                   <div className="text-e-grey pl-3.5">Roles: {kbStatus.user.roles.join(", ")}</div>
+                )}
+                {kbStatus.user?.capabilities && kbStatus.user.capabilities.length > 0 && (
+                  <div className="text-e-grey pl-3.5">Caps: {kbStatus.user.capabilities.join(", ")}</div>
                 )}
                 <div className="text-e-grey pl-3.5">Folders: {kbStatus.user?.folders?.join(", ") || "public"}</div>
                 {kbStatus.searchOrder && (

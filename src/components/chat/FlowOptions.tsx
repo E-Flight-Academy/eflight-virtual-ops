@@ -5,12 +5,18 @@ interface FlowOptionsProps {
   onSelect: (stepName: string, displayLabel: string) => void;
   getFlowLabel: (option: FlowOption) => string;
   kiosk?: boolean;
+  capabilities?: string[];
 }
 
-export default function FlowOptions({ options, onSelect, getFlowLabel, kiosk }: FlowOptionsProps) {
+export default function FlowOptions({ options, onSelect, getFlowLabel, kiosk, capabilities = [] }: FlowOptionsProps) {
+  // Filter out options that require a capability the user doesn't have
+  const visibleOptions = options.filter(
+    (o) => !o.capability || capabilities.includes(o.capability)
+  );
+
   return (
     <div role="group" aria-label="Options" className="flex flex-wrap gap-2">
-      {options.map((option, i) => (
+      {visibleOptions.map((option, i) => (
         <button
           key={i}
           onClick={() => onSelect(option.name, getFlowLabel(option))}

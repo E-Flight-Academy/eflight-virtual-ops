@@ -34,9 +34,9 @@ const STEP_LABELS: Record<string, Record<string, string[]>> = {
     de: ["Produkte abrufen", "Angebot prüfen"],
   },
   orders: {
-    nl: ["Bestellingen checken", "Bestelgeschiedenis ophalen"],
-    en: ["Checking orders", "Fetching order history"],
-    de: ["Bestellungen prüfen", "Bestellverlauf abrufen"],
+    nl: ["Gegevens opzoeken in E-Flight account", "Accountgegevens ophalen"],
+    en: ["Looking up E-Flight account data", "Fetching account details"],
+    de: ["E-Flight-Kontodaten abrufen", "Kontoinformationen laden"],
   },
   generating: {
     nl: ["Antwoord formuleren", "Antwoord schrijven"],

@@ -12,14 +12,17 @@ export async function GET() {
     return NextResponse.json(status);
   }
 
-  // Get user session (non-blocking — skip role lookup if not logged in)
+  // Get user session with a timeout to avoid blocking on slow Shopify calls
   let userEmail: string | null = null;
   let userRoles: string[] = [];
   let allowedFolders: string[] = ["public"];
   let filteredFileNames: string[] = status.fileNames;
 
   try {
-    const session = await getSession();
+    const session = await Promise.race([
+      getSession(),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 2000)),
+    ]);
     if (session?.customer?.email) {
       userEmail = session.customer.email;
       userRoles = await getUserRoles(userEmail);

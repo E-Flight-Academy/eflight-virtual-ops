@@ -5,6 +5,7 @@ interface UseFlowParams {
   messages: Message[];
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>;
   lang: string;
+  userRoles: string[];
   getFlowMessage: (step: FlowStep) => string;
   getFlowLabel: (option: FlowOption) => string;
   getFlowEndPrompt: (step: FlowStep) => string | undefined;
@@ -16,10 +17,20 @@ interface UseFlowParams {
   sharedChatIdRef: React.MutableRefObject<string | null>;
 }
 
+/** Find the best welcome step for the user's roles. Tries welcome_{role} first, falls back to welcome. */
+export function findWelcomeStep(flowSteps: FlowStep[], userRoles: string[]): FlowStep | undefined {
+  for (const role of userRoles) {
+    const roleWelcome = flowSteps.find((s) => s.name.toLowerCase() === `welcome_${role.toLowerCase()}`);
+    if (roleWelcome) return roleWelcome;
+  }
+  return flowSteps.find((s) => s.name.toLowerCase() === "welcome");
+}
+
 export function useFlow({
   messages,
   setMessages,
   lang,
+  userRoles,
   getFlowMessage,
   getFlowLabel,
   getFlowEndPrompt,
@@ -87,6 +98,21 @@ export function useFlow({
     }
     setPendingFlowStepName(null);
   }, [pendingFlowStepName, flowSteps]);
+
+  // Switch to role-specific welcome when user roles become available
+  useEffect(() => {
+    if (userRoles.length === 0 || flowSteps.length === 0) return;
+    if (flowPhase !== "active" || !currentFlowStep) return;
+    // Only switch if we're still on the generic welcome (no user messages yet)
+    if (currentFlowStep.name.toLowerCase() !== "welcome") return;
+    if (messages.length !== 1 || messages[0].role !== "assistant") return;
+
+    const roleWelcome = findWelcomeStep(flowSteps, userRoles);
+    if (roleWelcome && roleWelcome.name !== currentFlowStep.name) {
+      setCurrentFlowStep(roleWelcome);
+      setMessages([{ role: "assistant", content: getFlowMessage(roleWelcome) }]);
+    }
+  }, [userRoles, flowSteps, flowPhase, currentFlowStep, messages, setMessages, getFlowMessage]);
 
   // Update flow messages when language changes
   useEffect(() => {
@@ -202,7 +228,7 @@ export function useFlow({
     if (messages.length === 0) return;
     setInput("");
     setFlowContext({});
-    const welcome = flowSteps.find((s) => s.name.toLowerCase() === "welcome");
+    const welcome = findWelcomeStep(flowSteps, userRoles);
     if (welcome) {
       setCurrentFlowStep(welcome);
       setFlowPhase("active");
@@ -213,7 +239,7 @@ export function useFlow({
       setMessages([]);
     }
     inputRef.current?.focus();
-  }, [messages.length, flowSteps, setMessages, getFlowMessage]);
+  }, [messages.length, flowSteps, userRoles, setMessages, getFlowMessage]);
 
   return {
     flowSteps,

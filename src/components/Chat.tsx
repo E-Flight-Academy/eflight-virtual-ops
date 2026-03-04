@@ -11,7 +11,7 @@ import { fetchRetry } from "@/lib/fetch-retry";
 import { useKbStatus } from "@/hooks/useKbStatus";
 import { useFaqSuggestions } from "@/hooks/useFaqSuggestions";
 import { useRating } from "@/hooks/useRating";
-import { useFlow } from "@/hooks/useFlow";
+import { useFlow, findWelcomeStep } from "@/hooks/useFlow";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import { useFaqAdmin } from "@/hooks/useFaqAdmin";
 
@@ -213,6 +213,7 @@ export default function Chat() {
     messages,
     setMessages,
     lang,
+    userRoles,
     getFlowMessage,
     getFlowLabel,
     getFlowEndPrompt,
@@ -475,7 +476,7 @@ export default function Chat() {
         setFlowSteps(data);
         if (isSharedChat) return;
         if (data.length > 0) {
-          const welcome = data.find((s) => s.name.toLowerCase() === "welcome");
+          const welcome = findWelcomeStep(data, userRoles);
           if (welcome) {
             setCurrentFlowStep(welcome);
             setFlowPhase("active");

@@ -142,7 +142,7 @@ export async function POST(request: NextRequest) {
     instructionParts.push(
       `You are the Steward assistant. ${companyContext}`,
       `Your tone of voice is: ${toneOfVoice}.`,
-      "IMPORTANT: Always give thorough, helpful answers. Do NOT just refer users to a page or link — actually include the relevant information from the sources in your response. For example, if asked about events, list the actual events with dates and times. If asked about prices, state the actual prices. Use the data provided in the context sections below to give complete answers.",
+      "IMPORTANT: Always give thorough, detailed, and helpful answers. Your responses should be at least 3-4 sentences for simple questions and longer for complex topics. Do NOT just refer users to a page or link — actually include ALL relevant information from the sources in your response. For example, if asked about events, list ALL events with dates, times, descriptions, and locations. If asked about a training program, explain what it includes, the duration, costs, and requirements. If asked about prices, state the actual prices with details. Use the data provided in the context sections below to give complete, informative answers. Never give one-line answers when more detail is available in the sources.",
     );
 
     // Build search priority instructions

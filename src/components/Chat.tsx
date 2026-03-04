@@ -401,6 +401,8 @@ export default function Chat() {
                   resetLanguage();
                 }
               }
+              // Refresh KB status after chat loads data (populates Redis counts)
+              if (debugMode) fetchKbStatus(true);
             } else if (msg.type === "error") {
               if (!accumulated) {
                 setMessages([

@@ -340,7 +340,7 @@ export async function POST(request: NextRequest) {
       if (scheduleContext) {
         instructionParts.push("", scheduleContext);
         instructionParts.push(
-          "When presenting the instructor's schedule, format it clearly by date. Include student names, aircraft, and time slots. Highlight any gaps or back-to-back lessons. If there are notes/comments on a booking, include relevant details."
+          "When presenting the instructor's schedule: only show days that have lessons (skip empty days). Format clearly by date with a clickable link to the Wings booking page for that date. Include student names, aircraft, and time slots. Highlight back-to-back lessons. If there are notes/comments on a booking, include relevant details. Use the Wings links provided in the context (format: https://eflight.oywings.com/bookings?date=YYYY-MM-DD)."
         );
       }
     }

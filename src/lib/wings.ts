@@ -235,27 +235,37 @@ export async function getInstructorBookings(wingsUserId: number): Promise<WingsS
 }
 
 /**
- * Build a context string for Gemini with instructor schedule info
+ * Build a context string for Gemini with instructor schedule info, grouped by date
  */
 export function buildScheduleContext(schedule: WingsSchedule): string {
   if (schedule.bookings.length === 0) return "";
 
-  const lines = schedule.bookings.map((b) => {
+  // Group bookings by date
+  const byDate = new Map<string, WingsBooking[]>();
+  for (const b of schedule.bookings) {
     const date = b.from.slice(0, 10);
-    const timeFrom = b.from.slice(11, 16);
-    const timeTo = b.to.slice(11, 16);
-    const student = b.eventTitle || b.customer?.name || "—";
-    const aircraft = b.aircraft?.callSign || "—";
-    const type = b.type.name;
-    const status = b.status.name;
-    const comments = b.comments ? ` | Notes: ${b.comments.replace(/\n/g, "; ")}` : "";
-    return `- ${date} ${timeFrom}–${timeTo} | ${type} | ${student} | Aircraft: ${aircraft} | Status: ${status}${comments}`;
-  });
+    if (!byDate.has(date)) byDate.set(date, []);
+    byDate.get(date)!.push(b);
+  }
 
-  return [
-    "=== Instructor Schedule (upcoming 14 days) ===",
-    ...lines,
-  ].join("\n");
+  const lines: string[] = ["=== Instructor Schedule (upcoming 14 days) ==="];
+
+  for (const [date, bookings] of byDate) {
+    const wingsLink = `https://eflight.oywings.com/bookings?date=${date}`;
+    lines.push(`\n${date} (${wingsLink}):`);
+    for (const b of bookings) {
+      const timeFrom = b.from.slice(11, 16);
+      const timeTo = b.to.slice(11, 16);
+      const student = b.eventTitle || b.customer?.name || "—";
+      const aircraft = b.aircraft?.callSign || "—";
+      const type = b.type.name;
+      const status = b.status.name;
+      const comments = b.comments ? ` | Notes: ${b.comments.replace(/\n/g, "; ")}` : "";
+      lines.push(`  - ${timeFrom}–${timeTo} | ${type} | ${student} | Aircraft: ${aircraft} | Status: ${status}${comments}`);
+    }
+  }
+
+  return lines.join("\n");
 }
 
 /**

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import type { KbStatus } from "@/types/chat";
 import type { UiLabels } from "@/lib/i18n/labels";
 
@@ -36,21 +36,36 @@ export default function KbStatusBar({ kbStatus, kbExpanded, onToggle, t, current
     dragRef.current = null;
   }, []);
 
-  const navigate = useCallback((clientParam: string | null) => {
+  const navigate = useCallback((params: Record<string, string | null>) => {
     const url = new URL(window.location.href);
-    if (clientParam) {
-      url.searchParams.set("client", clientParam);
-    } else {
-      url.searchParams.delete("client");
+    for (const [key, value] of Object.entries(params)) {
+      if (value) {
+        url.searchParams.set(key, value);
+      } else {
+        url.searchParams.delete(key);
+      }
     }
     url.searchParams.set("debug", "true");
     window.location.assign(url.toString());
+  }, []);
+
+  const [currentRole, setCurrentRole] = useState<string | null>(null);
+  useEffect(() => {
+    setCurrentRole(new URLSearchParams(window.location.search).get("role"));
   }, []);
 
   const modes = [
     { key: null, label: "Standard" },
     { key: "kiosk", label: "Kiosk" },
     { key: "briefing", label: "Briefing" },
+  ] as const;
+
+  const roles = [
+    { key: null, label: "Anonymous" },
+    { key: "student", label: "Student" },
+    { key: "renter", label: "Renter" },
+    { key: "instructor", label: "Instructor" },
+    { key: "operations", label: "Operations" },
   ] as const;
 
   const style: React.CSSProperties = pos
@@ -82,9 +97,26 @@ export default function KbStatusBar({ kbStatus, kbExpanded, onToggle, t, current
             {modes.map(({ key, label }) => (
               <button
                 key={label}
-                onClick={() => navigate(key)}
+                onClick={() => navigate({ client: key })}
                 className={`flex-1 px-2 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer ${
                   currentClient === key
+                    ? "bg-e-indigo-dark text-white"
+                    : "bg-[#F7F7F7] text-e-grey-dark hover:bg-[#ECECEC]"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {/* Role override buttons (dev only) */}
+          <div className="flex gap-1 flex-wrap">
+            {roles.map(({ key, label }) => (
+              <button
+                key={label}
+                onClick={() => navigate({ role: key })}
+                className={`px-2 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer ${
+                  currentRole === key
                     ? "bg-e-indigo-dark text-white"
                     : "bg-[#F7F7F7] text-e-grey-dark hover:bg-[#ECECEC]"
                 }`}

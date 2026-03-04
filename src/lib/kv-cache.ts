@@ -158,6 +158,7 @@ export interface KvProductsData {
 export interface KvRoleMapping {
   role: string;
   folders: string[];
+  capabilities: string[];
 }
 
 export interface KvRoleAccessData {

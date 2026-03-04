@@ -3,7 +3,7 @@ import type { KbStatus } from "@/types/chat";
 
 export function useKbStatus() {
   const [kbStatus, setKbStatus] = useState<KbStatus | null>(null);
-  const [kbExpanded, setKbExpanded] = useState(false);
+  const [kbExpanded, setKbExpanded] = useState(true);
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollCountRef = useRef(0);
 

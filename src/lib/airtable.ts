@@ -18,46 +18,60 @@ interface AirtableResponse {
   records: AirtableRecord[];
 }
 
+export interface AirtableUserData {
+  roles: string[];
+  wingsUserId: number | null;
+}
+
 /**
- * Fetch user roles from Airtable by email address
+ * Fetch user data (roles + Wings User ID) from Airtable by email address
  */
-export async function getUserRoles(email: string): Promise<string[]> {
+export async function getUserData(email: string): Promise<AirtableUserData> {
   if (!AIRTABLE_TOKEN || !AIRTABLE_BASE_ID) {
-    console.warn("Airtable not configured, returning empty roles");
-    return [];
+    console.warn("Airtable not configured");
+    return { roles: [], wingsUserId: null };
   }
 
   try {
-    // Use filterByFormula to find the customer by email (case-insensitive)
     const formula = `LOWER({Client E-Mail}) = LOWER("${email.replace(/"/g, '\\"')}")`;
-    const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_TABLE_NAME)}?filterByFormula=${encodeURIComponent(formula)}&fields%5B%5D=Wings%20Role&fields%5B%5D=Client%20E-Mail`;
+    const fields = ["Wings Role", "Client E-Mail", "Wings User ID"].map(f => `fields%5B%5D=${encodeURIComponent(f)}`).join("&");
+    const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_TABLE_NAME)}?filterByFormula=${encodeURIComponent(formula)}&${fields}`;
 
     const response = await fetch(url, {
       headers: {
         Authorization: `Bearer ${AIRTABLE_TOKEN}`,
       },
-      // Cache for 5 minutes
       next: { revalidate: 300 },
     });
 
     if (!response.ok) {
       const error = await response.text();
       console.error("Airtable API error:", error);
-      return [];
+      return { roles: [], wingsUserId: null };
     }
 
     const data: AirtableResponse = await response.json();
 
     if (data.records.length === 0) {
       console.log(`No Airtable record found for email: ${email}`);
-      return [];
+      return { roles: [], wingsUserId: null };
     }
 
-    const roles = data.records[0].fields["Wings Role"] || [];
-    console.log(`Found roles for ${email}:`, roles);
-    return roles;
+    const record = data.records[0].fields;
+    const roles = record["Wings Role"] || [];
+    const wingsUserId = record["Wings User ID"] ?? null;
+    console.log(`Found data for ${email}: roles=[${roles.join(", ")}], wingsUserId=${wingsUserId}`);
+    return { roles, wingsUserId };
   } catch (error) {
-    console.error("Failed to fetch roles from Airtable:", error);
-    return [];
+    console.error("Failed to fetch data from Airtable:", error);
+    return { roles: [], wingsUserId: null };
   }
+}
+
+/**
+ * Fetch user roles from Airtable by email address
+ */
+export async function getUserRoles(email: string): Promise<string[]> {
+  const data = await getUserData(email);
+  return data.roles;
 }

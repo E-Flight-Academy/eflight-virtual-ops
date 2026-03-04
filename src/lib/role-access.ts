@@ -29,6 +29,7 @@ async function fetchRoleAccessFromNotion(): Promise<KvRoleMapping[]> {
     const props = page.properties;
     let role = "";
     let folders: string[] = [];
+    let capabilities: string[] = [];
 
     for (const [propName, propValue] of Object.entries(props)) {
       // Role is the title field
@@ -43,10 +44,15 @@ async function fetchRoleAccessFromNotion(): Promise<KvRoleMapping[]> {
       if (propName.toLowerCase() === "folders" && propValue.type === "multi_select") {
         folders = propValue.multi_select.map((opt: { name: string }) => opt.name.toLowerCase());
       }
+
+      // Capabilities is a multi-select field
+      if (propName.toLowerCase() === "capabilities" && propValue.type === "multi_select") {
+        capabilities = propValue.multi_select.map((opt: { name: string }) => opt.name.toLowerCase());
+      }
     }
 
     if (role) {
-      mappings.push({ role, folders });
+      mappings.push({ role, folders, capabilities });
     }
   }
 
@@ -114,4 +120,25 @@ export async function getFoldersForRoles(userRoles: string[]): Promise<string[]>
   }
 
   return Array.from(folders);
+}
+
+/**
+ * Get the capabilities a user has based on their roles
+ * @param userRoles Array of role names the user has
+ * @returns Array of capability names (deduplicated across roles)
+ */
+export async function getCapabilitiesForRoles(userRoles: string[]): Promise<string[]> {
+  const mappings = await getRoleAccess();
+  const capabilities = new Set<string>();
+  const normalizedUserRoles = userRoles.map(r => r.toLowerCase());
+
+  for (const mapping of mappings) {
+    if (normalizedUserRoles.includes(mapping.role.toLowerCase())) {
+      for (const cap of mapping.capabilities) {
+        capabilities.add(cap);
+      }
+    }
+  }
+
+  return Array.from(capabilities);
 }

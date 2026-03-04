@@ -38,6 +38,11 @@ const STEP_LABELS: Record<string, Record<string, string[]>> = {
     en: ["Looking up E-Flight account data", "Fetching account details"],
     de: ["E-Flight-Kontodaten abrufen", "Kontoinformationen laden"],
   },
+  "doc-validity": {
+    nl: ["Documenten ophalen uit Wings", "Documentvaliditeit checken"],
+    en: ["Fetching documents from Wings", "Checking document validity"],
+    de: ["Dokumente aus Wings abrufen", "Dokumentengültigkeit prüfen"],
+  },
   generating: {
     nl: ["Antwoord formuleren", "Antwoord schrijven"],
     en: ["Formulating response", "Writing answer"],

@@ -7,6 +7,7 @@ export const chatRequestSchema = z.object({
   })).min(1),
   lang: z.string().max(5).optional(),
   flowContext: z.record(z.string(), z.string()).optional(),
+  roleOverride: z.array(z.string().max(50)).optional(),
 });
 
 export const chatLogSchema = z.object({

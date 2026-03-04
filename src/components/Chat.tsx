@@ -26,6 +26,7 @@ export default function Chat() {
   const searchParams = useSearchParams();
   const [shopifyUser, setShopifyUser] = useState<{ email: string; firstName: string; lastName: string; displayName: string } | null>(null);
   const [userRoles, setUserRoles] = useState<string[]>([]);
+  const [capabilities, setCapabilities] = useState<string[]>([]);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -45,8 +46,12 @@ export default function Chat() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const sharedChatIdRef = useRef(searchParams.get("chat"));
-  const debugMode = searchParams.get("debug") === "true";
+  const debugMode = searchParams.get("debug") === "true" || (typeof window !== "undefined" && window.location.hostname === "localhost");
   const client = searchParams.get("client");
+  const roleOverride = useMemo(() => {
+    const param = searchParams.get("role");
+    return param ? param.split(",").map(r => r.trim()).filter(Boolean) : undefined;
+  }, [searchParams]);
 
   const [isTouchDevice] = useState(() =>
     typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0)
@@ -340,7 +345,7 @@ export default function Chat() {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages: apiMessages, lang: lang || "en", flowContext }),
+        body: JSON.stringify({ messages: apiMessages, lang: lang || "en", flowContext, roleOverride }),
         signal: controller.signal,
       });
 
@@ -491,16 +496,20 @@ export default function Chat() {
 
   // Check Shopify session
   const checkSession = useCallback(() => {
-    fetch("/api/auth/shopify/session")
+    const sessionUrl = roleOverride
+      ? `/api/auth/shopify/session?roleOverride=${roleOverride.join(",")}`
+      : "/api/auth/shopify/session";
+    fetch(sessionUrl)
       .then((res) => res.json())
       .then((data) => {
         if (data.authenticated && data.customer) {
           setShopifyUser(data.customer);
           setUserRoles(data.roles || []);
+          setCapabilities(data.capabilities || []);
         }
       })
       .catch(() => {});
-  }, []);
+  }, [roleOverride]);
 
   useEffect(() => {
     checkSession();
@@ -759,6 +768,7 @@ export default function Chat() {
             onTapAndTalk={isKiosk || (isTouchDevice && client !== "briefing" && typeof window !== "undefined" && window.innerWidth >= 768) ? handleTapAndTalk : undefined}
             listeningLang={listeningLang}
             kiosk={isKiosk}
+            capabilities={capabilities}
           />
         )}
 

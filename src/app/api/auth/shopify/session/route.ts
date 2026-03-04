@@ -1,9 +1,30 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/shopify-auth";
-import { getUserRoles } from "@/lib/airtable";
+import { getUserData } from "@/lib/airtable";
+import { getCapabilitiesForRoles } from "@/lib/role-access";
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    // Dev-only role override
+    const roleOverride = request.nextUrl.searchParams.get("roleOverride");
+    if (process.env.NODE_ENV !== "production" && roleOverride) {
+      const roles = roleOverride.split(",").map(r => r.trim()).filter(Boolean);
+      const capabilities = await getCapabilitiesForRoles(roles);
+      console.log(`[DEV] Role override active: [${roles.join(", ")}], capabilities: [${capabilities.join(", ")}]`);
+      return NextResponse.json({
+        authenticated: true,
+        customer: {
+          email: "dev@eflight.nl",
+          firstName: "Dev",
+          lastName: "User",
+          displayName: "Dev User",
+        },
+        roles,
+        capabilities,
+        wingsUserId: 1062, // Dev mock: Matthijs
+      });
+    }
+
     const session = await getSession();
     console.log("Session check:", session ? `Found session for ${session.customer.email}` : "No session");
 
@@ -12,11 +33,14 @@ export async function GET() {
         authenticated: false,
         customer: null,
         roles: [],
+        capabilities: [],
+        wingsUserId: null,
       });
     }
 
-    // Fetch roles from Airtable
-    const roles = await getUserRoles(session.customer.email);
+    // Fetch roles + Wings User ID from Airtable
+    const userData = await getUserData(session.customer.email);
+    const capabilities = await getCapabilitiesForRoles(userData.roles);
 
     // Don't expose tokens to client
     return NextResponse.json({
@@ -27,7 +51,9 @@ export async function GET() {
         lastName: session.customer.lastName,
         displayName: session.customer.displayName,
       },
-      roles,
+      roles: userData.roles,
+      capabilities,
+      wingsUserId: userData.wingsUserId,
     });
   } catch (error) {
     console.error("Session error:", error);
@@ -35,6 +61,8 @@ export async function GET() {
       authenticated: false,
       customer: null,
       roles: [],
+      capabilities: [],
+      wingsUserId: null,
     });
   }
 }

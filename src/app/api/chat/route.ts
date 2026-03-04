@@ -7,8 +7,9 @@ import { getWebsiteContent, buildWebsiteContext } from "@/lib/website";
 import { getProducts, buildProductsContext } from "@/lib/shopify";
 import { getTranslations } from "@/lib/i18n/translate";
 import { getSession, fetchCustomerOrders, buildOrdersContext, type ShopifyOrder } from "@/lib/shopify-auth";
-import { getUserRoles } from "@/lib/airtable";
-import { getFoldersForRoles } from "@/lib/role-access";
+import { getUserData } from "@/lib/airtable";
+import { getFoldersForRoles, getCapabilitiesForRoles } from "@/lib/role-access";
+import { getUserDocuments, buildDocumentValidityContext } from "@/lib/wings";
 import { chatRequestSchema } from "@/lib/api-schemas";
 import { logger, apiTimer } from "@/lib/logger";
 
@@ -73,7 +74,7 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
     }
-    const { messages, lang: clientLang, flowContext } = parsed.data;
+    const { messages, lang: clientLang, flowContext, roleOverride } = parsed.data;
 
     const geminiApiKey = process.env.GEMINI_API_KEY;
     if (!geminiApiKey) {
@@ -83,22 +84,36 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get user roles and access token for document filtering and order fetching
+    // Get user roles, capabilities, and access token
     let userRoles: string[] = [];
+    let capabilities: string[] = [];
+    let wingsUserId: number | null = null;
     let accessToken: string | null = null;
-    try {
-      const session = await getSession();
-      if (session?.customer?.email) {
-        userRoles = await getUserRoles(session.customer.email);
-        accessToken = session.accessToken;
+
+    // Dev-only role override
+    if (process.env.NODE_ENV !== "production" && roleOverride?.length) {
+      userRoles = roleOverride;
+      capabilities = await getCapabilitiesForRoles(userRoles);
+      wingsUserId = 1062; // Dev mock: Matthijs
+      console.log(`[DEV] Chat role override: [${userRoles.join(", ")}], caps: [${capabilities.join(", ")}]`);
+    } else {
+      try {
+        const session = await getSession();
+        if (session?.customer?.email) {
+          const userData = await getUserData(session.customer.email);
+          userRoles = userData.roles;
+          wingsUserId = userData.wingsUserId;
+          capabilities = await getCapabilitiesForRoles(userRoles);
+          accessToken = session.accessToken;
+        }
+      } catch (err) {
+        console.warn("Failed to get user roles:", err);
       }
-    } catch (err) {
-      console.warn("Failed to get user roles:", err);
     }
 
     // Get allowed folders based on roles (defaults to ["public"] for anonymous)
     const allowedFolders = await getFoldersForRoles(userRoles);
-    console.log(`Chat: user roles [${userRoles.join(", ")}] → folders [${allowedFolders.join(", ")}]`);
+    console.log(`Chat: user roles [${userRoles.join(", ")}] → folders [${allowedFolders.join(", ")}], caps: [${capabilities.join(", ")}]`);
 
     const lastMessage = messages[messages.length - 1];
     const encoder = new TextEncoder();
@@ -114,7 +129,7 @@ export async function POST(request: NextRequest) {
     ), "config", controller, encoder);
 
     // Load remaining data sources in parallel (with progress events)
-    const [faqs, ragResult, binaryContext, websitePages, products, orders] = await Promise.all([
+    const [faqs, ragResult, binaryContext, websitePages, products, orders, wingsDocResult] = await Promise.all([
       trackProgress(withTimeout(
         getFaqs(true).catch((err) => { console.error("Failed to load FAQs:", err); return [] as never[]; }),
         5000, []
@@ -150,6 +165,15 @@ export async function POST(request: NextRequest) {
             5000, [] as ShopifyOrder[]
           ), "orders", controller, encoder)
         : Promise.resolve([] as ShopifyOrder[]),
+      capabilities.includes("doc-validity") && wingsUserId
+        ? trackProgress(withTimeout(
+            getUserDocuments(wingsUserId).catch((err) => {
+              console.error("Failed to fetch Wings documents:", err);
+              return null;
+            }),
+            8000, null
+          ), "doc-validity", controller, encoder)
+        : Promise.resolve(null),
     ]);
 
     const searchOrder = config?.search_order ?? ["faq", "drive"];
@@ -282,6 +306,17 @@ export async function POST(request: NextRequest) {
         "",
         "NOTE: The user is NOT logged in. If they ask about their orders, purchases, bookings, or account information, tell them they need to log in first to view their order history. Mention they can log in using the login button in the top right corner of the screen."
       );
+    }
+
+    // Append Wings document validity context
+    if (wingsDocResult?.documents) {
+      const docContext = buildDocumentValidityContext(wingsDocResult.documents, wingsDocResult.userName);
+      if (docContext) {
+        instructionParts.push("", docContext);
+        instructionParts.push(
+          "When presenting document validity information, highlight expired documents with a clear warning. For documents expiring within 30 days, suggest the user take action soon. Group by status (expired, expiring soon, valid). Be helpful and specific about what steps to take for expired or expiring documents."
+        );
+      }
     }
 
     const systemInstruction = instructionParts.join("\n");
@@ -475,6 +510,33 @@ export async function POST(request: NextRequest) {
           fullText = fullText.replace(/\n?\[lang:\s*[a-z]{2}\s*\]/i, "").trimEnd();
           const langChanged = detectedLang !== (clientLang || "en");
           const done: Record<string, unknown> = { type: "done" };
+
+          // Localize URLs based on detected language (we only index NL pages)
+          if (detectedLang !== "nl") {
+            const localizeUrl = (url: string) => {
+              try {
+                const parsed = new URL(url);
+                // Only localize eflight.nl URLs that aren't already localized
+                if (parsed.hostname.includes("eflight.nl") &&
+                    !parsed.pathname.startsWith(`/${detectedLang}/`)) {
+                  parsed.pathname = `/${detectedLang}${parsed.pathname}`;
+                  return parsed.toString();
+                }
+              } catch { /* not a valid URL */ }
+              return url;
+            };
+            // Localize URLs in response text ([link: url | label] tags and markdown links)
+            fullText = fullText.replace(/\[link:\s*(https?:\/\/[^\s|]+)/gi, (match, url) =>
+              match.replace(url, localizeUrl(url))
+            );
+            fullText = fullText.replace(/\]\((https?:\/\/[^)]+eflight\.nl[^)]*)\)/gi, (match, url) =>
+              match.replace(url, localizeUrl(url))
+            );
+            if (sourceUrl) sourceUrl = localizeUrl(sourceUrl);
+            if (processedSource && sourceUrl) {
+              processedSource = processedSource.replace(/(https?:\/\/[^\s|]+eflight\.nl[^\s|]*)/, sourceUrl);
+            }
+          }
 
           // Sanitize: strip newlines and pipe characters from title to prevent source tag parsing issues
           if (sourceTitle) sourceTitle = sourceTitle.replace(/[\n\r|]/g, " ").replace(/\s+/g, " ").trim();

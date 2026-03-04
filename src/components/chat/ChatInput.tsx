@@ -78,6 +78,9 @@ export default function ChatInput({
             name="message"
             id={inputId}
             autoComplete="off"
+            data-gramm="false"
+            data-gramm_editor="false"
+            data-enable-grammarly="false"
             rows={1}
             value={input}
             onChange={(e) => { setInput(e.target.value); autoResizeTextarea(); }}

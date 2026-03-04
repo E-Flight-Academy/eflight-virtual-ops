@@ -22,6 +22,26 @@ function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T
   ]);
 }
 
+function emitProgress(
+  controller: ReadableStreamDefaultController,
+  encoder: TextEncoder,
+  step: string,
+) {
+  controller.enqueue(encoder.encode(JSON.stringify({ type: "progress", step }) + "\n"));
+}
+
+function trackProgress<T>(
+  promise: Promise<T>,
+  step: string,
+  controller: ReadableStreamDefaultController,
+  encoder: TextEncoder,
+): Promise<T> {
+  return promise.then((result) => {
+    emitProgress(controller, encoder, step);
+    return result;
+  });
+}
+
 export async function POST(request: NextRequest) {
   const logDone = apiTimer("POST /api/chat");
   try {
@@ -31,7 +51,8 @@ export async function POST(request: NextRequest) {
     }
     const { messages, lang: clientLang, flowContext } = parsed.data;
 
-    if (!process.env.GEMINI_API_KEY) {
+    const geminiApiKey = process.env.GEMINI_API_KEY;
+    if (!geminiApiKey) {
       return NextResponse.json(
         { error: "GEMINI_API_KEY is not configured" },
         { status: 500 }
@@ -56,40 +77,45 @@ export async function POST(request: NextRequest) {
     console.log(`Chat: user roles [${userRoles.join(", ")}] → folders [${allowedFolders.join(", ")}]`);
 
     const lastMessage = messages[messages.length - 1];
+    const encoder = new TextEncoder();
 
-    // Load all data sources in parallel (with timeouts)
+    const stream = new ReadableStream({
+      async start(controller) {
+        try {
+
+    // Load all data sources in parallel (with progress events)
     const [config, faqs, ragResult, binaryContext, websitePages, products, orders] = await Promise.all([
-      withTimeout(
+      trackProgress(withTimeout(
         getConfig().catch((err) => { console.error("Failed to load config:", err); return null; }),
         5000, null
-      ),
-      withTimeout(
+      ), "config", controller, encoder),
+      trackProgress(withTimeout(
         getFaqs().catch((err) => { console.error("Failed to load FAQs:", err); return [] as never[]; }),
         5000, []
-      ),
-      withTimeout(
+      ), "faqs", controller, encoder),
+      trackProgress(withTimeout(
         getRelevantDocuments(lastMessage.content, allowedFolders).catch((err) => { console.error("Failed to load RAG context:", err); return null; }),
         10000, null
-      ),
-      withTimeout(
+      ), "documents", controller, encoder),
+      trackProgress(withTimeout(
         getBinaryDocumentContext(allowedFolders).catch((err) => { console.error("Failed to load binary context:", err); return null; }),
         10000, null
-      ),
-      withTimeout(
+      ), "files", controller, encoder),
+      trackProgress(withTimeout(
         getWebsiteContent().catch((err) => {
           console.error("Failed to load website content:", err);
           return [] as never[];
         }),
         10000, []
-      ),
-      withTimeout(
+      ), "website", controller, encoder),
+      trackProgress(withTimeout(
         getProducts().catch((err) => {
           console.error("Failed to load products:", err);
           return [] as never[];
         }),
         5000, []
-      ),
-      withTimeout(
+      ), "products", controller, encoder),
+      trackProgress(withTimeout(
         accessToken
           ? fetchCustomerOrders(accessToken).catch((err) => {
               console.error("Failed to fetch orders:", err);
@@ -97,7 +123,7 @@ export async function POST(request: NextRequest) {
             })
           : Promise.resolve([] as ShopifyOrder[]),
         5000, [] as ShopifyOrder[]
-      ),
+      ), "orders", controller, encoder),
     ]);
 
     const searchOrder = config?.search_order ?? ["faq", "drive"];
@@ -106,7 +132,7 @@ export async function POST(request: NextRequest) {
     const fallbackInstruction = config?.fallback_instruction ?? "If the answer cannot be found in any of the provided sources, you may use your general knowledge to answer, but clearly state that the information does not come from E-Flight Academy's official documents or FAQs.";
     const systemInstructions = (config as Record<string, unknown>)?.system_instructions as string | undefined;
 
-    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const genAI = new GoogleGenerativeAI(geminiApiKey);
 
     // Build system instruction based on search_order
     const instructionParts: string[] = [];
@@ -283,14 +309,11 @@ export async function POST(request: NextRequest) {
       : Promise.resolve(clientLang || "en");
 
     // Start streaming response from Gemini
+    emitProgress(controller, encoder, "generating");
     const streamResult = await chat.sendMessageStream(lastMessage.content);
 
-    const encoder = new TextEncoder();
     let fullText = "";
 
-    const stream = new ReadableStream({
-      async start(controller) {
-        try {
           for await (const chunk of streamResult.stream) {
             const text = chunk.text();
             fullText += text;

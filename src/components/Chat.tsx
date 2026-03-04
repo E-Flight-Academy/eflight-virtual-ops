@@ -40,6 +40,7 @@ export default function Chat() {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [sessionId] = useState(() => crypto.randomUUID().slice(0, 8));
   const [followUpSuggestions, setFollowUpSuggestions] = useState<string[]>([]);
+  const [progressSteps, setProgressSteps] = useState<string[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -331,6 +332,7 @@ export default function Chat() {
     }
 
     setIsLoading(true);
+    setProgressSteps([]);
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
@@ -373,7 +375,10 @@ export default function Chat() {
           if (!line.trim()) continue;
           try {
             const msg = JSON.parse(line);
-            if (msg.type === "chunk") {
+            if (msg.type === "progress") {
+              setProgressSteps((prev) => [...prev, msg.step]);
+            } else if (msg.type === "chunk") {
+              if (!accumulated) setProgressSteps([]);
               accumulated += msg.text;
               setMessages([...displayMessages, { role: "assistant", content: accumulated }]);
             } else if (msg.type === "done") {
@@ -781,6 +786,7 @@ export default function Chat() {
             adminCategories={isAdmin ? adminCategories : undefined}
             adminAudiences={isAdmin ? adminAudiences : undefined}
             lang={lang}
+            progressSteps={progressSteps}
           />
         )}
 

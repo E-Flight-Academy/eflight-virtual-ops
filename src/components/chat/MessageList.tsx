@@ -40,6 +40,7 @@ interface MessageListProps {
   adminCategories?: string[];
   adminAudiences?: string[];
   lang?: string;
+  progressSteps?: string[];
 }
 
 export default function MessageList({
@@ -71,6 +72,7 @@ export default function MessageList({
   adminCategories = [],
   adminAudiences = [],
   lang = "en",
+  progressSteps = [],
 }: MessageListProps) {
   return (
     <div role="log" aria-live="polite" aria-label="Chat messages" className="space-y-4">
@@ -251,7 +253,7 @@ export default function MessageList({
         </>
       ) : null}
 
-      {isLoading && <TypingIndicator />}
+      {isLoading && <TypingIndicator progressSteps={progressSteps} lang={lang} />}
 
       <div ref={messagesEndRef} />
     </div>

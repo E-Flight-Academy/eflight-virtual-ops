@@ -12,7 +12,7 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ARG COMMIT_SHA=dev
-ENV VERCEL_GIT_COMMIT_SHA=$COMMIT_SHA
+ENV COMMIT_SHA=$COMMIT_SHA
 RUN npm run build
 
 # --- Production ---

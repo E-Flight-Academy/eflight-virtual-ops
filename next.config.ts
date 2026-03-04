@@ -4,8 +4,8 @@ import { readFileSync } from "fs";
 import { join } from "path";
 
 function getBuildId(): string {
-  if (process.env.VERCEL_GIT_COMMIT_SHA) {
-    return process.env.VERCEL_GIT_COMMIT_SHA.slice(0, 7);
+  if (process.env.COMMIT_SHA) {
+    return process.env.COMMIT_SHA.slice(0, 7);
   }
   try {
     return execSync("git rev-parse --short HEAD").toString().trim();

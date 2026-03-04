@@ -383,6 +383,7 @@ export default function Chat() {
               setMessages([...displayMessages, { role: "assistant", content: accumulated }]);
             } else if (msg.type === "done") {
               accumulated = accumulated.replace(/\n?\[suggestions:\s*[^\]]+\]/i, "").trimEnd();
+              accumulated = accumulated.replace(/\n?\[lang:\s*[a-z]{2}\s*\]/i, "").trimEnd();
               if (msg.source) {
                 accumulated = accumulated.replace(
                   /\[source:\s*(?:Website|FAQ|Products?)\s*(?:\|[^\]]*)?\]/i,

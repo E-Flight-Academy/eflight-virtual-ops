@@ -414,6 +414,43 @@ export async function POST(request: NextRequest) {
 
     const systemInstruction = instructionParts.join("\n");
 
+    // Log context size breakdown per section
+    const sectionSizes: Record<string, number> = {};
+    const sysText = systemInstruction;
+    // Extract sections by === markers
+    const sectionRegex = /=== (.+?) ===/g;
+    let lastIdx = 0;
+    let match;
+    const foundSections: { name: string; start: number }[] = [];
+    while ((match = sectionRegex.exec(sysText)) !== null) {
+      foundSections.push({ name: match[1], start: match.index });
+    }
+    if (foundSections.length > 0) {
+      // Everything before first section = "Base instructions"
+      sectionSizes["Base instructions"] = foundSections[0].start;
+      for (let i = 0; i < foundSections.length; i++) {
+        const end = i + 1 < foundSections.length ? foundSections[i + 1].start : sysText.length;
+        sectionSizes[foundSections[i].name] = end - foundSections[i].start;
+      }
+    } else {
+      sectionSizes["System instruction"] = sysText.length;
+    }
+    lastIdx = 0; // suppress unused warning
+    void lastIdx;
+
+    const historyChars = messages.slice(0, -1).reduce((sum, m) => sum + m.content.length, 0);
+    const binaryCount = binaryContext?.fileParts.length ?? 0;
+    const totalChars = systemInstruction.length + historyChars + lastMessage.content.length;
+
+    console.log(`[Context] === Size Breakdown (chars → ~tokens) ===`);
+    for (const [name, chars] of Object.entries(sectionSizes).sort((a, b) => b[1] - a[1])) {
+      console.log(`[Context]   ${name}: ${chars.toLocaleString()} chars (~${Math.round(chars / 4).toLocaleString()} tokens)`);
+    }
+    console.log(`[Context]   Chat history: ${messages.length - 1} msgs, ${historyChars.toLocaleString()} chars (~${Math.round(historyChars / 4).toLocaleString()} tokens)`);
+    console.log(`[Context]   Last message: ${lastMessage.content.length} chars`);
+    console.log(`[Context]   Binary files: ${binaryCount} (first msg only)`);
+    console.log(`[Context] Total: ${totalChars.toLocaleString()} chars (~${Math.round(totalChars / 4).toLocaleString()} tokens, excl. binary)`);
+
     const model = genAI.getGenerativeModel({
       model: "gemini-2.5-flash",
       systemInstruction,

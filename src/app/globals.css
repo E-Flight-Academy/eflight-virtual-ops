@@ -2,7 +2,7 @@
 @plugin "@tailwindcss/typography";
 
 :root {
-  --background: #FAFAFA;
+  --background: #EEF2F7;
   --foreground: #030213;
   --e-indigo: #1515F5;
   --e-indigo-light: #A1A1FB;

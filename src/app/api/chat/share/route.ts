@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
 
     if (!saved) {
       return NextResponse.json(
-        { error: "Failed to save shared chat" },
+        { error: "Failed to save shared chat (Redis write failed)" },
         { status: 500 }
       );
     }
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Share API error:", error);
     return NextResponse.json(
-      { error: "Failed to create shared chat" },
+      { error: "Failed to create shared chat", detail: String(error) },
       { status: 500 }
     );
   }

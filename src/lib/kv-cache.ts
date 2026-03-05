@@ -425,10 +425,11 @@ export async function getKvSharedChat(id: string): Promise<KvSharedChat | null> 
 export async function setKvSharedChat(id: string, data: KvSharedChat): Promise<boolean> {
   try {
     const r = getRedis();
-    if (!r) return false;
+    if (!r) { console.error("setKvSharedChat: Redis not available"); return false; }
     await r.set(`${SHARED_CHAT_KEY_PREFIX}${id}`, data, { ex: SHARED_CHAT_TTL });
     return true;
-  } catch {
+  } catch (err) {
+    console.error("setKvSharedChat error:", err);
     return false;
   }
 }

@@ -50,6 +50,7 @@ export interface KbStatus {
     roles: string[];
     folders: string[];
     capabilities?: string[];
+    override?: boolean;
   };
   filteredFileCount?: number;
   filteredFileNames?: string[];

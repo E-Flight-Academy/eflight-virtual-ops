@@ -64,16 +64,16 @@ async function handleSync(request: NextRequest) {
       [vectorResult, websiteVectorResult, faqVectorResult] = await Promise.all([
         syncVectorIndex(),
         syncWebsiteVectorIndex(websitePages).catch((err) => {
-          console.warn("Website vector sync failed:", err);
+          console.error("Website vector sync failed:", err instanceof Error ? err.stack : err);
           return { pageCount: 0, chunkCount: 0 };
         }),
         syncFaqVectorIndex(faqs).catch((err) => {
-          console.warn("FAQ vector sync failed:", err);
+          console.error("FAQ vector sync failed:", err instanceof Error ? err.stack : err);
           return { faqCount: 0, chunkCount: 0 };
         }),
       ]);
     } catch (err) {
-      console.warn("Vector index sync failed:", err);
+      console.error("Vector index sync failed:", err instanceof Error ? err.stack : err);
     }
 
     // Update faqCount in KB status

@@ -225,8 +225,10 @@ export async function queryDocuments(
 
   const queryVector = await embedText(query);
 
-  // Build metadata filter for role-based access + source=drive
-  const parts: string[] = ["source = 'drive'"];
+  // Build metadata filter for role-based access
+  // Note: source filter omitted because legacy vectors lack source field;
+  // drive vectors are distinguished by having a driveFileId
+  const parts: string[] = [];
   if (!allowedFolders.includes("*")) {
     const normalized = allowedFolders.map((f) => f.toLowerCase());
     const folderFilter = normalized.map((f) => `folder = '${f}'`).join(" OR ");
@@ -360,8 +362,10 @@ export async function syncWebsiteVectorIndex(pages: KvWebsitePage[]): Promise<{ 
   }
 
   // Embed and upsert
+  console.log(`Website vector sync: embedding ${allChunks.length} chunks from ${pages.length} pages...`);
   const texts = allChunks.map((c) => c.text);
   const vectors = await embedTexts(texts);
+  console.log(`Website vector sync: got ${vectors.length} embeddings, upserting...`);
 
   for (let i = 0; i < allChunks.length; i += UPSERT_BATCH_SIZE) {
     const batchChunks = allChunks.slice(i, i + UPSERT_BATCH_SIZE);
@@ -373,6 +377,7 @@ export async function syncWebsiteVectorIndex(pages: KvWebsitePage[]): Promise<{ 
         metadata: chunk.metadata,
       }))
     );
+    console.log(`Website vector sync: upserted batch ${Math.floor(i / UPSERT_BATCH_SIZE) + 1}`);
   }
 
   const duration = ((Date.now() - startTime) / 1000).toFixed(1);
@@ -488,8 +493,10 @@ export async function syncFaqVectorIndex(faqs: KvFaq[]): Promise<{ faqCount: num
   }
 
   // Embed and upsert
+  console.log(`FAQ vector sync: embedding ${allChunks.length} FAQs...`);
   const texts = allChunks.map((c) => c.text);
   const vectors = await embedTexts(texts);
+  console.log(`FAQ vector sync: got ${vectors.length} embeddings, upserting...`);
 
   for (let i = 0; i < allChunks.length; i += UPSERT_BATCH_SIZE) {
     const batchChunks = allChunks.slice(i, i + UPSERT_BATCH_SIZE);
@@ -501,6 +508,7 @@ export async function syncFaqVectorIndex(faqs: KvFaq[]): Promise<{ faqCount: num
         metadata: chunk.metadata,
       }))
     );
+    console.log(`FAQ vector sync: upserted batch ${Math.floor(i / UPSERT_BATCH_SIZE) + 1}`);
   }
 
   const duration = ((Date.now() - startTime) / 1000).toFixed(1);

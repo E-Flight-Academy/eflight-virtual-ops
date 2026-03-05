@@ -5,10 +5,24 @@ import { getCapabilitiesForRoles } from "@/lib/role-access";
 
 export async function GET(request: NextRequest) {
   try {
-    // Dev-only role override (with optional user email for Airtable lookup)
+    // Debug role override (admin-only in production)
+    const DEBUG_OVERRIDE_EMAILS = ["matthijs@eflight.nl", "matthijscollard@gmail.com"];
     const roleOverride = request.nextUrl.searchParams.get("roleOverride");
     const userEmailOverride = request.nextUrl.searchParams.get("userEmail");
-    if (process.env.NODE_ENV !== "production" && (roleOverride || userEmailOverride)) {
+
+    const wantsOverride = roleOverride || userEmailOverride;
+    let isDebugAllowed = process.env.NODE_ENV !== "production";
+    if (!isDebugAllowed && wantsOverride) {
+      try {
+        const session = await getSession();
+        const sessionEmail = session?.customer?.email;
+        if (sessionEmail && DEBUG_OVERRIDE_EMAILS.includes(sessionEmail.toLowerCase())) {
+          isDebugAllowed = true;
+        }
+      } catch { /* no session */ }
+    }
+
+    if (isDebugAllowed && wantsOverride) {
       let roles: string[];
       let wingsUserId: number | null = null;
       let email = "dev@eflight.nl";
@@ -27,7 +41,7 @@ export async function GET(request: NextRequest) {
       }
 
       const capabilities = await getCapabilitiesForRoles(roles);
-      console.log(`[DEV] Override: email=${email}, roles=[${roles.join(", ")}], caps=[${capabilities.join(", ")}], wingsUserId=${wingsUserId}`);
+      console.log(`[DEBUG] Override: email=${email}, roles=[${roles.join(", ")}], caps=[${capabilities.join(", ")}], wingsUserId=${wingsUserId}`);
       return NextResponse.json({
         authenticated: true,
         customer: { email, firstName: "Dev", lastName: "User", displayName },

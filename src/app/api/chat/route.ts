@@ -90,8 +90,23 @@ export async function POST(request: NextRequest) {
     let wingsUserId: number | null = null;
     let accessToken: string | null = null;
 
-    // Dev-only user/role override
-    if (process.env.NODE_ENV !== "production" && (roleOverride?.length || userEmailOverride)) {
+    // Check if current user is allowed to use debug overrides
+    const DEBUG_OVERRIDE_EMAILS = ["matthijs@eflight.nl"];
+    let sessionForOverrideCheck: { customer?: { email?: string }; accessToken: string } | null = null;
+    const wantsOverride = roleOverride?.length || userEmailOverride;
+    if (wantsOverride) {
+      try {
+        sessionForOverrideCheck = await getSession();
+      } catch { /* no session */ }
+    }
+    const isDebugAllowed = process.env.NODE_ENV !== "production"
+      ? true
+      : sessionForOverrideCheck?.customer?.email
+        ? DEBUG_OVERRIDE_EMAILS.includes(sessionForOverrideCheck.customer.email.toLowerCase())
+        : false;
+
+    // User/role override (dev or authorized admin)
+    if (isDebugAllowed && wantsOverride) {
       if (userEmailOverride) {
         const userData = await getUserData(userEmailOverride);
         userRoles = userData.roles;
@@ -104,7 +119,7 @@ export async function POST(request: NextRequest) {
       console.log(`[DEV] Chat override: email=${userEmailOverride || "dev@eflight.nl"}, roles=[${userRoles.join(", ")}], caps=[${capabilities.join(", ")}], wingsUserId=${wingsUserId}`);
     } else {
       try {
-        const session = await getSession();
+        const session = sessionForOverrideCheck ?? await getSession();
         if (session?.customer?.email) {
           const userData = await getUserData(session.customer.email);
           userRoles = userData.roles;

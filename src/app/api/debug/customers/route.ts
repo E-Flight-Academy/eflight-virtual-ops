@@ -19,19 +19,32 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "session error" }, { status: 401 });
   }
 
-  console.log(`[debug/customers] Authorized as ${sessionEmail}, fetching customers...`);
-  const customers = await getAllCustomers();
-  console.log(`[debug/customers] Returning ${customers.length} customers`);
+  // Direct Airtable test — bypass getAllCustomers to see raw errors
+  const token = process.env.AIRTABLE_TOKEN || "";
+  const baseId = process.env.AIRTABLE_BASE_ID || "";
+  const fields = ["Client E-Mail", "Name", "Wings Role"].map(f => `fields%5B%5D=${encodeURIComponent(f)}`).join("&");
+  const url = `https://api.airtable.com/v0/${baseId}/${encodeURIComponent("Customers")}?${fields}&maxRecords=5`;
 
-  // Temporary debug: include metadata in response
-  if (customers.length === 0) {
-    return NextResponse.json({
-      _debug: true,
-      _airtableToken: !!process.env.AIRTABLE_TOKEN,
-      _airtableBase: !!process.env.AIRTABLE_BASE_ID,
-      _basePrefix: process.env.AIRTABLE_BASE_ID?.slice(0, 6),
-      customers,
+  try {
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
     });
+    const body = await res.text();
+    if (!res.ok) {
+      return NextResponse.json({ error: "airtable_error", status: res.status, body });
+    }
+    const data = JSON.parse(body);
+    const customers = (data.records || []).map((rec: Record<string, unknown>) => {
+      const f = rec.fields as Record<string, unknown>;
+      return {
+        email: f["Client E-Mail"] || "",
+        name: (f["Name"] as string[])?.[0] || (f["Client E-Mail"] as string || "").split("@")[0],
+        roles: f["Wings Role"] || [],
+      };
+    });
+    return NextResponse.json({ _debug: true, _total: data.records?.length, customers });
+  } catch (err) {
+    return NextResponse.json({ error: "fetch_error", message: err instanceof Error ? err.message : String(err) });
   }
-  return NextResponse.json(customers);
 }

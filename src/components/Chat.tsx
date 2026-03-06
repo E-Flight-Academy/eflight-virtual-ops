@@ -737,7 +737,7 @@ export default function Chat() {
         t={t}
       />
 
-      <div className={`flex-1 overflow-y-auto p-2 sm:p-4 bg-gradient-to-b from-[#EFEFEF] to-[#F7F7F7] dark:from-gray-950 dark:to-gray-900 ${hasUserMessages ? "space-y-6" : `flex flex-col items-center ${client === "briefing" ? "justify-end pb-4" : isKiosk ? "justify-start pt-6" : "justify-center"}`}`}>
+      <div className={`flex-1 overflow-y-auto p-2 sm:p-4 bg-background dark:bg-gray-950 ${hasUserMessages ? "space-y-6" : `flex flex-col items-center ${client === "briefing" ? "justify-end pb-4" : isKiosk ? "justify-start pt-6" : "justify-center"}`}`}>
         {!hasUserMessages && (
           <WelcomeScreen
             flowPhase={flowPhase}

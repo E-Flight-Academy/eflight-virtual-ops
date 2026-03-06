@@ -442,13 +442,20 @@ export async function POST(request: NextRequest) {
     const binaryCount = binaryContext?.fileParts.length ?? 0;
     const totalChars = systemInstruction.length + historyChars + lastMessage.content.length;
 
-    console.log(`[Context] === Size Breakdown (chars → ~tokens) ===`);
-    for (const [name, chars] of Object.entries(sectionSizes).sort((a, b) => b[1] - a[1])) {
-      console.log(`[Context]   ${name}: ${chars.toLocaleString()} chars (~${Math.round(chars / 4).toLocaleString()} tokens)`);
-    }
-    console.log(`[Context]   Chat history: ${messages.length - 1} msgs, ${historyChars.toLocaleString()} chars (~${Math.round(historyChars / 4).toLocaleString()} tokens)`);
-    console.log(`[Context]   Last message: ${lastMessage.content.length} chars`);
-    console.log(`[Context]   Binary files: ${binaryCount} (first msg only)`);
+    // Emit context sizes as a progress event (visible in network tab / debug)
+    const contextSizes = Object.fromEntries(
+      Object.entries(sectionSizes)
+        .sort((a, b) => b[1] - a[1])
+        .map(([name, chars]) => [name, { chars, tokens: Math.round(chars / 4) }])
+    );
+    contextSizes["Chat history"] = { chars: historyChars, tokens: Math.round(historyChars / 4) };
+    controller.enqueue(encoder.encode(JSON.stringify({
+      type: "context_sizes",
+      sections: contextSizes,
+      total: { chars: totalChars, tokens: Math.round(totalChars / 4) },
+      binaryFiles: binaryCount,
+    }) + "\n"));
+
     console.log(`[Context] Total: ${totalChars.toLocaleString()} chars (~${Math.round(totalChars / 4).toLocaleString()} tokens, excl. binary)`);
 
     const model = genAI.getGenerativeModel({

@@ -72,6 +72,7 @@ export default function KbStatusBar({ kbStatus, kbExpanded, onToggle, t, current
   const [customersLoading, setCustomersLoading] = useState(false);
   const [customersError, setCustomersError] = useState<string | null>(null);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [highlightIndex, setHighlightIndex] = useState(-1);
   const [previewRoles, setPreviewRoles] = useState<string[]>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
@@ -91,6 +92,7 @@ export default function KbStatusBar({ kbStatus, kbExpanded, onToggle, t, current
         setCustomers(Array.isArray(data) ? data : []);
         setCustomersError(null);
         setCustomersLoading(false);
+        setHighlightIndex(-1);
       })
       .catch((err) => {
         setCustomersError(err.message);
@@ -202,15 +204,27 @@ export default function KbStatusBar({ kbStatus, kbExpanded, onToggle, t, current
                   onChange={(e) => { setEmailInput(e.target.value); setShowDropdown(true); }}
                   onFocus={() => setShowDropdown(true)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      setShowDropdown(false);
-                      if (emailInput.trim()) {
-                        navigate({ user: emailInput.trim(), role: null });
+                    if (e.key === "ArrowDown") {
+                      e.preventDefault();
+                      setHighlightIndex(i => Math.min(i + 1, filteredCustomers.length - 1));
+                    } else if (e.key === "ArrowUp") {
+                      e.preventDefault();
+                      setHighlightIndex(i => Math.max(i - 1, -1));
+                    } else if (e.key === "Enter") {
+                      if (highlightIndex >= 0 && highlightIndex < filteredCustomers.length) {
+                        selectCustomer(filteredCustomers[highlightIndex]);
                       } else {
-                        navigate({ user: null, role: null });
+                        setShowDropdown(false);
+                        if (emailInput.trim()) {
+                          navigate({ user: emailInput.trim(), role: null });
+                        } else {
+                          navigate({ user: null, role: null });
+                        }
                       }
+                    } else if (e.key === "Escape") {
+                      setShowDropdown(false);
+                      setHighlightIndex(-1);
                     }
-                    if (e.key === "Escape") setShowDropdown(false);
                   }}
                   placeholder="Search name or email..."
                   className="flex-1 px-2 py-1.5 rounded-md text-[11px] border border-[#ECECEC] bg-white outline-none focus:border-e-indigo"
@@ -233,12 +247,12 @@ export default function KbStatusBar({ kbStatus, kbExpanded, onToggle, t, current
                   ) : filteredCustomers.length === 0 ? (
                     <div className="px-2.5 py-3 text-[11px] text-e-grey text-center">{emailInput.trim().length < 2 ? "Type 2+ characters to search" : "No results"}</div>
                   ) : (
-                    filteredCustomers.map((c) => (
+                    filteredCustomers.map((c, i) => (
                       <button
                         key={c.email}
                         onClick={() => selectCustomer(c)}
                         className={`w-full px-2.5 py-2 text-left hover:bg-[#F7F7F7] transition-colors cursor-pointer ${
-                          currentUserEmail === c.email ? "bg-[#F7F7F7]" : ""
+                          i === highlightIndex ? "bg-[#F0F0FF]" : currentUserEmail === c.email ? "bg-[#F7F7F7]" : ""
                         }`}
                       >
                         <div className="text-[11px] font-medium text-foreground truncate">{c.name}</div>

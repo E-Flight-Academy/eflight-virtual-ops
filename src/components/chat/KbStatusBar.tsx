@@ -69,6 +69,8 @@ export default function KbStatusBar({ kbStatus, kbExpanded, onToggle, t, current
 
   const [emailInput, setEmailInput] = useState(currentUserEmail || "");
   const [customers, setCustomers] = useState<CustomerOption[]>([]);
+  const [customersLoading, setCustomersLoading] = useState(true);
+  const [customersError, setCustomersError] = useState<string | null>(null);
   const [showDropdown, setShowDropdown] = useState(false);
   const [previewRoles, setPreviewRoles] = useState<string[]>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -78,10 +80,20 @@ export default function KbStatusBar({ kbStatus, kbExpanded, onToggle, t, current
 
   // Load customers list once
   useEffect(() => {
+    setCustomersLoading(true);
     fetch("/api/debug/customers")
-      .then(r => r.ok ? r.json() : [])
-      .then(setCustomers)
-      .catch(() => {});
+      .then(r => {
+        if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+        return r.json();
+      })
+      .then((data) => {
+        setCustomers(data);
+        setCustomersLoading(false);
+      })
+      .catch((err) => {
+        setCustomersError(err.message);
+        setCustomersLoading(false);
+      });
   }, []);
 
   // Close dropdown on outside click
@@ -207,20 +219,28 @@ export default function KbStatusBar({ kbStatus, kbExpanded, onToggle, t, current
                   </button>
                 )}
               </div>
-              {showDropdown && filteredCustomers.length > 0 && (
+              {showDropdown && (
                 <div className="absolute left-0 right-0 mt-1 bg-white rounded-lg shadow-lg border border-[#ECECEC] max-h-48 overflow-y-auto z-50">
-                  {filteredCustomers.map((c) => (
-                    <button
-                      key={c.email}
-                      onClick={() => selectCustomer(c)}
-                      className={`w-full px-2.5 py-2 text-left hover:bg-[#F7F7F7] transition-colors cursor-pointer ${
-                        currentUserEmail === c.email ? "bg-[#F7F7F7]" : ""
-                      }`}
-                    >
-                      <div className="text-[11px] font-medium text-foreground truncate">{c.name}</div>
-                      <div className="text-[10px] text-e-grey truncate">{c.email}{c.roles.length > 0 ? ` · ${c.roles.join(", ")}` : ""}</div>
-                    </button>
-                  ))}
+                  {customersLoading ? (
+                    <div className="px-2.5 py-3 text-[11px] text-e-grey text-center">Loading customers...</div>
+                  ) : customersError ? (
+                    <div className="px-2.5 py-3 text-[11px] text-red-500 text-center">{customersError}</div>
+                  ) : filteredCustomers.length === 0 ? (
+                    <div className="px-2.5 py-3 text-[11px] text-e-grey text-center">No results{customers.length === 0 ? " (0 customers loaded)" : ""}</div>
+                  ) : (
+                    filteredCustomers.map((c) => (
+                      <button
+                        key={c.email}
+                        onClick={() => selectCustomer(c)}
+                        className={`w-full px-2.5 py-2 text-left hover:bg-[#F7F7F7] transition-colors cursor-pointer ${
+                          currentUserEmail === c.email ? "bg-[#F7F7F7]" : ""
+                        }`}
+                      >
+                        <div className="text-[11px] font-medium text-foreground truncate">{c.name}</div>
+                        <div className="text-[10px] text-e-grey truncate">{c.email}{c.roles.length > 0 ? ` · ${c.roles.join(", ")}` : ""}</div>
+                      </button>
+                    ))
+                  )}
                 </div>
               )}
             </div>

@@ -31,10 +31,11 @@ export async function GET(request: NextRequest) {
       if (userEmailOverride) {
         // Look up real user data from Airtable
         const userData = await getUserData(userEmailOverride);
-        roles = userData.roles;
         wingsUserId = userData.wingsUserId;
         email = userEmailOverride;
         displayName = userEmailOverride.split("@")[0];
+        // If role override is also set, use that instead of Airtable roles
+        roles = roleOverride ? roleOverride.split(",").map(r => r.trim()).filter(Boolean) : userData.roles;
       } else {
         roles = roleOverride!.split(",").map(r => r.trim()).filter(Boolean);
         wingsUserId = 1062; // Dev mock fallback

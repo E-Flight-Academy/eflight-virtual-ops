@@ -514,7 +514,7 @@ export default function Chat() {
   const checkSession = useCallback(() => {
     const params = new URLSearchParams();
     if (userEmailOverride) params.set("userEmail", userEmailOverride);
-    else if (roleOverride) params.set("roleOverride", roleOverride.join(","));
+    if (roleOverride) params.set("roleOverride", roleOverride.join(","));
     const sessionUrl = params.toString()
       ? `/api/auth/shopify/session?${params}`
       : "/api/auth/shopify/session";

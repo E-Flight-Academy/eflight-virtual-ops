@@ -44,7 +44,8 @@ export async function GET(request: NextRequest) {
       if (overrideUser) {
         userEmail = overrideUser;
         const userData = await getUserData(overrideUser);
-        userRoles = userData.roles;
+        // If role override is also set, use that instead of Airtable roles
+        userRoles = overrideRole ? [overrideRole] : userData.roles;
       } else if (overrideRole) {
         userEmail = sessionEmail;
         userRoles = [overrideRole];

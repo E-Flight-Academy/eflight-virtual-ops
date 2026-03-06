@@ -124,8 +124,9 @@ export async function POST(request: NextRequest) {
     if (isDebugAllowed && wantsOverride) {
       if (userEmailOverride) {
         const userData = await getUserData(userEmailOverride);
-        userRoles = userData.roles;
         wingsUserId = userData.wingsUserId;
+        // If role override is also set, use that instead of Airtable roles
+        userRoles = roleOverride?.length ? roleOverride : userData.roles;
       } else {
         userRoles = roleOverride!;
         wingsUserId = 1062; // Dev mock fallback

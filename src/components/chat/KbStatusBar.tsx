@@ -67,13 +67,14 @@ export default function KbStatusBar({ kbStatus, kbExpanded, onToggle, t, current
   const selectedRoles = currentRoleParam ? currentRoleParam.split(",").filter(Boolean) : [];
   const isImpersonating = !!currentUserEmail || selectedRoles.length > 0;
 
-  // The roles shown in KB status (from Airtable or override)
-  const actualRoles = kbStatus?.user?.roles || [];
-
   const [emailInput, setEmailInput] = useState(currentUserEmail || "");
   const [customers, setCustomers] = useState<CustomerOption[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [previewRoles, setPreviewRoles] = useState<string[]>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // The roles shown in KB status (from Airtable or override), with preview fallback
+  const actualRoles = kbStatus?.user?.roles?.length ? kbStatus.user.roles : previewRoles;
 
   // Load customers list once
   useEffect(() => {
@@ -104,6 +105,7 @@ export default function KbStatusBar({ kbStatus, kbExpanded, onToggle, t, current
   const selectCustomer = useCallback((c: CustomerOption) => {
     setEmailInput(c.email);
     setShowDropdown(false);
+    setPreviewRoles(c.roles);
     navigate({ user: c.email, role: null });
   }, [navigate]);
 
@@ -198,7 +200,7 @@ export default function KbStatusBar({ kbStatus, kbExpanded, onToggle, t, current
                 />
                 {currentUserEmail && (
                   <button
-                    onClick={() => { setEmailInput(""); navigate({ user: null, role: null }); }}
+                    onClick={() => { setEmailInput(""); setPreviewRoles([]); navigate({ user: null, role: null }); }}
                     className="px-1.5 py-1.5 rounded-md text-[11px] text-e-grey cursor-pointer hover:text-e-grey-dark transition-colors"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -268,7 +270,7 @@ export default function KbStatusBar({ kbStatus, kbExpanded, onToggle, t, current
           {/* Reset all overrides */}
           {isImpersonating && (
             <button
-              onClick={() => { setEmailInput(""); navigate({ user: null, role: null }); }}
+              onClick={() => { setEmailInput(""); setPreviewRoles([]); navigate({ user: null, role: null }); }}
               className="w-full px-2 py-1.5 rounded-md text-[11px] font-medium bg-e-pink/10 text-e-pink border border-e-pink/20 cursor-pointer hover:bg-e-pink/20 transition-colors"
             >
               Stop impersonating

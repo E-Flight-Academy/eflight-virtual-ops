@@ -17,5 +17,6 @@ export async function GET(request: NextRequest) {
   }
 
   const customers = await getAllCustomers();
+  console.log(`[debug/customers] Returning ${customers.length} customers`);
   return NextResponse.json(customers);
 }

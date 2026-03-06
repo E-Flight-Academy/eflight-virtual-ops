@@ -100,7 +100,7 @@ export async function getAllCustomers(): Promise<AirtableCustomerSummary[]> {
 
       const response = await fetch(url, {
         headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` },
-        next: { revalidate: 300 },
+        cache: "no-store",
       });
 
       if (!response.ok) break;

@@ -99,44 +99,50 @@ export default function KbStatusBar({ kbStatus, kbExpanded, onToggle, t, current
 
       {kbExpanded && (
         <div className="px-3 py-2 space-y-2">
-          {/* Client mode buttons */}
-          <div className="flex gap-1">
-            {modes.map(({ key, label }) => {
-              const active = currentClient === key;
-              return (
-                <button
-                  key={label}
-                  onClick={() => navigate({ client: key })}
-                  className={`flex-1 px-2 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer ${
-                    active
-                      ? "bg-e-indigo-dark text-white"
-                      : "bg-transparent text-e-grey-light hover:bg-[#F7F7F7] hover:text-e-grey-dark"
-                  }`}
-                >
-                  {label}
-                </button>
-              );
-            })}
+          {/* Client mode selector */}
+          <div>
+            <div className="text-[10px] text-e-grey font-medium uppercase tracking-wide mb-1">Client</div>
+            <div className="flex bg-[#F2F2F2] rounded-lg p-0.5">
+              {modes.map(({ key, label }) => {
+                const active = currentClient === key;
+                return (
+                  <button
+                    key={label}
+                    onClick={() => navigate({ client: key })}
+                    className={`flex-1 px-2 py-1.5 rounded-md text-[11px] font-medium transition-all cursor-pointer ${
+                      active
+                        ? "bg-white text-e-indigo-dark shadow-sm"
+                        : "text-e-grey hover:text-e-grey-dark"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
-          {/* Role override buttons (dev only) */}
-          <div className="flex gap-1 flex-wrap">
-            {roles.map(({ key, label }) => {
-              const active = currentRole === key;
-              return (
-                <button
-                  key={label}
-                  onClick={() => navigate({ role: key })}
-                  className={`px-2 py-1 rounded-md text-[11px] font-medium transition-colors cursor-pointer ${
-                    active
-                      ? "bg-e-indigo-dark text-white"
-                      : "bg-transparent text-e-grey-light hover:bg-[#F7F7F7] hover:text-e-grey-dark"
-                  }`}
-                >
-                  {label}
-                </button>
-              );
-            })}
+          {/* Role override selector */}
+          <div>
+            <div className="text-[10px] text-e-grey font-medium uppercase tracking-wide mb-1">Role</div>
+            <div className="flex bg-[#F2F2F2] rounded-lg p-0.5 flex-wrap">
+              {roles.map(({ key, label }) => {
+                const active = currentRole === key;
+                return (
+                  <button
+                    key={label}
+                    onClick={() => navigate({ role: key })}
+                    className={`flex-1 px-2 py-1.5 rounded-md text-[11px] font-medium transition-all cursor-pointer whitespace-nowrap ${
+                      active
+                        ? "bg-white text-e-indigo-dark shadow-sm"
+                        : "text-e-grey hover:text-e-grey-dark"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           {/* User email override (dev only) */}

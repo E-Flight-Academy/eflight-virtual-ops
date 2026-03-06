@@ -10,7 +10,6 @@ interface Faq {
   answerNl: string;
   answerDe: string;
   category: string[];
-  audience: string[];
 }
 
 function makeFaq(overrides: Partial<Faq> = {}): Faq {
@@ -22,7 +21,6 @@ function makeFaq(overrides: Partial<Faq> = {}): Faq {
     answerNl: "Een academie",
     answerDe: "Eine Akademie",
     category: ["Training"],
-    audience: ["Student"],
     ...overrides,
   };
 }
@@ -100,11 +98,11 @@ describe("FaqModal", () => {
     expect(getAllByTextSafe(screen, "Training").length).toBeGreaterThanOrEqual(1);
   });
 
-  it("displays audience badges on FAQ items", () => {
-    const faqs = [makeFaq({ audience: ["Student"] })];
+  it("displays category badges on FAQ items (no audience badges)", () => {
+    const faqs = [makeFaq({ category: ["Training"] })];
     render(<FaqModal {...defaultProps} faqs={faqs} />);
-    // Audience appears as badge text and also in the dropdown
-    expect(getAllByTextSafe(screen, "Student").length).toBeGreaterThanOrEqual(1);
+    // Only category badges remain — audience filtering is now server-side
+    expect(getAllByTextSafe(screen, "Training").length).toBeGreaterThanOrEqual(1);
   });
 });
 

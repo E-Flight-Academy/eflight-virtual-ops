@@ -97,6 +97,7 @@ export async function searchCustomers(query: string): Promise<AirtableCustomerSu
   const fields = ["Client E-Mail", "Name", "Wings Role"].map(f => `fields%5B%5D=${encodeURIComponent(f)}`).join("&");
   const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_TABLE_NAME)}?filterByFormula=${encodeURIComponent(formula)}&maxRecords=10&${fields}`;
 
+  console.log(`[Airtable] searchCustomers: q="${query}", base=${AIRTABLE_BASE_ID}, token=${AIRTABLE_TOKEN ? "set" : "missing"}`);
   const response = await fetch(url, {
     headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` },
     next: { revalidate: 60 },
@@ -104,6 +105,7 @@ export async function searchCustomers(query: string): Promise<AirtableCustomerSu
 
   if (!response.ok) {
     const body = await response.text();
+    console.error(`[Airtable] searchCustomers error: ${response.status} ${body}`);
     throw new Error(`Airtable ${response.status}: ${body}`);
   }
 

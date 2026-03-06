@@ -22,5 +22,16 @@ export async function GET(request: NextRequest) {
   console.log(`[debug/customers] Authorized as ${sessionEmail}, fetching customers...`);
   const customers = await getAllCustomers();
   console.log(`[debug/customers] Returning ${customers.length} customers`);
+
+  // Temporary debug: include metadata in response
+  if (customers.length === 0) {
+    return NextResponse.json({
+      _debug: true,
+      _airtableToken: !!process.env.AIRTABLE_TOKEN,
+      _airtableBase: !!process.env.AIRTABLE_BASE_ID,
+      _basePrefix: process.env.AIRTABLE_BASE_ID?.slice(0, 6),
+      customers,
+    });
+  }
   return NextResponse.json(customers);
 }

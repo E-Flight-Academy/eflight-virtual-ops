@@ -87,7 +87,12 @@ export default function KbStatusBar({ kbStatus, kbExpanded, onToggle, t, current
         return r.json();
       })
       .then((data) => {
-        setCustomers(data);
+        const list = Array.isArray(data) ? data : data?.customers || [];
+        if (list.length === 0 && data?._debug) {
+          setCustomersError(`0 customers. token=${data._airtableToken}, base=${data._basePrefix}`);
+        } else {
+          setCustomers(list);
+        }
         setCustomersLoading(false);
       })
       .catch((err) => {

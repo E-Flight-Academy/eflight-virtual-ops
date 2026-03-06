@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/shopify-auth";
-import { getAllCustomers } from "@/lib/airtable";
+import { searchCustomers } from "@/lib/airtable";
 
 const ADMIN_EMAILS = ["matthijs@eflight.nl", "matthijscollard@gmail.com", "wesley@eflight.nl", "paulien@eflight.nl"];
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
     const session = await getSession();
     const email = session?.customer?.email?.toLowerCase();
@@ -15,8 +15,13 @@ export async function GET() {
     return NextResponse.json({ error: "session error" }, { status: 401 });
   }
 
+  const query = request.nextUrl.searchParams.get("q")?.trim();
+  if (!query || query.length < 2) {
+    return NextResponse.json([]);
+  }
+
   try {
-    const customers = await getAllCustomers();
+    const customers = await searchCustomers(query);
     return NextResponse.json(customers);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

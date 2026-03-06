@@ -85,42 +85,40 @@ export interface AirtableCustomerSummary {
 }
 
 /**
- * Fetch all customers from Airtable (for admin user picker)
+ * Search customers in Airtable by name or email (for admin user picker)
  */
-export async function getAllCustomers(): Promise<AirtableCustomerSummary[]> {
+export async function searchCustomers(query: string): Promise<AirtableCustomerSummary[]> {
   if (!AIRTABLE_TOKEN || !AIRTABLE_BASE_ID) {
     throw new Error(`Airtable not configured: token=${!!AIRTABLE_TOKEN}, base=${!!AIRTABLE_BASE_ID}`);
   }
 
+  const q = query.replace(/"/g, '\\"');
+  const formula = `OR(FIND(LOWER("${q}"), LOWER({Client E-Mail})), FIND(LOWER("${q}"), LOWER(ARRAYJOIN({Name}))))`;
+  const fields = ["Client E-Mail", "Name", "Wings Role"].map(f => `fields%5B%5D=${encodeURIComponent(f)}`).join("&");
+  const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_TABLE_NAME)}?filterByFormula=${encodeURIComponent(formula)}&maxRecords=10&${fields}`;
+
+  const response = await fetch(url, {
+    headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` },
+    next: { revalidate: 60 },
+  });
+
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`Airtable ${response.status}: ${body}`);
+  }
+
+  const data = await response.json();
   const customers: AirtableCustomerSummary[] = [];
-  let offset: string | undefined;
 
-  do {
-    const fields = ["Client E-Mail", "Name", "Wings Role"].map(f => `fields%5B%5D=${encodeURIComponent(f)}`).join("&");
-    const url = `https://api.airtable.com/v0/${AIRTABLE_BASE_ID}/${encodeURIComponent(AIRTABLE_TABLE_NAME)}?${fields}${offset ? `&offset=${offset}` : ""}`;
-
-    const response = await fetch(url, {
-      headers: { Authorization: `Bearer ${AIRTABLE_TOKEN}` },
-      cache: "no-store",
+  for (const rec of data.records) {
+    const email = rec.fields["Client E-Mail"];
+    if (!email) continue;
+    customers.push({
+      email,
+      name: rec.fields.Name?.[0] || email.split("@")[0],
+      roles: rec.fields["Wings Role"] || [],
     });
-
-    if (!response.ok) {
-      const body = await response.text();
-      throw new Error(`Airtable ${response.status}: ${body}`);
-    }
-    const data = await response.json();
-
-    for (const rec of data.records) {
-      const email = rec.fields["Client E-Mail"];
-      if (!email) continue;
-      customers.push({
-        email,
-        name: rec.fields.Name?.[0] || email.split("@")[0],
-        roles: rec.fields["Wings Role"] || [],
-      });
-    }
-    offset = data.offset;
-  } while (offset);
+  }
 
   return customers.sort((a, b) => a.name.localeCompare(b.name));
 }

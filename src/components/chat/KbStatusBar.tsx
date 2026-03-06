@@ -69,37 +69,44 @@ export default function KbStatusBar({ kbStatus, kbExpanded, onToggle, t, current
 
   const [emailInput, setEmailInput] = useState(currentUserEmail || "");
   const [customers, setCustomers] = useState<CustomerOption[]>([]);
-  const [customersLoading, setCustomersLoading] = useState(true);
+  const [customersLoading, setCustomersLoading] = useState(false);
   const [customersError, setCustomersError] = useState<string | null>(null);
   const [showDropdown, setShowDropdown] = useState(false);
   const [previewRoles, setPreviewRoles] = useState<string[]>([]);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>(null);
 
   // The roles shown in KB status (from Airtable or override), with preview fallback
   const actualRoles = kbStatus?.user?.roles?.length ? kbStatus.user.roles : previewRoles;
 
-  // Load customers list once
+  // Search customers when input changes (debounced)
   useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    const q = emailInput.trim();
+    if (q.length < 2) {
+      setCustomers([]);
+      setCustomersError(null);
+      return;
+    }
     setCustomersLoading(true);
-    fetch("/api/debug/customers")
-      .then(r => {
-        if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
-        return r.json();
-      })
-      .then((data) => {
-        const list = Array.isArray(data) ? data : data?.customers || [];
-        if (list.length === 0 && data?._debug) {
-          setCustomersError(`0 customers. token=${data._airtableToken}, base=${data._basePrefix}`);
-        } else {
-          setCustomers(list);
-        }
-        setCustomersLoading(false);
-      })
-      .catch((err) => {
-        setCustomersError(err.message);
-        setCustomersLoading(false);
-      });
-  }, []);
+    debounceRef.current = setTimeout(() => {
+      fetch(`/api/debug/customers?q=${encodeURIComponent(q)}`)
+        .then(r => {
+          if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+          return r.json();
+        })
+        .then((data) => {
+          setCustomers(Array.isArray(data) ? data : []);
+          setCustomersError(null);
+          setCustomersLoading(false);
+        })
+        .catch((err) => {
+          setCustomersError(err.message);
+          setCustomersLoading(false);
+        });
+    }, 300);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [emailInput]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -112,12 +119,7 @@ export default function KbStatusBar({ kbStatus, kbExpanded, onToggle, t, current
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const filteredCustomers = emailInput.trim()
-    ? customers.filter(c =>
-        c.name.toLowerCase().includes(emailInput.toLowerCase()) ||
-        c.email.toLowerCase().includes(emailInput.toLowerCase())
-      ).slice(0, 8)
-    : customers.slice(0, 8);
+  const filteredCustomers = customers.slice(0, 8);
 
   const selectCustomer = useCallback((c: CustomerOption) => {
     setEmailInput(c.email);
@@ -231,7 +233,7 @@ export default function KbStatusBar({ kbStatus, kbExpanded, onToggle, t, current
                   ) : customersError ? (
                     <div className="px-2.5 py-3 text-[11px] text-red-500 text-center">{customersError}</div>
                   ) : filteredCustomers.length === 0 ? (
-                    <div className="px-2.5 py-3 text-[11px] text-e-grey text-center">No results{customers.length === 0 ? " (0 customers loaded)" : ""}</div>
+                    <div className="px-2.5 py-3 text-[11px] text-e-grey text-center">{emailInput.trim().length < 2 ? "Type 2+ characters to search" : "No results"}</div>
                   ) : (
                     filteredCustomers.map((c) => (
                       <button

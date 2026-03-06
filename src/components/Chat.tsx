@@ -861,6 +861,7 @@ export default function Chat() {
           onToggle={() => setKbExpanded(!kbExpanded)}
           t={t}
           currentClient={client}
+          onRefreshStatus={() => fetchKbStatus(debugMode)}
         />
       )}
 

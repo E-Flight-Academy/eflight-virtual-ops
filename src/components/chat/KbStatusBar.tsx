@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import type { KbStatus } from "@/types/chat";
 import type { UiLabels } from "@/lib/i18n/labels";
 
@@ -10,9 +11,12 @@ interface KbStatusBarProps {
   onToggle: () => void;
   t: (key: keyof UiLabels) => string;
   currentClient: string | null;
+  onRefreshStatus?: () => void;
 }
 
-export default function KbStatusBar({ kbStatus, kbExpanded, onToggle, t, currentClient }: KbStatusBarProps) {
+export default function KbStatusBar({ kbStatus, kbExpanded, onToggle, t, currentClient, onRefreshStatus }: KbStatusBarProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
   const dragRef = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -37,27 +41,22 @@ export default function KbStatusBar({ kbStatus, kbExpanded, onToggle, t, current
   }, []);
 
   const navigate = useCallback((params: Record<string, string | null>) => {
-    const url = new URL(window.location.href);
+    const url = new URLSearchParams(searchParams.toString());
     for (const [key, value] of Object.entries(params)) {
       if (value) {
-        url.searchParams.set(key, value);
+        url.set(key, value);
       } else {
-        url.searchParams.delete(key);
+        url.delete(key);
       }
     }
-    url.searchParams.set("debug", "true");
-    window.location.assign(url.toString());
-  }, []);
+    url.set("debug", "true");
+    router.push(`?${url.toString()}`);
+    // Refresh KB status after URL update
+    setTimeout(() => onRefreshStatus?.(), 100);
+  }, [searchParams, router, onRefreshStatus]);
 
-  const [currentRole] = useState<string | null>(() => {
-    if (typeof window === "undefined") return null;
-    return new URLSearchParams(window.location.search).get("role");
-  });
-
-  const [currentUserEmail] = useState<string | null>(() => {
-    if (typeof window === "undefined") return null;
-    return new URLSearchParams(window.location.search).get("user");
-  });
+  const currentRole = searchParams.get("role");
+  const currentUserEmail = searchParams.get("user");
 
   const [emailInput, setEmailInput] = useState(currentUserEmail || "");
 

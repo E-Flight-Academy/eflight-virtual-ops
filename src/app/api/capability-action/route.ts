@@ -332,16 +332,17 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    if (action === "lesson-summary") {
+    if (action === "lesson-summary" || action === "current-lesson-summary") {
       if (!capabilities.includes("instructor-schedule")) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
       }
-      const { previousLessonBookingId: plbId, studentName } = parsed.data;
-      if (!plbId) {
-        return NextResponse.json({ error: "previousLessonBookingId is required" }, { status: 400 });
+      const { previousLessonBookingId: plbId, bookingId: bId, studentName } = parsed.data;
+      const targetId = action === "current-lesson-summary" ? bId : plbId;
+      if (!targetId) {
+        return NextResponse.json({ error: "bookingId is required" }, { status: 400 });
       }
 
-      const raw = await getBookingDetail(plbId);
+      const raw = await getBookingDetail(targetId);
       if (!raw) {
         return NextResponse.json({ error: "Booking not found" }, { status: 404 });
       }
@@ -380,6 +381,114 @@ export async function POST(request: NextRequest) {
         type: "lesson-context",
         context: lines.join("\n"),
         studentName: studentName || "Student",
+      });
+    }
+
+    if (action === "doc-validity") {
+      if (!capabilities.includes("doc-validity")) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+      }
+      if (!wingsUserId) {
+        return NextResponse.json({ error: "Wings user not configured" }, { status: 400 });
+      }
+
+      const result = await getUserDocuments(wingsUserId);
+      if (!result || !result.documents.length) {
+        return NextResponse.json({
+          type: "doc-validity",
+          data: { userName: result?.userName || "User", documents: [] },
+          summary: "No documents found",
+        });
+      }
+
+      const now = new Date();
+      const validities = getDocumentValidities(result.documents);
+      const documents = validities.map((d) => {
+        const expiresStr = d.expires!.slice(0, 10);
+        const expiresDate = new Date(expiresStr + "T00:00:00");
+        const daysRemaining = Math.ceil((expiresDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        return {
+          name: d.type.name,
+          expires: expiresStr,
+          daysRemaining,
+          isExpired: d.isExpired,
+        };
+      });
+
+      const expired = documents.filter((d) => d.isExpired).length;
+      const expiringSoon = documents.filter((d) => !d.isExpired && d.daysRemaining <= 30).length;
+      const parts: string[] = [`${documents.length} documents`];
+      if (expired) parts.push(`${expired} expired`);
+      if (expiringSoon) parts.push(`${expiringSoon} expiring soon`);
+
+      return NextResponse.json({
+        type: "doc-validity",
+        data: { userName: result.userName, documents },
+        summary: parts.join(" · "),
+      });
+    }
+
+    if (action === "student-lessons") {
+      if (!capabilities.includes("instructor-schedule")) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+      }
+      const { studentUserId: suid, studentName } = parsed.data;
+      if (!suid) {
+        return NextResponse.json({ error: "studentUserId is required" }, { status: 400 });
+      }
+
+      // Try Redis cache first, otherwise fetch all lessons (3 year window)
+      // Re-fetch if cached data has stale courseName (was booking.type.name, now lesson.plan.course.name)
+      let lessons = await getKvStudentLessons(suid);
+      const staleCache = lessons && lessons.length > 0 && (
+        !lessons[0].courseName || lessons[0].courseName === "Lesson"
+      );
+      if (!lessons || staleCache) {
+        lessons = await getStudentLessonHistory(suid);
+        await setKvStudentLessons(suid, lessons);
+      }
+
+      // Group by course (booking type, e.g. "Night Rating", "PPL"), sorted newest first within each course
+      const courseMap = new Map<string, typeof lessons>();
+      for (const l of lessons) {
+        const key = l.courseName || "Other";
+        if (!courseMap.has(key)) courseMap.set(key, []);
+        courseMap.get(key)!.push(l);
+      }
+
+      // Sort courses: most recent lesson date first
+      const coursesArr = [...courseMap.entries()].sort((a, b) => {
+        const aDate = a[1][0]?.date || "";
+        const bDate = b[1][0]?.date || "";
+        return bDate.localeCompare(aDate);
+      });
+
+      const courses = coursesArr.map(([courseName, courseLessons]) => ({
+        courseName,
+        lessons: courseLessons.map((l) => {
+          const scores = l.records.map((r) => r.score).filter((s): s is number => s !== null);
+          return {
+            bookingId: l.bookingId,
+            date: l.date,
+            planName: l.planName,
+            isAssessment: l.isAssessment,
+            status: l.status,
+            instructor: l.instructor,
+            avgScore: scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length * 10) / 10 : null,
+          };
+        }),
+      }));
+
+      const name = studentName || "Student";
+      return NextResponse.json({
+        type: "student-lessons",
+        data: {
+          studentName: name,
+          studentUserId: suid,
+          courses,
+          totalLessons: lessons.length,
+        },
+        summary: `${lessons.length} lessons for ${name} across ${courses.length} course${courses.length !== 1 ? "s" : ""}`,
       });
     }
 

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { ScheduleDay } from "@/types/chat";
+import SegmentedController from "./SegmentedController";
 
 interface ScheduleMessageProps {
   data: ScheduleDay[];
@@ -48,26 +49,11 @@ export default function ScheduleMessage({ data, summary, onBookingClick }: Sched
       <p className="text-sm text-e-grey">{summary}</p>
 
       {/* Segmented controller */}
-      <div className="flex bg-[#F2F2F2] dark:bg-gray-800 rounded-lg p-0.5 gap-0.5">
-        {tabs.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
-            className={`flex-1 text-xs font-medium py-1.5 px-2 rounded-md transition-all cursor-pointer ${
-              activeTab === tab.key
-                ? "bg-white dark:bg-gray-900 text-foreground shadow-sm"
-                : "text-e-grey hover:text-foreground"
-            }`}
-          >
-            {tab.label}
-            {tab.count > 0 && (
-              <span className={`ml-1 ${activeTab === tab.key ? "text-e-grey" : ""}`}>
-                ({tab.count})
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
+      <SegmentedController
+        tabs={tabs.map((t) => ({ key: t.key, label: t.label, count: t.count }))}
+        activeKey={activeTab}
+        onSelect={(key) => setActiveTab(key as Tab)}
+      />
 
       {/* Day cards — render all tabs in a grid so width is stable, height adapts */}
       <div className="grid">

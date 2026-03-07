@@ -162,7 +162,7 @@ function LessonCommentsAndScores({ comments, records }: { comments: string | nul
 export default function BookingDetailMessage({ data, onBookingClick }: BookingDetailMessageProps) {
   const formatDate = (dateStr: string) => {
     const d = new Date(dateStr + "T00:00:00");
-    return d.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
+    return d.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric", year: "numeric" });
   };
 
   const lessonNames = data.lessons
@@ -286,7 +286,7 @@ export default function BookingDetailMessage({ data, onBookingClick }: BookingDe
             {data.previousLesson.status && (
               <span className="text-xs text-e-grey">{data.previousLesson.status}</span>
             )}
-            <span className="text-xs text-e-grey">· {data.previousLesson.date}</span>
+            <span className="text-xs text-e-grey">· {data.previousLesson.date.split("-").reverse().join("-")}</span>
             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-e-grey shrink-0">
               <polyline points="9 18 15 12 9 6" />
             </svg>

@@ -111,9 +111,38 @@ export interface BookingDetail {
   previousLesson: PreviousLesson | null;
 }
 
+export interface StudentLessonItem {
+  bookingId: number;
+  date: string;
+  planName: string | null;
+  isAssessment: boolean;
+  status: string | null;
+  instructor: string | null;
+  avgScore: number | null;
+}
+
+export interface StudentLessonCourse {
+  courseName: string;
+  lessons: StudentLessonItem[];
+}
+
+export interface StudentLessonsData {
+  studentName: string;
+  studentUserId: number;
+  courses: StudentLessonCourse[];
+  totalLessons: number;
+}
+
+export interface DocValidityData {
+  userName: string;
+  documents: DocumentValidity[];
+}
+
 export type StructuredContent =
   | { type: "schedule"; data: ScheduleDay[]; summary: string }
-  | { type: "booking-detail"; data: BookingDetail; summary: string };
+  | { type: "booking-detail"; data: BookingDetail; summary: string }
+  | { type: "student-lessons"; data: StudentLessonsData; summary: string }
+  | { type: "doc-validity"; data: DocValidityData; summary: string };
 
 export interface Message {
   role: "user" | "assistant";

@@ -10,7 +10,7 @@ import { getTranslations } from "@/lib/i18n/translate";
 import { getSession, fetchCustomerOrders, buildOrdersContext, type ShopifyOrder } from "@/lib/shopify-auth";
 import { getUserData } from "@/lib/airtable";
 import { getFoldersForRoles, getCapabilitiesForRoles } from "@/lib/role-access";
-import { getUserDocuments, buildDocumentValidityContext, getInstructorBookings, buildScheduleContext } from "@/lib/wings";
+import { getInstructorBookings, buildScheduleContext } from "@/lib/wings";
 import { chatRequestSchema } from "@/lib/api-schemas";
 import { logger, apiTimer } from "@/lib/logger";
 import { checkRateLimit, getKvWingsSchedule } from "@/lib/kv-cache";
@@ -170,7 +170,7 @@ export async function POST(request: NextRequest) {
     const useVectorRag = !focused && isVectorConfigured();
 
     // Load remaining data sources in parallel (with progress events)
-    const [faqs, ragResult, binaryContext, websitePages, products, orders, wingsDocResult, wingsScheduleResult, faqMatches, websiteMatches] = focused
+    const [faqs, ragResult, binaryContext, websitePages, products, orders, , wingsScheduleResult, faqMatches, websiteMatches] = focused
       ? [[], null, null, [], [], [] as ShopifyOrder[], null, null, [] as FaqMatch[], [] as WebsiteMatch[]]
       : await Promise.all([
       // Full FAQ list (needed for source matching even with RAG)
@@ -204,15 +204,7 @@ export async function POST(request: NextRequest) {
             5000, [] as ShopifyOrder[]
           ), "orders", controller, encoder)
         : Promise.resolve([] as ShopifyOrder[]),
-      capabilities.includes("doc-validity") && wingsUserId
-        ? trackProgress(withTimeout(
-            getUserDocuments(wingsUserId).catch((err) => {
-              console.error("Failed to fetch Wings documents:", err);
-              return null;
-            }),
-            8000, null
-          ), "doc-validity", controller, encoder)
-        : Promise.resolve(null),
+      Promise.resolve(null), // doc-validity now fetched on-demand via capability-action
       capabilities.includes("instructor-schedule") && wingsUserId
         ? trackProgress(withTimeout(
             // Try Redis cache first (populated by capability-action), fall back to Wings API
@@ -420,17 +412,6 @@ export async function POST(request: NextRequest) {
         "",
         "NOTE: The user is NOT logged in. If they ask about their orders, purchases, bookings, or account information, tell them they need to log in first to view their order history. Mention they can log in using the login button in the top right corner of the screen."
       );
-    }
-
-    // Append Wings document validity context
-    if (wingsDocResult?.documents) {
-      const docContext = buildDocumentValidityContext(wingsDocResult.documents, wingsDocResult.userName);
-      if (docContext) {
-        instructionParts.push("", docContext);
-        instructionParts.push(
-          "When presenting document validity information, highlight expired documents with a clear warning. For documents expiring within 30 days, suggest the user take action soon. Group by status (expired, expiring soon, valid). Be helpful and specific about what steps to take for expired or expiring documents."
-        );
-      }
     }
 
     // Append instructor schedule context

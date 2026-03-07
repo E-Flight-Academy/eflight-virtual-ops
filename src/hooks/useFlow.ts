@@ -28,6 +28,46 @@ export function findWelcomeStep(flowSteps: FlowStep[], userRoles: string[]): Flo
   return flowSteps.find((s) => s.name.toLowerCase() === "welcome");
 }
 
+/** Build a merged welcome step combining options from all matching role-specific welcome steps.
+ *  For multi-role users (e.g. Student + Instructor), this merges the nextDialogFlow options
+ *  from all matching welcome_{role} steps, deduplicating by option name. */
+export function buildMergedWelcomeStep(flowSteps: FlowStep[], userRoles: string[]): FlowStep | undefined {
+  const genericWelcome = flowSteps.find((s) => s.name.toLowerCase() === "welcome");
+
+  // Find all matching role-specific welcome steps
+  const matchingSteps: FlowStep[] = [];
+  for (const role of userRoles) {
+    const roleWelcome = flowSteps.find((s) => s.name.toLowerCase() === `welcome_${role.toLowerCase()}`);
+    if (roleWelcome && !matchingSteps.includes(roleWelcome)) matchingSteps.push(roleWelcome);
+  }
+
+  if (matchingSteps.length === 0) return genericWelcome;
+  if (matchingSteps.length === 1) return matchingSteps[0];
+
+  // Merge: collect unique options from all matching steps, then sort by order
+  // Deduplicate by both name AND label (e.g. instr_other and st_other share the same label)
+  const seenNames = new Set<string>();
+  const seenLabels = new Set<string>();
+  const allOptions: FlowOption[] = [];
+
+  for (const step of matchingSteps) {
+    for (const option of step.nextDialogFlow) {
+      if (!seenNames.has(option.name) && !seenLabels.has(option.label)) {
+        allOptions.push(option);
+        seenNames.add(option.name);
+        seenLabels.add(option.label);
+      }
+    }
+  }
+
+  // Sort by the order field of the corresponding flow step
+  const stepOrderMap = new Map(flowSteps.map((s) => [s.name, s.order]));
+  allOptions.sort((a, b) => (stepOrderMap.get(a.name) ?? 999) - (stepOrderMap.get(b.name) ?? 999));
+
+  const merged: FlowStep = { ...matchingSteps[0], nextDialogFlow: allOptions };
+  return merged;
+}
+
 export function useFlow({
   messages,
   setMessages,
@@ -103,19 +143,24 @@ export function useFlow({
     setPendingFlowStepName(null);
   }, [pendingFlowStepName, flowSteps]);
 
-  // Switch to role-specific welcome when user roles become available
+  // Switch to role-specific welcome when user roles change (login, debug panel role switch)
   useEffect(() => {
-    if (userRoles.length === 0 || flowSteps.length === 0) return;
+    if (flowSteps.length === 0) return;
     if (flowPhase !== "active" || !currentFlowStep) return;
-    // Only switch if we're still on the generic welcome (no user messages yet)
-    if (currentFlowStep.name.toLowerCase() !== "welcome") return;
+    // Only switch if still on a welcome step and no user messages yet
+    if (!currentFlowStep.name.toLowerCase().startsWith("welcome")) return;
     if (messages.length !== 1 || messages[0].role !== "assistant") return;
 
-    const roleWelcome = findWelcomeStep(flowSteps, userRoles);
-    if (roleWelcome && roleWelcome.name !== currentFlowStep.name) {
-      setCurrentFlowStep(roleWelcome);
-      setMessages([{ role: "assistant", content: getFlowMessage(roleWelcome) }]);
-    }
+    const mergedWelcome = buildMergedWelcomeStep(flowSteps, userRoles);
+    if (!mergedWelcome) return;
+
+    // Check if options actually changed to avoid unnecessary re-renders
+    const currentNames = currentFlowStep.nextDialogFlow.map((o) => o.name).join(",");
+    const newNames = mergedWelcome.nextDialogFlow.map((o) => o.name).join(",");
+    if (currentNames === newNames && currentFlowStep.name === mergedWelcome.name) return;
+
+    setCurrentFlowStep(mergedWelcome);
+    setMessages([{ role: "assistant", content: getFlowMessage(mergedWelcome) }]);
   }, [userRoles, flowSteps, flowPhase, currentFlowStep, messages, setMessages, getFlowMessage]);
 
   // Update flow messages when language changes
@@ -260,7 +305,7 @@ export function useFlow({
     if (messages.length === 0) return;
     setInput("");
     setFlowContext({});
-    const welcome = findWelcomeStep(flowSteps, userRoles);
+    const welcome = buildMergedWelcomeStep(flowSteps, userRoles);
     if (welcome) {
       setCurrentFlowStep(welcome);
       setFlowPhase("active");

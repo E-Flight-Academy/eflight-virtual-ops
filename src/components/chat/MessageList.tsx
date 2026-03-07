@@ -230,12 +230,10 @@ export default function MessageList({
           )}
 
           {flowPhase !== "active" && !isLoading && cardActions && cardActions.length > 0 && onCardAction && (() => {
-            // Find the last booking-detail message
-            const lastBd = [...messages].reverse().find(
-              (m) => m.structured?.type === "booking-detail"
-            );
-            if (!lastBd?.structured || lastBd.structured.type !== "booking-detail") return null;
-            const bd = lastBd.structured.data;
+            // Only show card actions if the last structured message is a booking-detail
+            const lastStructured = [...messages].reverse().find((m) => m.structured);
+            if (!lastStructured?.structured || lastStructured.structured.type !== "booking-detail") return null;
+            const bd = lastStructured.structured.data;
             const ctx: Record<string, string> = {
               studentName: bd.student,
               studentUserId: String(bd.studentUserId || ""),

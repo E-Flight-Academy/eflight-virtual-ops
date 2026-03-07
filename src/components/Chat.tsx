@@ -11,7 +11,7 @@ import { fetchRetry } from "@/lib/fetch-retry";
 import { useKbStatus } from "@/hooks/useKbStatus";
 import { useFaqSuggestions } from "@/hooks/useFaqSuggestions";
 import { useRating } from "@/hooks/useRating";
-import { useFlow, findWelcomeStep } from "@/hooks/useFlow";
+import { useFlow, buildMergedWelcomeStep } from "@/hooks/useFlow";
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import { useFaqAdmin } from "@/hooks/useFaqAdmin";
 
@@ -551,20 +551,24 @@ export default function Chat() {
       }
       const result = await res.json();
 
-      // 2. Send the endPrompt + context to Gemini via chat
       const replacePlaceholders = (s: string) => s.replace(/\{(\w+)\}/g, (_, key) => {
         if (key === "context") return result.context || "";
         return context[key] || key;
       });
-      const prompt = replacePlaceholders(action.endPrompt);
-
-      // Add a user message to show the action was triggered
       const label = replacePlaceholders(action.label);
-      const userMsg: Message = { role: "user", content: `${label} — ${context.studentName || ""}` };
+      const studentName = context.studentName || "";
+      const userMsg: Message = { role: "user", content: studentName && !label.includes(studentName) ? `${label} — ${studentName}` : label };
       setMessages((prev) => [...prev, userMsg]);
 
-      // Send to Gemini
-      await sendMessageRef.current(prompt, [...messages, userMsg], true, true);
+      // If result is structured content (schedule, booking-detail, student-lessons), render directly
+      if (result.type && result.type !== "lesson-context" && result.data) {
+        const structured: StructuredContent = result;
+        setMessages((prev) => [...prev, { role: "assistant", content: structured.summary, structured }]);
+      } else {
+        // Send the endPrompt + context to Gemini via chat
+        const prompt = replacePlaceholders(action.endPrompt);
+        await sendMessageRef.current(prompt, [...messages, userMsg], true, true);
+      }
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : "Something went wrong";
       setMessages((prev) => [...prev, { role: "assistant", content: errorMsg }]);
@@ -597,7 +601,7 @@ export default function Chat() {
         setFlowSteps(data);
         if (isSharedChat) return;
         if (data.length > 0) {
-          const welcome = findWelcomeStep(data, userRoles);
+          const welcome = buildMergedWelcomeStep(data, userRoles);
           if (welcome) {
             setCurrentFlowStep(welcome);
             setFlowPhase("active");

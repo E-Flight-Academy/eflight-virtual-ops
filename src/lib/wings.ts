@@ -304,7 +304,7 @@ query GetPreviousLesson($userId: Int!, $startDate: String!, $endDate: String!) {
       lessons {
         id
         comments
-        plan { name isAssessment }
+        plan { name isAssessment course { name } }
         status { name }
         records {
           id
@@ -340,7 +340,7 @@ export async function getPreviousLessonBooking(
       lessons: {
         id: number;
         comments: string | null;
-        plan: { name: string; isAssessment: boolean } | null;
+        plan: { name: string; isAssessment: boolean; course: { name: string } | null } | null;
         status: { name: string } | null;
         records: {
           id: number;
@@ -393,6 +393,7 @@ export async function getPreviousLessonBooking(
 export interface StudentLessonSummary {
   bookingId: number;
   date: string;
+  courseName: string | null;
   planName: string | null;
   isAssessment: boolean;
   status: string | null;
@@ -407,17 +408,17 @@ export interface StudentLessonSummary {
  */
 export async function getStudentLessonHistory(
   studentUserId: number,
-  count = 10,
+  count?: number,
 ): Promise<StudentLessonSummary[]> {
   try {
     const endDate = new Date().toISOString().slice(0, 10);
-    const startDate = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const startDate = new Date(Date.now() - 6 * 365 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
     interface HistBooking extends WingsBooking {
       lessons: {
         id: number;
         comments: string | null;
-        plan: { name: string; isAssessment: boolean } | null;
+        plan: { name: string; isAssessment: boolean; course: { name: string } | null } | null;
         status: { name: string } | null;
         records: {
           id: number;
@@ -431,23 +432,36 @@ export async function getStudentLessonHistory(
       bookings: { data: HistBooking[] };
     }
 
-    const data = await gql<QueryResult>(PREVIOUS_LESSON_QUERY, {
-      userId: studentUserId,
-      startDate,
-      endDate,
-    });
+    // Paginate through all results (Wings returns max per page)
+    const allBookings: HistBooking[] = [];
+    let page = 1;
+    const perPage = 50;
+    while (true) {
+      const query = PREVIOUS_LESSON_QUERY.replace("first: 50", `first: ${perPage}, page: ${page}`);
+      const data = await gql<QueryResult>(query, {
+        userId: studentUserId,
+        startDate,
+        endDate,
+      });
+      allBookings.push(...data.bookings.data);
+      if (data.bookings.data.length < perPage) break;
+      page++;
+      if (page > 10) break; // safety limit
+    }
 
-    // Filter to confirmed bookings with lessons, sort newest first, take N
-    const withLessons = data.bookings.data
+    // Filter to confirmed bookings with lessons, sort newest first
+    let withLessons = allBookings
       .filter((b) => b.status.name !== "Declined" && b.lessons.length > 0)
-      .sort((a, b) => b.from.localeCompare(a.from))
-      .slice(0, count);
+      .sort((a, b) => b.from.localeCompare(a.from));
+
+    if (count) withLessons = withLessons.slice(0, count);
 
     return withLessons.map((b) => {
       const lesson = b.lessons.find((l) => l.plan?.name) || b.lessons[0];
       return {
         bookingId: b.id,
         date: b.from.slice(0, 10),
+        courseName: lesson.plan?.course?.name || null,
         planName: lesson.plan?.name || null,
         isAssessment: lesson.plan?.isAssessment || false,
         status: lesson.status?.name || null,

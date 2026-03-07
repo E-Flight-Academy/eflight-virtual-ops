@@ -248,6 +248,101 @@ export default function PatternsPage() {
           <CodeRef>MessageBubble.tsx, WelcomeScreen.tsx, TypingIndicator.tsx</CodeRef>
         </Section>
 
+        {/* ===== SEGMENTED CONTROLLER ===== */}
+        <Section title="Segmented Controller" description="Shared tab-style switcher (SegmentedController.tsx). Equal-width tabs (flex-1), active = white bg + shadow. Content uses CSS grid to prevent layout shifts between tabs.">
+          <div className="flex bg-[#F2F2F2] rounded-lg p-0.5 gap-0.5 max-w-md">
+            <button className="flex-1 text-xs font-medium py-1.5 px-2 rounded-md bg-white text-foreground shadow-sm cursor-pointer">
+              PPL (A) E-Flight <span className="ml-1 text-e-grey">45</span>
+            </button>
+            <button className="flex-1 text-xs font-medium py-1.5 px-2 rounded-md text-[#828282] hover:text-foreground cursor-pointer">
+              Night (A) V1.0 <span className="ml-1 text-[#ABABAB]">6</span>
+            </button>
+          </div>
+          <Label>Grid technique for stable width</Label>
+          <p className="text-xs text-e-grey">All tab panels render in the same grid cell (<code>col-start-1 row-start-1</code>). Inactive panels are <code>h-0 overflow-hidden invisible</code>. This keeps container width constant across tab switches.</p>
+          <UsedIn items={[
+            "Schedule (Upcoming / Today / Past)",
+            "Student lessons overview (course tabs)",
+            "Booking detail scores (score 1-5 tabs — custom variant with ScoreCircle)",
+          ]} />
+          <CodeRef>SegmentedController.tsx, ScheduleMessage.tsx, StudentLessonsMessage.tsx, BookingDetailMessage.tsx</CodeRef>
+        </Section>
+
+        {/* ===== SCORE BADGE ===== */}
+        <Section title="Score Badge" description="Compact score indicator with color coding. Green (4-5), amber (3), red (1-2).">
+          <div className="flex gap-2 items-center">
+            <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-green-100 text-green-700">4.5</span>
+            <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">3.0</span>
+            <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-red-100 text-red-700">2.0</span>
+          </div>
+          <UsedIn items={["Student lessons list (average score per lesson)"]} />
+          <CodeRef>StudentLessonsMessage.tsx</CodeRef>
+        </Section>
+
+        {/* ===== CARD ACTIONS ===== */}
+        <Section title="Card Actions" description="Action buttons shown below a booking-detail card. Same style as flow options, triggered by Notion flow steps with booking-detail trigger.">
+          <div className="flex flex-wrap gap-2">
+            <button className="font-semibold rounded-full border border-[#ECECEC] bg-[#F7F7F7] text-[#030213] hover:bg-[#1515F5] hover:text-white hover:border-[#1515F5] transition-colors flex items-center gap-1.5 cursor-pointer text-base px-4 py-2">
+              <span>📝</span> Summarize this lesson
+            </button>
+            <button className="font-semibold rounded-full border border-[#ECECEC] bg-[#F7F7F7] text-[#030213] hover:bg-[#1515F5] hover:text-white hover:border-[#1515F5] transition-colors flex items-center gap-1.5 cursor-pointer text-base px-4 py-2">
+              Summarize previous lesson
+            </button>
+            <button className="font-semibold rounded-full border border-[#ECECEC] bg-[#F7F7F7] text-[#030213] hover:bg-[#1515F5] hover:text-white hover:border-[#1515F5] transition-colors flex items-center gap-1.5 cursor-pointer text-base px-4 py-2">
+              Performance summary previous lessons
+            </button>
+            <button className="font-semibold rounded-full border border-[#ECECEC] bg-[#F7F7F7] text-[#030213] hover:bg-[#1515F5] hover:text-white hover:border-[#1515F5] transition-colors flex items-center gap-1.5 cursor-pointer text-base px-4 py-2">
+              <span>📋</span> All lessons for Student Name
+            </button>
+          </div>
+          <Label>Order: Summarize this (90) → Previous (91) → Performance (93) → All lessons (95)</Label>
+          <UsedIn items={[
+            "Below last booking-detail structured message",
+            "Filtered by capability (instructor-schedule) and context (e.g. previous lesson exists)",
+            "Label supports {placeholder} syntax: {studentName}, {previousLessonPlan}, {previousLessonDate}",
+          ]} />
+          <CodeRef>MessageList.tsx, Chat.tsx (handleCardAction), Notion Dialog Flows (trigger: booking-detail)</CodeRef>
+        </Section>
+
+        {/* ===== DATE FORMAT ===== */}
+        <Section title="Date Format" description="Dates in structured messages use DD-MM-YYYY format. Header dates use localized long format with year.">
+          <div className="flex flex-wrap gap-4 items-center text-sm">
+            <div>
+              <p className="text-xs text-e-grey mb-1">Lesson list / Previous lesson</p>
+              <span className="font-medium">17-03-2025</span>
+            </div>
+            <div>
+              <p className="text-xs text-e-grey mb-1">Booking detail header</p>
+              <span className="font-medium">Monday, Mar 17, 2025</span>
+            </div>
+            <div>
+              <p className="text-xs text-e-grey mb-1">Schedule</p>
+              <span className="font-medium">Monday, Mar 17</span>
+            </div>
+          </div>
+          <CodeRef>StudentLessonsMessage.tsx, BookingDetailMessage.tsx, ScheduleMessage.tsx</CodeRef>
+        </Section>
+
+        {/* ===== SHOW MORE / LESS ===== */}
+        <Section title="Show More / Less" description="Expand/collapse toggle for long lists. Grey text, indigo on hover, with chevron icon.">
+          <div className="flex flex-col gap-2">
+            <button className="flex items-center gap-1.5 text-xs text-e-grey hover:text-[#1515F5] transition-colors cursor-pointer">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9" /></svg>
+              Show 16 more
+            </button>
+            <button className="flex items-center gap-1.5 text-xs text-e-grey hover:text-[#1515F5] transition-colors cursor-pointer">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15" /></svg>
+              Show less
+            </button>
+          </div>
+          <UsedIn items={[
+            "Student lessons list (max 10 visible)",
+            "Booking detail comments (max 5 lines)",
+            "Booking detail scores (max 6 items)",
+          ]} />
+          <CodeRef>StudentLessonsMessage.tsx, BookingDetailMessage.tsx</CodeRef>
+        </Section>
+
         {/* ===== TAP & TALK ===== */}
         <Section title="Tap &amp; Talk (Kiosk)" description="Large mic buttons for kiosk mode, one per language. Idle (mint) and listening (red pulsing).">
           <div className="flex gap-3 max-w-xl">

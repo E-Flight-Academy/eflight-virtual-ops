@@ -655,29 +655,20 @@ export async function getInstructorBookingsExpanded(
 export function buildScheduleContext(schedule: WingsSchedule): string {
   if (schedule.bookings.length === 0) return "";
 
-  // Group bookings by date
-  const byDate = new Map<string, WingsBooking[]>();
+  // TOON-style tabular format for token efficiency
+  const lines: string[] = [
+    "=== Schedule ===",
+    "date\ttime\ttype\tstudent\taircraft\tstatus\tnotes\twingsLink",
+  ];
+
   for (const b of schedule.bookings) {
     const date = b.from.slice(0, 10);
-    if (!byDate.has(date)) byDate.set(date, []);
-    byDate.get(date)!.push(b);
-  }
-
-  const lines: string[] = ["=== Instructor Schedule (upcoming 14 days) ==="];
-
-  for (const [date, bookings] of byDate) {
-    const wingsLink = `https://eflight.oywings.com/bookings?date=${date}`;
-    lines.push(`\n${date} (${wingsLink}):`);
-    for (const b of bookings) {
-      const timeFrom = b.from.slice(11, 16);
-      const timeTo = b.to.slice(11, 16);
-      const student = b.eventTitle || b.user?.name || b.customer?.name || "—";
-      const aircraft = b.aircraft?.callSign || "—";
-      const type = b.type.name;
-      const status = b.status.name;
-      const comments = b.comments ? ` | Notes: ${b.comments.replace(/\n/g, "; ")}` : "";
-      lines.push(`  - ${timeFrom}–${timeTo} | ${type} | ${student} | Aircraft: ${aircraft} | Status: ${status}${comments}`);
-    }
+    const time = `${b.from.slice(11, 16)}–${b.to.slice(11, 16)}`;
+    const student = b.eventTitle || b.user?.name || b.customer?.name || "—";
+    const aircraft = b.aircraft?.callSign || "—";
+    const notes = b.comments?.replace(/\n/g, "; ") || "";
+    const link = `https://eflight.oywings.com/bookings?date=${date}`;
+    lines.push(`${date}\t${time}\t${b.type.name}\t${student}\t${aircraft}\t${b.status.name}\t${notes}\t${link}`);
   }
 
   return lines.join("\n");

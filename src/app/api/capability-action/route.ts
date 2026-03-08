@@ -309,16 +309,18 @@ export async function POST(request: NextRequest) {
         await setKvStudentLessons(suid, lessons);
       }
 
-      // Build context string for Gemini
-      const lines: string[] = [`=== Lesson History for ${studentName || "Student"} (last ${lessons.length} lessons) ===`];
+      // Build TOON-style tabular context for Gemini (token efficient)
+      const lines: string[] = [
+        `=== Lesson History for ${studentName || "Student"} (${lessons.length} lessons) ===`,
+        "date\tplan\tstatus\tinstructor\taircraft\tcomments",
+      ];
       for (const l of lessons) {
-        lines.push(`\n--- ${l.date} | ${l.planName || "No plan"} | ${l.status || "?"} | Instructor: ${l.instructor || "?"} | Aircraft: ${l.aircraft || "?"} ---`);
-        if (l.comments) lines.push(`Comments: ${l.comments}`);
+        lines.push(`${l.date}\t${l.planName || "—"}\t${l.status || "?"}\t${l.instructor || "?"}\t${l.aircraft || "?"}\t${l.comments?.replace(/\n/g, "; ") || ""}`);
         if (l.records.length > 0) {
-          lines.push("Scores:");
+          lines.push("  scores: objective\tscore\tnotes");
           for (const r of l.records) {
             if (r.score !== null) {
-              lines.push(`  [${r.score}/5] ${r.objectiveSummary}${r.comments ? ` (${r.comments})` : ""}`);
+              lines.push(`  ${r.objectiveSummary}\t${r.score}/5\t${r.comments || ""}`);
             }
           }
         }
@@ -349,30 +351,26 @@ export async function POST(request: NextRequest) {
 
       const lesson = raw.lessons[0];
       const lines: string[] = [`=== Lesson Detail for ${studentName || "Student"} ===`];
-      lines.push(`Date: ${raw.from.slice(0, 10)}`);
-      lines.push(`Time: ${raw.from.slice(11, 16)}–${raw.to.slice(11, 16)}`);
-      lines.push(`Type: ${raw.type.name}`);
-      lines.push(`Status: ${raw.status.name}`);
-      lines.push(`Instructor: ${raw.instructor?.name || "—"}`);
-      lines.push(`Aircraft: ${raw.aircraft?.callSign || "—"}`);
-      if (raw.comments) lines.push(`Booking comments: ${raw.comments}`);
+      lines.push(`date\ttime\ttype\tstatus\tinstructor\taircraft`);
+      lines.push(`${raw.from.slice(0, 10)}\t${raw.from.slice(11, 16)}–${raw.to.slice(11, 16)}\t${raw.type.name}\t${raw.status.name}\t${raw.instructor?.name || "—"}\t${raw.aircraft?.callSign || "—"}`);
+      if (raw.comments) lines.push(`comments: ${raw.comments}`);
       if (lesson) {
-        if (lesson.plan?.name) lines.push(`Lesson plan: ${lesson.plan.name}${lesson.plan.isAssessment ? " (Assessment)" : ""}`);
-        if (lesson.plan?.description) lines.push(`Description: ${lesson.plan.description}`);
-        if (lesson.status?.name) lines.push(`Lesson status: ${lesson.status.name}`);
-        if (lesson.comments) lines.push(`Instructor notes: ${lesson.comments}`);
+        if (lesson.plan?.name) lines.push(`plan: ${lesson.plan.name}${lesson.plan.isAssessment ? " (Assessment)" : ""}`);
+        if (lesson.plan?.description) lines.push(`description: ${lesson.plan.description}`);
+        if (lesson.status?.name) lines.push(`lesson_status: ${lesson.status.name}`);
+        if (lesson.comments) lines.push(`instructor_notes: ${lesson.comments}`);
         if (lesson.records && lesson.records.length > 0) {
-          lines.push("Scores:");
+          lines.push("scores: objective\tscore\tnotes");
           for (const r of lesson.records) {
             if (r.score !== null) {
-              lines.push(`  [${r.score}/5] ${r.objective?.summary || "—"}${r.comments ? ` (${r.comments})` : ""}`);
+              lines.push(`${r.objective?.summary || "—"}\t${r.score}/5\t${r.comments || ""}`);
             }
           }
         }
         if (lesson.flights && lesson.flights.length > 0) {
+          lines.push("flights: from\tto\tcomments");
           for (const f of lesson.flights) {
-            lines.push(`Flight: ${f.depart?.icaoName || f.depart?.name || "—"} → ${f.arrive?.icaoName || f.arrive?.name || "—"}`);
-            if (f.comments) lines.push(`Flight comments: ${f.comments}`);
+            lines.push(`${f.depart?.icaoName || f.depart?.name || "—"}\t${f.arrive?.icaoName || f.arrive?.name || "—"}\t${f.comments || ""}`);
           }
         }
       }

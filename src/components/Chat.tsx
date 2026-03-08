@@ -635,6 +635,8 @@ export default function Chat() {
           setShopifyUser(data.customer);
           setUserRoles(data.roles || []);
           setCapabilities(data.capabilities || []);
+          // Re-fetch FAQs for authenticated audience
+          fetchRetry("/api/faqs").then((res) => res.json()).then((d) => setFaqs(d)).catch(() => {});
         }
       })
       .catch(() => {});
@@ -680,6 +682,9 @@ export default function Chat() {
     await fetch("/api/auth/shopify/logout", { method: "POST" });
     setShopifyUser(null);
     setUserRoles([]);
+    setCapabilities([]);
+    // Re-fetch FAQs for public audience
+    fetchRetry("/api/faqs").then((res) => res.json()).then((data) => setFaqs(data)).catch(() => {});
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -716,12 +721,23 @@ export default function Chat() {
       const url = new URL(window.location.href);
       url.search = "";
       url.searchParams.set("chat", id);
-      await navigator.clipboard.writeText(url.toString());
-      setShareStatus("copied");
-      setTimeout(() => setShareStatus("idle"), 3000);
-    } catch {
-      setShareStatus("error");
-      setTimeout(() => setShareStatus("idle"), 3000);
+      const shareUrl = url.toString();
+      if (navigator.share && window.matchMedia("(pointer: coarse)").matches) {
+        await navigator.share({ url: shareUrl });
+        setShareStatus("idle");
+      } else {
+        await navigator.clipboard.writeText(shareUrl);
+        setShareStatus("copied");
+        setTimeout(() => setShareStatus("idle"), 3000);
+      }
+    } catch (err) {
+      // User cancelled native share sheet — not an error
+      if (err instanceof Error && err.name === "AbortError") {
+        setShareStatus("idle");
+      } else {
+        setShareStatus("error");
+        setTimeout(() => setShareStatus("idle"), 3000);
+      }
     }
   };
 

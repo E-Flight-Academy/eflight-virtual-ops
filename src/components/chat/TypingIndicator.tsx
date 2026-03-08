@@ -48,6 +48,16 @@ const STEP_LABELS: Record<string, Record<string, string[]>> = {
     en: ["Fetching schedule from Wings", "Loading lesson plan"],
     de: ["Stundenplan aus Wings abrufen", "Unterrichtsplan laden"],
   },
+  "faq-rag": {
+    nl: ["Veelgestelde vragen doorzoeken", "Relevante FAQ's zoeken"],
+    en: ["Searching FAQs", "Finding relevant FAQs"],
+    de: ["FAQ durchsuchen", "Relevante FAQ suchen"],
+  },
+  "website-rag": {
+    nl: ["Website doorzoeken", "Relevante pagina's zoeken"],
+    en: ["Searching website", "Finding relevant pages"],
+    de: ["Website durchsuchen", "Relevante Seiten suchen"],
+  },
   generating: {
     nl: ["Antwoord formuleren", "Antwoord schrijven"],
     en: ["Formulating response", "Writing answer"],

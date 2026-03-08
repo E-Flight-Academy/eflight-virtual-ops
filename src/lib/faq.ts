@@ -191,13 +191,13 @@ function getFaqAnswer(faq: KvFaq, lang: string): string {
 
 export function buildFaqContext(faqs: KvFaq[], lang = "en"): string {
   if (faqs.length === 0) return "";
-  const entries = faqs
-    .filter((f) => getFaqAnswer(f, lang))
-    .map((f) => {
-      let entry = `Q: ${getFaqQuestion(f, lang)}\nA: ${getFaqAnswer(f, lang)}`;
-      if (f.url) entry += `\nLink: ${f.url}`;
-      return entry;
-    })
-    .join("\n\n");
-  return `=== Frequently Asked Questions ===\n${entries}`;
+  const filtered = faqs.filter((f) => getFaqAnswer(f, lang));
+  // TOON-style tabular format: minimizes repeated keys for token efficiency
+  const rows = filtered.map((f) => {
+    const q = getFaqQuestion(f, lang);
+    const a = getFaqAnswer(f, lang);
+    const link = f.url || "";
+    return `${q}\t${a}\t${link}`;
+  });
+  return `=== FAQ ===\nquestion\tanswer\tlink\n${rows.join("\n")}`;
 }

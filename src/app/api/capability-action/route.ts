@@ -3,7 +3,10 @@ import { z } from "zod";
 import { getSession } from "@/lib/shopify-auth";
 import { getUserData } from "@/lib/airtable";
 import { getCapabilitiesForRoles } from "@/lib/role-access";
-import { getInstructorBookingsExpanded, getBookingDetail, getUserDocuments, getDocumentValidities, getAircraftStatus, getPreviousLessonBooking, getStudentLessonHistory, type WingsBooking } from "@/lib/wings";
+import { getInstructorBookingsExpanded, getBookingDetail, getUserDocuments, getDocumentValidities, getAircraftStatus, getPreviousLessonBooking, getStudentLessonHistory, getCourseLessonPlans, type WingsBooking } from "@/lib/wings";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+import { queryDocuments } from "@/lib/vector";
+import { getFoldersForRoles } from "@/lib/role-access";
 import { getKvWingsSchedule, setKvWingsSchedule, getKvStudentLessons, setKvStudentLessons } from "@/lib/kv-cache";
 import type { ScheduleDay, ScheduleBooking, BookingDetail, BookingLesson, BookingFlight, UserDocuments, DocumentValidity, AircraftStatus, AircraftRemark, PreviousLesson, LessonRecord } from "@/types/chat";
 
@@ -487,6 +490,163 @@ export async function POST(request: NextRequest) {
           totalLessons: lessons.length,
         },
         summary: `${lessons.length} lessons for ${name} across ${courses.length} course${courses.length !== 1 ? "s" : ""}`,
+      });
+    }
+
+    // lesson-briefing-{current|next}-{en|nl}
+    if (action.startsWith("lesson-briefing-")) {
+      if (!capabilities.includes("instructor-schedule")) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+      }
+      if (!bookingId) {
+        return NextResponse.json({ error: "bookingId is required" }, { status: 400 });
+      }
+
+      // Parse action: lesson-briefing-{current|next}-{en|nl}
+      const parts = action.split("-");
+      const lessonChoice = parts[2] as "current" | "next"; // current or next
+      const lang = parts[3] as "en" | "nl";
+      if (!["current", "next"].includes(lessonChoice) || !["en", "nl"].includes(lang)) {
+        return NextResponse.json({ error: "Invalid lesson-briefing action format" }, { status: 400 });
+      }
+
+      // 1. Get booking detail
+      const raw = await getBookingDetail(bookingId);
+      if (!raw) {
+        return NextResponse.json({ error: "Booking not found" }, { status: 404 });
+      }
+
+      const lesson = raw.lessons[0];
+      if (!lesson?.plan?.id || !lesson.plan.course?.id) {
+        return NextResponse.json({ error: "No lesson plan found for this booking" }, { status: 400 });
+      }
+
+      const courseId = lesson.plan.course.id;
+      const courseName = lesson.plan.course.name;
+      const studentUser = raw.user || raw.customer;
+      const studentName = studentUser?.name || raw.eventTitle || "Student";
+
+      // 2. Determine target exercise (current or next)
+      const coursePlans = await getCourseLessonPlans(courseId);
+      const currentIdx = coursePlans.findIndex((p) => p.id === lesson.plan!.id);
+      let targetPlan = coursePlans[currentIdx] || null;
+      let isNextLesson = false;
+
+      if (lessonChoice === "next" && currentIdx >= 0 && currentIdx < coursePlans.length - 1) {
+        targetPlan = coursePlans[currentIdx + 1];
+        isNextLesson = true;
+      }
+
+      if (!targetPlan) {
+        return NextResponse.json({ error: "Could not determine target exercise" }, { status: 400 });
+      }
+
+      // 3. Fetch student context (recent lessons) in parallel with RAG query
+      const exerciseQuery = `${targetPlan.name} ${courseName} flight training exercise briefing`;
+      const userRoles = roleOverride?.length ? roleOverride : ["instructor"];
+      const allowedFolders = await getFoldersForRoles(userRoles);
+
+      const [studentHistory, ragResults] = await Promise.all([
+        studentUser?.id ? getStudentLessonHistory(studentUser.id, 5) : Promise.resolve([]),
+        queryDocuments(exerciseQuery, allowedFolders, 8),
+      ]);
+
+      // 4. Build student context string
+      let studentContext: string | null = null;
+      if (studentHistory.length > 0) {
+        const lines = studentHistory.map((l) => {
+          const scores = l.records.filter((r) => r.score !== null);
+          const avgScore = scores.length > 0
+            ? (scores.reduce((sum, r) => sum + r.score!, 0) / scores.length).toFixed(1)
+            : "—";
+          return `${l.date} | ${l.planName || "—"} | ${l.status || "?"} | avg: ${avgScore} | ${l.comments?.replace(/\n/g, "; ").slice(0, 100) || ""}`;
+        });
+        studentContext = `Recent lessons for ${studentName}:\n${lines.join("\n")}`;
+      }
+
+      // 5. Build RAG context
+      const ragContext = ragResults.length > 0
+        ? ragResults.map((r) => `[${r.fileName}] ${r.text}`).join("\n\n")
+        : null;
+
+      // 6. Build Gemini prompt
+      const langLabel = lang === "nl" ? "Dutch" : "English";
+      const systemPrompt = `You are an experienced flight instructor preparing a structured lesson briefing.
+Generate a clear, practical briefing for the exercise "${targetPlan.name}" (exercise #${targetPlan.sequence}) in the course "${courseName}".
+
+Output language: ${langLabel}
+
+The briefing must be structured in sections. Return ONLY valid JSON with this format:
+{
+  "sections": [
+    { "title": "section title", "content": "section content with markdown formatting" }
+  ]
+}
+
+Sections to include (in ${langLabel}):
+${lang === "nl" ? `
+1. "Doel" — Wat gaat de student leren? Kernleerdoelen.
+2. "Voorbereiding" — Wat moet de student voorbereiden of weten?
+3. "Briefing" — Hoofdpunten van de briefing, procedures, technieken.
+4. "Aandachtspunten" — Veelgemaakte fouten, waar op te letten.
+5. "Oefening" — Hoe de vlucht wordt opgebouwd, oefenvolgorde.
+` : `
+1. "Objective" — What will the student learn? Key learning objectives.
+2. "Preparation" — What should the student prepare or know beforehand?
+3. "Briefing" — Main briefing points, procedures, techniques.
+4. "Watch Points" — Common mistakes, things to pay attention to.
+5. "Exercise" — How the flight is structured, exercise sequence.
+`}
+
+${targetPlan.description ? `Wings exercise description:\n${targetPlan.description}\n` : ""}
+${targetPlan.prep ? `Wings preparation notes:\n${targetPlan.prep}\n` : ""}
+${targetPlan.briefing ? `Wings briefing notes:\n${targetPlan.briefing}\n` : ""}
+${studentContext ? `\nStudent context:\n${studentContext}\n` : ""}
+${ragContext ? `\nReference materials:\n${ragContext}\n` : ""}
+
+Keep each section concise and practical. Use bullet points where appropriate. Focus on what the instructor needs to cover.`;
+
+      // 7. Call Gemini
+      const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
+      const model = genAI.getGenerativeModel({
+        model: "gemini-2.0-flash",
+        generationConfig: { temperature: 0.3, responseMimeType: "application/json" },
+      });
+
+      const result = await model.generateContent(systemPrompt);
+      const responseText = result.response.text();
+
+      let sections: { title: string; content: string }[] = [];
+      try {
+        const parsed = JSON.parse(responseText);
+        sections = parsed.sections || [];
+      } catch {
+        // If JSON parsing fails, wrap the raw response as a single section
+        sections = [{ title: lang === "nl" ? "Briefing" : "Briefing", content: responseText }];
+      }
+
+      const briefingData = {
+        lessonName: targetPlan.name,
+        courseName,
+        studentName,
+        exerciseNumber: targetPlan.sequence,
+        isNextLesson,
+        lang,
+        wingsPrep: targetPlan.prep,
+        wingsBriefing: targetPlan.briefing,
+        wingsDescription: targetPlan.description,
+        sections,
+        studentContext,
+      };
+
+      const lessonLabel = isNextLesson
+        ? (lang === "nl" ? "Volgende les" : "Next lesson")
+        : (lang === "nl" ? "Deze les" : "This lesson");
+
+      return NextResponse.json({
+        type: "lesson-briefing",
+        data: briefingData,
+        summary: `${lessonLabel}: ${targetPlan.name} — ${studentName}`,
       });
     }
 

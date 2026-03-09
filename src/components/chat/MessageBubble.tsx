@@ -6,6 +6,7 @@ import ScheduleMessage from "./ScheduleMessage";
 import BookingDetailMessage from "./BookingDetailMessage";
 import StudentLessonsMessage from "./StudentLessonsMessage";
 import DocumentValidityMessage from "./DocumentValidityMessage";
+import BriefingMessage from "./BriefingMessage";
 
 interface MessageBubbleProps {
   message: Message;
@@ -48,6 +49,9 @@ export default function MessageBubble({ message, index, onRate, onFaqClick, onAv
             )}
             {message.structured.type === "doc-validity" && (
               <DocumentValidityMessage data={message.structured.data} summary={message.structured.summary} />
+            )}
+            {message.structured.type === "lesson-briefing" && (
+              <BriefingMessage data={message.structured.data} summary={message.structured.summary} />
             )}
           </div>
         </div>

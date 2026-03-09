@@ -517,6 +517,42 @@ export default function Chat() {
 
   capabilityActionRef.current = handleCapabilityAction;
 
+  const handleBriefingRequest = useCallback(async (action: string, context: Record<string, string>) => {
+    setIsLoading(true);
+    setProgressSteps(["Generating briefing..."]);
+    try {
+      const params: Record<string, unknown> = {
+        action,
+        bookingId: context.bookingId ? Number(context.bookingId) : undefined,
+        studentUserId: context.studentUserId ? Number(context.studentUserId) : undefined,
+        studentName: context.studentName,
+      };
+      if (userEmailOverride) params.userEmail = userEmailOverride;
+      if (roleOverride) params.roleOverride = roleOverride;
+
+      const res = await fetch("/api/capability-action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(params),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to generate briefing");
+      }
+      const structured: StructuredContent = await res.json();
+      setMessages((prev) => [...prev, {
+        role: "assistant",
+        content: structured.summary,
+        structured,
+      }]);
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : "Something went wrong";
+      setMessages((prev) => [...prev, { role: "assistant", content: errorMsg }]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [userEmailOverride, roleOverride]);
+
   // Card actions from flow steps with trigger
   const bookingDetailActions = useMemo<CardAction[]>(() =>
     flowSteps
@@ -991,6 +1027,7 @@ export default function Chat() {
             onBookingClick={handleBookingClick}
             cardActions={bookingDetailActions}
             onCardAction={handleCardAction}
+            onBriefingRequest={handleBriefingRequest}
           />
         )}
 

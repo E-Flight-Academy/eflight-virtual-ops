@@ -119,13 +119,18 @@ export async function searchCustomers(query: string): Promise<AirtableCustomerSu
   const customers: AirtableCustomerSummary[] = [];
 
   for (const rec of data.records) {
-    const email = rec.fields["Client E-Mail"];
-    if (!email) continue;
-    customers.push({
-      email,
-      name: rec.fields.Name?.[0] || email.split("@")[0],
-      roles: rec.fields["Wings Role"] || [],
-    });
+    const primaryEmail = rec.fields["Client E-Mail"];
+    const altEmail = rec.fields["E-Mail 2"];
+    const name = rec.fields.Name?.[0] || primaryEmail?.split("@")[0] || "?";
+    const roles = rec.fields["Wings Role"] || [];
+
+    if (primaryEmail) {
+      customers.push({ email: primaryEmail, name, roles });
+    }
+    // Also show alt email as separate option if the search matched it
+    if (altEmail && altEmail.toLowerCase().includes(q.toLowerCase()) && altEmail !== primaryEmail) {
+      customers.push({ email: altEmail, name, roles });
+    }
   }
 
   return customers.sort((a, b) => a.name.localeCompare(b.name));

@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import type { Message, FlowOption, FlowStep, CardAction } from "@/types/chat";
 import type { UiLabels } from "@/lib/i18n/labels";
 import type { FaqAdminPhase, FaqAdminAction } from "@/hooks/useFaqAdmin";
@@ -46,6 +46,7 @@ interface MessageListProps {
   onBookingClick?: (bookingId: number, date: string, time: string, student: string) => void;
   cardActions?: CardAction[];
   onCardAction?: (action: CardAction, context: Record<string, string>) => void;
+  onBriefingRequest?: (action: string, context: Record<string, string>) => void;
 }
 
 export default function MessageList({
@@ -83,7 +84,10 @@ export default function MessageList({
   onBookingClick,
   cardActions,
   onCardAction,
+  onBriefingRequest,
 }: MessageListProps) {
+  const [briefingStep, setBriefingStep] = useState<"idle" | "lesson" | "lang">("idle");
+  const [briefingLessonChoice, setBriefingLessonChoice] = useState<"current" | "next">("current");
   return (
     <div role="log" aria-live="polite" aria-label="Chat messages" className="space-y-4">
       {messages.map((message, index) => (
@@ -247,18 +251,76 @@ export default function MessageList({
             }
             const visibleActions = cardActions.filter((a) => {
               if (a.contextKey === "lesson-summary" && !bd.previousLesson) return false;
+              // Hide briefing button if no lesson plan on booking
+              if (a.contextKey === "lesson-briefing" && !bd.lessons.some((l) => l.planName)) return false;
               return true;
             });
+            const pillClass = `font-semibold rounded-full border border-[#ECECEC] bg-[#F7F7F7] text-[#030213] hover:bg-[#1515F5] hover:text-white hover:border-[#1515F5] transition-colors flex items-center gap-1.5 cursor-pointer animate-pop-in ${kiosk ? "text-lg px-5 py-3" : "text-base px-4 py-2"}`;
+
+            // Briefing sub-step: lesson choice
+            if (briefingStep === "lesson") {
+              return (
+                <div className="max-w-4xl mx-auto w-full pl-11 flex flex-wrap gap-2">
+                  <button onClick={() => { setBriefingLessonChoice("current"); setBriefingStep("lang"); }} className={pillClass} style={{ animationDelay: "0ms" }}>
+                    This lesson
+                  </button>
+                  <button onClick={() => { setBriefingLessonChoice("next"); setBriefingStep("lang"); }} className={pillClass} style={{ animationDelay: "100ms" }}>
+                    Next lesson
+                  </button>
+                  <button onClick={() => setBriefingStep("idle")} className="text-sm text-e-grey hover:text-foreground transition-colors cursor-pointer px-2">
+                    Cancel
+                  </button>
+                </div>
+              );
+            }
+
+            // Briefing sub-step: language choice
+            if (briefingStep === "lang") {
+              return (
+                <div className="max-w-4xl mx-auto w-full pl-11 flex flex-wrap gap-2">
+                  <button
+                    onClick={() => { setBriefingStep("idle"); onBriefingRequest?.(`lesson-briefing-${briefingLessonChoice}-en`, ctx); }}
+                    className={pillClass} style={{ animationDelay: "0ms" }}
+                  >
+                    English
+                  </button>
+                  <button
+                    onClick={() => { setBriefingStep("idle"); onBriefingRequest?.(`lesson-briefing-${briefingLessonChoice}-nl`, ctx); }}
+                    className={pillClass} style={{ animationDelay: "100ms" }}
+                  >
+                    Nederlands
+                  </button>
+                  <button onClick={() => setBriefingStep("lesson")} className="text-sm text-e-grey hover:text-foreground transition-colors cursor-pointer px-2">
+                    Back
+                  </button>
+                </div>
+              );
+            }
+
             if (visibleActions.length === 0) return null;
             return (
               <div className="max-w-4xl mx-auto w-full pl-11 flex flex-wrap gap-2">
                 {visibleActions.map((action, i) => {
                   const label = action.label.replace(/\{(\w+)\}/g, (_, key) => ctx[key as string] || key);
+                  // Briefing action: start multi-step picker instead of immediate API call
+                  if (action.contextKey === "lesson-briefing") {
+                    return (
+                      <button
+                        key={action.name}
+                        onClick={() => setBriefingStep("lesson")}
+                        className={pillClass}
+                        style={{ animationDelay: `${i * 100}ms` }}
+                      >
+                        {action.icon && <span>{action.icon}</span>}
+                        {label}
+                      </button>
+                    );
+                  }
                   return (
                     <button
                       key={action.name}
                       onClick={() => onCardAction(action, ctx)}
-                      className={`font-semibold rounded-full border border-[#ECECEC] bg-[#F7F7F7] text-[#030213] hover:bg-[#1515F5] hover:text-white hover:border-[#1515F5] transition-colors flex items-center gap-1.5 cursor-pointer animate-pop-in ${kiosk ? "text-lg px-5 py-3" : "text-base px-4 py-2"}`}
+                      className={pillClass}
                       style={{ animationDelay: `${i * 100}ms` }}
                     >
                       {action.icon && <span>{action.icon}</span>}

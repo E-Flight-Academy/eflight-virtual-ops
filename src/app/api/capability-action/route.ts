@@ -3,9 +3,7 @@ import { z } from "zod";
 import { getSession } from "@/lib/shopify-auth";
 import { getUserData } from "@/lib/airtable";
 import { getCapabilitiesForRoles } from "@/lib/role-access";
-import { getInstructorBookingsExpanded, getBookingDetail, getUserDocuments, getDocumentValidities, getAircraftStatus, getPreviousLessonBooking, getStudentLessonHistory, getCourseLessonPlans, type WingsBooking } from "@/lib/wings";
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import { queryVector } from "@/lib/vector";
+import { getInstructorBookingsExpanded, getBookingDetail, getUserDocuments, getDocumentValidities, getAircraftStatus, getPreviousLessonBooking, getStudentLessonHistory, type WingsBooking } from "@/lib/wings";
 import { getKvWingsSchedule, setKvWingsSchedule, getKvStudentLessons, setKvStudentLessons } from "@/lib/kv-cache";
 import type { ScheduleDay, ScheduleBooking, BookingDetail, BookingLesson, BookingFlight, UserDocuments, DocumentValidity, AircraftStatus, AircraftRemark, PreviousLesson, LessonRecord } from "@/types/chat";
 

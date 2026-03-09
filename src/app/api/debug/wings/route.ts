@@ -4,7 +4,7 @@ import { getInstructorBookings } from "@/lib/wings";
 import { getUserData } from "@/lib/airtable";
 import { getCapabilitiesForRoles } from "@/lib/role-access";
 
-const ADMIN_EMAILS = ["matthijs@eflight.nl", "matthijscollard@gmail.com"];
+const ADMIN_EMAILS = ["matthijs@eflight.nl", "matthijscollard@gmail.com", "milos@eflight.nl"];
 
 export async function GET(request: NextRequest) {
   try {

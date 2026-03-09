@@ -106,7 +106,7 @@ export async function POST(request: NextRequest) {
     let accessToken: string | null = null;
 
     // Check if current user is allowed to use debug overrides
-    const DEBUG_OVERRIDE_EMAILS = ["matthijs@eflight.nl", "matthijscollard@gmail.com"];
+    const DEBUG_OVERRIDE_EMAILS = ["matthijs@eflight.nl", "matthijscollard@gmail.com", "milos@eflight.nl"];
     let sessionForOverrideCheck: { customer?: { email?: string }; accessToken: string } | null = null;
     const wantsOverride = roleOverride?.length || userEmailOverride;
     if (wantsOverride) {

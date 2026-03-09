@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 
-const ADMIN_EMAILS = ["matthijs@eflight.nl", "matthijscollard@gmail.com", "wesley@eflight.nl", "paulien@eflight.nl"];
+const ADMIN_EMAILS = ["matthijs@eflight.nl", "matthijscollard@gmail.com", "wesley@eflight.nl", "paulien@eflight.nl", "milos@eflight.nl"];
 const ALLOWED_ROLES = ["operations", "instructor"];
 
 // ─── Color system by category ────────────────────────────────────────
@@ -609,16 +609,19 @@ function DocsNav({ active }: { active: "architecture" | "patterns" }) {
     { href: "/patterns", label: "Patterns", id: "patterns" as const },
   ];
   return (
-    <div className="flex gap-1 bg-[#F2F2F2] rounded-lg p-0.5 w-fit">
-      {items.map((item) => (
-        <Link
-          key={item.id}
-          href={item.href}
-          className={`text-sm font-medium px-4 py-1.5 rounded-md transition-colors no-underline ${active === item.id ? "bg-white text-foreground shadow-sm" : "text-[#828282] hover:text-foreground"}`}
-        >
-          {item.label}
-        </Link>
-      ))}
+    <div className="flex items-center gap-3">
+      <Link href="/" className="text-sm text-e-grey hover:text-e-indigo transition-colors no-underline">← Steward</Link>
+      <div className="flex gap-1 bg-[#F2F2F2] rounded-lg p-0.5">
+        {items.map((item) => (
+          <Link
+            key={item.id}
+            href={item.href}
+            className={`text-sm font-medium px-4 py-1.5 rounded-md transition-colors no-underline ${active === item.id ? "bg-white text-foreground shadow-sm" : "text-[#828282] hover:text-foreground"}`}
+          >
+            {item.label}
+          </Link>
+        ))}
+      </div>
     </div>
   );
 }

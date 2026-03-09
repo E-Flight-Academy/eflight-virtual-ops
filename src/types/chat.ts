@@ -138,11 +138,31 @@ export interface DocValidityData {
   documents: DocumentValidity[];
 }
 
+export interface BriefingSection {
+  title: string;
+  content: string;
+}
+
+export interface BriefingData {
+  lessonName: string;
+  courseName: string;
+  studentName: string;
+  exerciseNumber: number;
+  isNextLesson: boolean;
+  lang: "en" | "nl";
+  wingsPrep: string | null;
+  wingsBriefing: string | null;
+  wingsDescription: string | null;
+  sections: BriefingSection[];
+  studentContext: string | null;
+}
+
 export type StructuredContent =
   | { type: "schedule"; data: ScheduleDay[]; summary: string }
   | { type: "booking-detail"; data: BookingDetail; summary: string }
   | { type: "student-lessons"; data: StudentLessonsData; summary: string }
-  | { type: "doc-validity"; data: DocValidityData; summary: string };
+  | { type: "doc-validity"; data: DocValidityData; summary: string }
+  | { type: "lesson-briefing"; data: BriefingData; summary: string };
 
 export interface Message {
   role: "user" | "assistant";

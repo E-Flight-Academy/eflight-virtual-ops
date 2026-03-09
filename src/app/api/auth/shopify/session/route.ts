@@ -6,7 +6,7 @@ import { getCapabilitiesForRoles } from "@/lib/role-access";
 export async function GET(request: NextRequest) {
   try {
     // Debug role override (admin-only in production)
-    const DEBUG_OVERRIDE_EMAILS = ["matthijs@eflight.nl", "matthijscollard@gmail.com"];
+    const DEBUG_OVERRIDE_EMAILS = ["matthijs@eflight.nl", "matthijscollard@gmail.com", "milos@eflight.nl"];
     const roleOverride = request.nextUrl.searchParams.get("roleOverride");
     const userEmailOverride = request.nextUrl.searchParams.get("userEmail");
 

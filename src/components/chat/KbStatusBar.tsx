@@ -389,22 +389,27 @@ export default function KbStatusBar({ kbStatus, kbExpanded, onToggle, t, current
         </div>
       )}
 
-      {/* Version */}
-      <button
-        className="w-full px-3 py-1.5 text-[10px] text-e-grey-light text-center cursor-pointer hover:text-e-grey transition-colors border-t border-[#ECECEC]"
-        onClick={() => {
-          const version = `v${process.env.NEXT_PUBLIC_VERSION} (${process.env.NEXT_PUBLIC_BUILD_ID})`;
-          navigator.clipboard.writeText(version);
-          const el = document.getElementById("version-label");
-          if (el) {
-            const original = el.textContent;
-            el.textContent = "Copied!";
-            setTimeout(() => { el.textContent = original; }, 1500);
-          }
-        }}
-      >
-        <span id="version-label">v{process.env.NEXT_PUBLIC_VERSION} ({process.env.NEXT_PUBLIC_BUILD_ID})</span>
-      </button>
+      {/* Version + Architecture link */}
+      <div className="border-t border-[#ECECEC] flex items-center">
+        <button
+          className="flex-1 px-3 py-1.5 text-[10px] text-e-grey-light text-center cursor-pointer hover:text-e-grey transition-colors"
+          onClick={() => {
+            const version = `v${process.env.NEXT_PUBLIC_VERSION} (${process.env.NEXT_PUBLIC_BUILD_ID})`;
+            navigator.clipboard.writeText(version);
+            const el = document.getElementById("version-label");
+            if (el) {
+              const original = el.textContent;
+              el.textContent = "Copied!";
+              setTimeout(() => { el.textContent = original; }, 1500);
+            }
+          }}
+        >
+          <span id="version-label">v{process.env.NEXT_PUBLIC_VERSION} ({process.env.NEXT_PUBLIC_BUILD_ID})</span>
+        </button>
+        <a href="/architecture" target="_blank" className="px-3 py-1.5 text-[10px] text-e-grey-light hover:text-e-indigo transition-colors no-underline">
+          Docs →
+        </a>
+      </div>
     </div>
   );
 }

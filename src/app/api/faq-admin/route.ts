@@ -4,7 +4,7 @@ import { getSession } from "@/lib/shopify-auth";
 import { faqAdminSchema } from "@/lib/api-schemas";
 import { syncFaqs } from "@/lib/faq";
 
-const ADMIN_EMAILS = ["matthijs@eflight.nl", "matthijscollard@gmail.com", "wesley@eflight.nl", "paulien@eflight.nl"];
+const ADMIN_EMAILS = ["matthijs@eflight.nl", "matthijscollard@gmail.com", "wesley@eflight.nl", "paulien@eflight.nl", "milos@eflight.nl"];
 
 function richText(content: string) {
   return { rich_text: [{ text: { content } }] };

@@ -205,7 +205,7 @@ query GetBookingDetail($bookingId: Int!) {
       lessons {
         id
         comments
-        plan { name isAssessment description prep briefing }
+        plan { id name isAssessment description prep briefing course { id name } }
         status { name }
         flights {
           id
@@ -245,7 +245,7 @@ export interface WingsBookingDetail {
   lessons: {
     id: number;
     comments: string | null;
-    plan: { name: string; isAssessment: boolean; description: string | null; prep: string | null; briefing: string | null } | null;
+    plan: { id: number; name: string; isAssessment: boolean; description: string | null; prep: string | null; briefing: string | null; course: { id: number; name: string } | null } | null;
     status: { name: string } | null;
     flights: {
       id: number;
@@ -478,6 +478,55 @@ export async function getStudentLessonHistory(
     });
   } catch (err) {
     console.error("Wings: failed to fetch student lesson history:", err);
+    return [];
+  }
+}
+
+// --- Course Lesson Plans ---
+
+export interface WingsLessonPlanFull {
+  id: number;
+  sequence: number;
+  name: string;
+  isAssessment: boolean;
+  description: string | null;
+  prep: string | null;
+  briefing: string | null;
+}
+
+const COURSE_LESSON_PLANS_QUERY = `
+query GetCourseLessonPlans($courseId: Int!) {
+  lessonPlans(first: 100, filter: { course: $courseId }) {
+    data {
+      id sequence name isAssessment
+      description prep briefing
+    }
+  }
+}
+`;
+
+const coursePlansCache = new Map<number, { data: WingsLessonPlanFull[]; cachedAt: number }>();
+
+/**
+ * Fetch all lesson plans (exercises) for a course, sorted by sequence.
+ * Cached for 1 hour since course content rarely changes.
+ */
+export async function getCourseLessonPlans(courseId: number): Promise<WingsLessonPlanFull[]> {
+  const cached = coursePlansCache.get(courseId);
+  if (cached && Date.now() - cached.cachedAt < CACHE_TTL_MS) {
+    return cached.data;
+  }
+
+  try {
+    interface QueryResult {
+      lessonPlans: { data: WingsLessonPlanFull[] };
+    }
+    const data = await gql<QueryResult>(COURSE_LESSON_PLANS_QUERY, { courseId });
+    const plans = data.lessonPlans.data.sort((a, b) => a.sequence - b.sequence);
+    coursePlansCache.set(courseId, { data: plans, cachedAt: Date.now() });
+    return plans;
+  } catch (err) {
+    console.error("Wings: failed to fetch course lesson plans:", err);
     return [];
   }
 }

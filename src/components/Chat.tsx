@@ -255,10 +255,10 @@ export default function Chat() {
     rateMessage,
   } = useRating(messages, setMessages, lang, sessionId, t);
 
-  const adminEmails = ["matthijs@eflight.nl", "matthijscollard@gmail.com", "wesley@eflight.nl", "paulien@eflight.nl"];
+  const adminEmails = ["matthijs@eflight.nl", "matthijscollard@gmail.com", "wesley@eflight.nl", "paulien@eflight.nl", "milos@eflight.nl"];
   const isAdmin = !!shopifyUser?.email && adminEmails.includes(shopifyUser.email.toLowerCase());
 
-  const autoDebugEmails = ["matthijs@eflight.nl", "matthijscollard@gmail.com"];
+  const autoDebugEmails = ["matthijs@eflight.nl", "matthijscollard@gmail.com", "milos@eflight.nl"];
   useEffect(() => {
     if (shopifyUser?.email && autoDebugEmails.includes(shopifyUser.email.toLowerCase())) {
       setAutoDebug(true);

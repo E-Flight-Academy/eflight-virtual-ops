@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
   const config = await getConfig().catch(() => null);
 
   // Slow path: include user session, roles, filtered files
-  const DEBUG_OVERRIDE_EMAILS = ["matthijs@eflight.nl", "matthijscollard@gmail.com"];
+  const DEBUG_OVERRIDE_EMAILS = ["matthijs@eflight.nl", "matthijscollard@gmail.com", "milos@eflight.nl"];
   const overrideUser = request.nextUrl.searchParams.get("override_user");
   const overrideRole = request.nextUrl.searchParams.get("override_role");
 

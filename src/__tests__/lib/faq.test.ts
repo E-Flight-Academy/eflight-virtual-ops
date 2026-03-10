@@ -112,38 +112,35 @@ describe("buildFaqContext", () => {
 
   it("starts with FAQ header", () => {
     const result = buildFaqContext([makeFaq()]);
-    expect(result).toContain("=== Frequently Asked Questions ===");
+    expect(result).toContain("=== FAQ ===");
+    expect(result).toContain("question\tanswer\tlink");
   });
 
   it("uses English Q+A by default", () => {
     const result = buildFaqContext([makeFaq()]);
-    expect(result).toContain("Q: What is E-Flight?");
-    expect(result).toContain("A: An academy");
+    expect(result).toContain("What is E-Flight?\tAn academy");
   });
 
   it("uses Dutch Q+A when lang=nl", () => {
     const result = buildFaqContext([makeFaq()], "nl");
-    expect(result).toContain("Q: Wat is E-Flight?");
-    expect(result).toContain("A: Een academie");
+    expect(result).toContain("Wat is E-Flight?\tEen academie");
   });
 
   it("uses German Q+A when lang=de", () => {
     const result = buildFaqContext([makeFaq()], "de");
-    expect(result).toContain("Q: Was ist E-Flight?");
-    expect(result).toContain("A: Eine Akademie");
+    expect(result).toContain("Was ist E-Flight?\tEine Akademie");
   });
 
   it("falls back to English when translation is missing", () => {
     const faq = makeFaq({ questionNl: "", answerNl: "" });
     const result = buildFaqContext([faq], "nl");
-    expect(result).toContain("Q: What is E-Flight?");
-    expect(result).toContain("A: An academy");
+    expect(result).toContain("What is E-Flight?\tAn academy");
   });
 
   it("includes URL when present", () => {
     const faq = makeFaq({ url: "https://eflight.nl/info" });
     const result = buildFaqContext([faq]);
-    expect(result).toContain("Link: https://eflight.nl/info");
+    expect(result).toContain("https://eflight.nl/info");
   });
 
   it("does not include Link line when url is empty", () => {

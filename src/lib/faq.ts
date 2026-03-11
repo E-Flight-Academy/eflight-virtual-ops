@@ -58,10 +58,11 @@ export function getRichTextMd(props: Record<string, unknown>, key: string): stri
   return md;
 }
 
-/** Extract images from Notion page blocks and mirror to Scaleway */
+/** Extract images from Notion page blocks and optionally mirror Notion-hosted to Scaleway */
 async function extractPageImages(
   notion: InstanceType<typeof Client>,
   pageId: string,
+  mirrorToS3 = true,
 ): Promise<KvFaqImage[]> {
   try {
     const blocks = await notion.blocks.children.list({ block_id: pageId, page_size: 100 });
@@ -76,13 +77,16 @@ async function extractPageImages(
       if (!sourceUrl) continue;
 
       const caption = imgBlock.image.caption?.map((c) => c.plain_text).join("") || undefined;
-      // For Notion-hosted files (temporary URLs), mirror to Scaleway
+      // For Notion-hosted files (temporary URLs), mirror to Scaleway if S3 configured and mirroring enabled
       // For external URLs, keep as-is (they're already permanent)
       if (imgBlock.image.type === "file") {
-        const ext = sourceUrl.match(/\.(png|jpe?g|gif|webp|svg)/i)?.[1] || "png";
-        const key = `faq-images/${pageId}/${block.id}.${ext}`;
-        const permanentUrl = await mirrorImage(sourceUrl, key);
-        if (permanentUrl) images.push({ url: permanentUrl, caption });
+        if (mirrorToS3 && process.env.SCW_ACCESS_KEY) {
+          const ext = sourceUrl.match(/\.(png|jpe?g|gif|webp|svg)/i)?.[1] || "png";
+          const key = `faq-images/${pageId}/${block.id}.${ext}`;
+          const permanentUrl = await mirrorImage(sourceUrl, key);
+          if (permanentUrl) images.push({ url: permanentUrl, caption });
+        }
+        // Skip Notion-hosted images if no S3 or mirroring disabled — their URLs expire in ~1hr
       } else {
         images.push({ url: sourceUrl, caption });
       }
@@ -195,14 +199,13 @@ export async function fetchFaqsFromNotion(skipImages = false): Promise<KvFaq[]> 
   }
 
   // Fetch images in batches of 3 (Notion rate limit: 3 req/sec)
-  // This runs after all FAQ properties are collected so sync is fast
-  const hasS3 = !!process.env.SCW_ACCESS_KEY;
-  if (hasS3 && !skipImages) {
+  // External images are always included; Notion-hosted mirroring only when !skipImages
+  {
     let imageCount = 0;
     for (let i = 0; i < faqs.length; i += 3) {
       const batch = faqs.slice(i, i + 3);
       const results = await Promise.all(
-        batch.map((faq) => extractPageImages(notion, faq.notionPageId!))
+        batch.map((faq) => extractPageImages(notion, faq.notionPageId!, !skipImages))
       );
       for (let j = 0; j < batch.length; j++) {
         if (results[j].length > 0) {

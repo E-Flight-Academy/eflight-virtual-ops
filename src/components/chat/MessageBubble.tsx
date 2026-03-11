@@ -32,7 +32,7 @@ export default function MessageBubble({ message, index, onRate, onFaqClick, onAv
         </button>
       )}
       {message.role === "user" ? (
-        <div className={`max-w-[70%] bg-[#1515F5] text-white px-4 py-3 rounded-2xl rounded-tr-sm shadow-[0_2px_8px_-2px_rgba(0,0,0,0.08)] ${kiosk ? "text-xl" : ""}`}>
+        <div className={`max-w-[70%] bg-[#1515F5] text-white px-4 py-3 rounded-2xl rounded-tr-sm shadow-[0_2px_8px_-2px_rgba(0,0,0,0.08)] ${kiosk ? "text-xl" : "text-sm"}`}>
           <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
         </div>
       ) : message.structured ? (

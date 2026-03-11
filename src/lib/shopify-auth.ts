@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
-import { createHmac, timingSafeEqual } from "crypto";
+import { createHmac, timingSafeEqual, randomUUID } from "crypto";
+import { Redis } from "@upstash/redis";
 
 // Shopify Customer Account API OAuth config
 const SHOPIFY_CLIENT_ID = process.env.SHOPIFY_CUSTOMER_CLIENT_ID || "";
@@ -13,11 +14,15 @@ const GRAPHQL_ENDPOINT = `https://${CUSTOMER_ACCOUNT_DOMAIN}/customer/api/2025-0
 // Callback URL
 const CALLBACK_URL = process.env.SHOPIFY_CALLBACK_URL || "https://steward.eflight.nl/api/auth/shopify/callback";
 
-// Session cookie name
+// Session cookie name — now only stores a session ID (~80 bytes)
 const SESSION_COOKIE = "steward_session";
 const CODE_VERIFIER_COOKIE = "shopify_code_verifier";
 
-// HMAC signing for session cookies
+// Redis session key prefix + TTL
+const SESSION_KEY_PREFIX = "session:";
+const SESSION_TTL = 60 * 60 * 24 * 7; // 7 days
+
+// HMAC signing for session ID cookie
 function getSessionSecret(): string {
   return process.env.SESSION_SECRET || process.env.GEMINI_API_KEY || "steward-fallback-secret";
 }
@@ -39,6 +44,18 @@ function verifySession(signed: string): string | null {
     }
   } catch { /* length mismatch */ }
   return null;
+}
+
+// Lazy Redis client (same pattern as kv-cache)
+let _redis: Redis | null = null;
+function getRedis(): Redis {
+  if (!_redis) {
+    _redis = new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL!,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN!,
+    });
+  }
+  return _redis;
 }
 
 // PKCE helpers
@@ -184,23 +201,28 @@ export async function fetchCustomerData(accessToken: string): Promise<ShopifyCus
   };
 }
 
-// Create session cookie (HMAC-signed)
+// Create session: store data in Redis, put only session ID in cookie
 export async function createSession(sessionData: SessionData): Promise<void> {
+  const sessionId = randomUUID();
+  const redis = getRedis();
+
+  // Store full session data in Redis
+  await redis.set(`${SESSION_KEY_PREFIX}${sessionId}`, JSON.stringify(sessionData), { ex: SESSION_TTL });
+
+  // Cookie only contains the signed session ID (~80 bytes total)
   const cookieStore = await cookies();
-  const sessionJson = JSON.stringify(sessionData);
-  const encoded = Buffer.from(sessionJson).toString("base64");
-  const signed = signSession(encoded);
+  const signed = signSession(sessionId);
 
   cookieStore.set(SESSION_COOKIE, signed, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
-    maxAge: 60 * 60 * 24 * 7, // 7 days
+    maxAge: SESSION_TTL,
     path: "/",
   });
 }
 
-// Get current session (verifies HMAC signature)
+// Get current session: read session ID from cookie, fetch data from Redis
 export async function getSession(): Promise<SessionData | null> {
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get(SESSION_COOKIE);
@@ -210,18 +232,23 @@ export async function getSession(): Promise<SessionData | null> {
   }
 
   try {
-    // Try signed format first
-    const verified = verifySession(sessionCookie.value);
-    const encoded = verified ?? sessionCookie.value;
-    // If verification failed and cookie contains a dot (signed format), reject it
-    if (!verified && sessionCookie.value.includes(".")) {
-      return null;
+    // Verify HMAC signature and extract session ID
+    const sessionId = verifySession(sessionCookie.value);
+    if (!sessionId) {
+      // Legacy: try parsing as base64-encoded session data (old format)
+      return parseLegacySession(sessionCookie.value);
     }
 
-    const decoded = Buffer.from(encoded, "base64").toString("utf-8");
-    const session = JSON.parse(decoded) as SessionData;
+    // Fetch session data from Redis
+    const redis = getRedis();
+    const raw = await redis.get(`${SESSION_KEY_PREFIX}${sessionId}`);
+    if (!raw) return null;
+
+    const session = (typeof raw === "string" ? JSON.parse(raw) : raw) as SessionData;
 
     if (session.expiresAt < Date.now()) {
+      // Clean up expired session
+      await redis.del(`${SESSION_KEY_PREFIX}${sessionId}`);
       return null;
     }
 
@@ -231,9 +258,38 @@ export async function getSession(): Promise<SessionData | null> {
   }
 }
 
-// Clear session
+// Parse old-format cookies (base64-encoded JSON) for backwards compatibility
+function parseLegacySession(cookieValue: string): SessionData | null {
+  try {
+    // Old format: base64(JSON).hmac or plain base64(JSON)
+    const verified = verifySession(cookieValue);
+    const encoded = verified ?? cookieValue;
+    if (!verified && cookieValue.includes(".")) return null;
+
+    const decoded = Buffer.from(encoded, "base64").toString("utf-8");
+    const session = JSON.parse(decoded) as SessionData;
+    if (session.expiresAt < Date.now()) return null;
+    return session;
+  } catch {
+    return null;
+  }
+}
+
+// Clear session: delete from Redis and remove cookie
 export async function clearSession(): Promise<void> {
   const cookieStore = await cookies();
+  const sessionCookie = cookieStore.get(SESSION_COOKIE);
+
+  if (sessionCookie?.value) {
+    const sessionId = verifySession(sessionCookie.value);
+    if (sessionId) {
+      try {
+        const redis = getRedis();
+        await redis.del(`${SESSION_KEY_PREFIX}${sessionId}`);
+      } catch { /* redis cleanup is best-effort */ }
+    }
+  }
+
   cookieStore.delete(SESSION_COOKIE);
 }
 

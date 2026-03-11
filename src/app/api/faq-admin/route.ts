@@ -89,6 +89,15 @@ export async function POST(request: Request) {
   const data = parsed.data;
 
   try {
+    if (data.action === "delete") {
+      await notion.pages.update({
+        page_id: data.notionPageId,
+        properties: { "Live": { checkbox: false } },
+      });
+      await syncFaqs();
+      return NextResponse.json({ success: true, action: "delete", notionPageId: data.notionPageId });
+    }
+
     // Resolve audience names to Role relation page IDs
     const roleRelation = await resolveRoleRelation(data.audience || []);
 
@@ -125,23 +134,6 @@ export async function POST(request: Request) {
         question: data.question,
         questionNl: data.questionNl,
         questionDe: data.questionDe,
-      });
-    }
-
-    if (data.action === "delete") {
-      await notion.pages.update({
-        page_id: data.notionPageId,
-        properties: {
-          "Live": { checkbox: false },
-        },
-      });
-
-      await syncFaqs();
-
-      return NextResponse.json({
-        success: true,
-        action: "delete",
-        notionPageId: data.notionPageId,
       });
     }
 

@@ -637,10 +637,11 @@ function AuthRoles() {
 }
 
 // ─── Navigation bar ─────────────────────────────────────────────────
-function DocsNav({ active }: { active: "architecture" | "patterns" }) {
+function DocsNav({ active }: { active: "architecture" | "patterns" | "design" }) {
   const items = [
     { href: "/architecture", label: "Architecture", id: "architecture" as const },
     { href: "/patterns", label: "Patterns", id: "patterns" as const },
+    { href: "/design", label: "Design", id: "design" as const },
   ];
   return (
     <div className="flex items-center gap-3">

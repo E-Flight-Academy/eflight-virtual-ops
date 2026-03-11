@@ -48,6 +48,7 @@ export interface BookingLesson {
 
 export interface DocumentValidity {
   name: string;
+  filename?: string;
   expires: string;
   daysRemaining: number;
   isExpired: boolean;

@@ -295,6 +295,7 @@ export async function POST(request: NextRequest) {
             const daysRemaining = Math.ceil((expiresDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
             return {
               name: d.type.name,
+              filename: d.file?.originalFilename || undefined,
               expires: expiresStr,
               daysRemaining,
               isExpired: d.isExpired,
@@ -315,7 +316,7 @@ export async function POST(request: NextRequest) {
           const expiresStr = d.expires!.slice(0, 10);
           const expiresDate = new Date(expiresStr + "T00:00:00");
           const daysRemaining = Math.ceil((expiresDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-          return { name: d.type.name, expires: expiresStr, daysRemaining, isExpired: d.isExpired };
+          return { name: d.type.name, filename: d.file?.originalFilename || undefined, expires: expiresStr, daysRemaining, isExpired: d.isExpired };
         });
 
         const openRemarks: AircraftRemark[] = acStatus.remarks
@@ -520,6 +521,7 @@ export async function POST(request: NextRequest) {
         const daysRemaining = Math.ceil((expiresDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
         return {
           name: d.type.name,
+          filename: d.file?.originalFilename || undefined,
           expires: expiresStr,
           daysRemaining,
           isExpired: d.isExpired,

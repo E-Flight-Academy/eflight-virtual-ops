@@ -22,7 +22,17 @@ function statusColor(doc: DocumentValidity) {
   return "bg-green-500";
 }
 
+function cleanFilename(filename: string): string {
+  // Remove extension, replace underscores/hyphens with spaces, trim
+  return filename
+    .replace(/\.[^.]+$/, "")
+    .replace(/[_-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function DocRow({ doc }: { doc: DocumentValidity }) {
+  const cleanedFile = doc.filename ? cleanFilename(doc.filename) : null;
   return (
     <div className={`flex items-center gap-2 py-2 px-3 rounded-lg ${
       doc.isExpired
@@ -32,8 +42,13 @@ function DocRow({ doc }: { doc: DocumentValidity }) {
           : ""
     }`}>
       <span className={`w-2 h-2 rounded-full shrink-0 ${statusColor(doc)}`} />
-      <span className="text-sm font-medium text-foreground truncate">{doc.name}</span>
-      <span className="ml-auto text-xs text-e-grey whitespace-nowrap tabular-nums">
+      <div className="min-w-0 flex-1">
+        <span className="text-sm font-medium text-foreground truncate block">{doc.name}</span>
+        {cleanedFile && (
+          <span className="text-[11px] text-e-grey truncate block" title={doc.filename}>{cleanedFile}</span>
+        )}
+      </div>
+      <span className="ml-auto text-xs text-e-grey whitespace-nowrap tabular-nums shrink-0">
         {doc.isExpired ? `-${Math.abs(doc.daysRemaining)}d` : `${doc.daysRemaining}d`} · {formatDate(doc.expires)}
       </span>
     </div>

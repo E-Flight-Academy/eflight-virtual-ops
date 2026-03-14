@@ -95,6 +95,7 @@ export interface KvFaq {
   category: string[];
   audience: string[];
   url: string;
+  linkLabel?: string;
   images?: KvFaqImage[];
   website?: boolean;
   sectionSlug?: string;
@@ -133,6 +134,7 @@ export interface KvFlowStep {
   relatedFaqAnswerNl: string;
   relatedFaqAnswerDe: string;
   relatedFaqUrl: string;
+  relatedFaqLinkLabel: string;
   order: number;
   trigger: string | null;
 }

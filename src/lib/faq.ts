@@ -213,6 +213,9 @@ export async function fetchFaqsFromNotion(skipImages = false): Promise<KvFaq[]> 
     const urlProp = props["Link"] as { type: string; url?: string | null } | undefined;
     const url = urlProp?.type === "url" && urlProp.url ? urlProp.url : "";
 
+    // Link Label (rich_text property)
+    const linkLabel = getRichText(props, "Link Label");
+
     // Website checkbox
     const webProp = props["Website"] as { type: string; checkbox?: boolean } | undefined;
     const website = webProp?.type === "checkbox" && webProp.checkbox === true;
@@ -231,6 +234,7 @@ export async function fetchFaqsFromNotion(skipImages = false): Promise<KvFaq[]> 
       faqs.push({
         notionPageId: page.id, question, questionNl, questionDe,
         answer, answerNl, answerDe, category, audience, url,
+        linkLabel: linkLabel || undefined,
         website, sectionSlug,
         _propImages: propImages,
       } as KvFaq & { _propImages: typeof propImages });

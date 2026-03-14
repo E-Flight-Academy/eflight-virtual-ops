@@ -1502,6 +1502,7 @@ export default function DesignPage() {
   const [activeTab, setActiveTab] = useState<TabMode>("tree");
   const [view, setView] = useState<ViewMode>("overview");
   const [copied, setCopied] = useState<string | null>(null);
+  const [boardSegment, setBoardSegment] = useState<"build" | "done">("build");
 
   useEffect(() => {
     if (process.env.NODE_ENV === "development") { setAuthState("allowed"); return; }
@@ -1590,7 +1591,7 @@ export default function DesignPage() {
           })}
         </div>
 
-        {/* ── Build Next (cross-outcome) ────────────────────────── */}
+        {/* ── Build Next / Live & Done ───────────────────────────── */}
         {view === "overview" && (() => {
           const buildNext = outcomes.flatMap((o) =>
             o.opportunities.flatMap((opp) =>
@@ -1600,32 +1601,56 @@ export default function DesignPage() {
                 .map((f) => ({ feature: f, opportunity: opp, outcome: o }))
             )
           );
-          if (buildNext.length === 0) return null;
+          const liveDone = outcomes.flatMap((o) =>
+            o.opportunities.flatMap((opp) =>
+              opp.solutionIds
+                .map(featureById)
+                .filter((f): f is Feature => !!f && (f.status === "Live" || f.status === "Done ✓"))
+                .map((f) => ({ feature: f, opportunity: opp, outcome: o }))
+            )
+          );
+          const items = boardSegment === "build" ? buildNext : liveDone;
+          if (buildNext.length === 0 && liveDone.length === 0) return null;
           return (
-            <div className="bg-white border-2 border-[#1515F5] rounded-xl p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-[10px] font-bold tracking-widest text-[#1515F5] uppercase">🔥 Build next</span>
-                <span className="text-[10px] text-[#828282]">— highest priority based on interview evidence</span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {buildNext.map(({ feature: f, opportunity: opp, outcome: o }) => (
-                  <button key={f.id} onClick={() => openSolution(o.id, opp.id, f.id)}
-                    className="text-left p-3 rounded-lg border border-[#ECECEC] hover:border-[#A1A1FB] hover:shadow-sm transition-all cursor-pointer font-[inherit]">
-                    <div className="flex justify-between items-start mb-1">
-                      <span className="text-xs font-semibold text-foreground">{f.label}</span>
-                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${statusTw[f.status] || "bg-gray-50 text-gray-600"}`}>{f.status}</span>
-                    </div>
-                    <p className="text-[11px] text-[#828282] leading-snug mb-1">
-                      {opp.title}
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-[#ABABAB]">{o.icon} {audienceLabels[o.audience]}</span>
-                      {opp.interviews.length > 0 && <span className="text-[10px] text-green-600">🎙 {opp.interviews.length}</span>}
-                      {f.votes != null && <span className="text-[10px] text-e-indigo">🗳 {f.votes}</span>}
-                    </div>
+            <div className={`bg-white border-2 rounded-xl p-5 ${boardSegment === "build" ? "border-[#1515F5]" : "border-green-300"}`}>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex bg-[#F2F2F2] rounded-lg p-0.5 gap-0.5">
+                  <button onClick={() => setBoardSegment("build")}
+                    className={`text-[10px] font-bold tracking-wider uppercase px-3 py-1 rounded-md cursor-pointer transition-colors ${boardSegment === "build" ? "bg-white text-[#1515F5] shadow-sm" : "text-[#828282] hover:text-foreground"}`}>
+                    🔥 Build next ({buildNext.length})
                   </button>
-                ))}
+                  <button onClick={() => setBoardSegment("done")}
+                    className={`text-[10px] font-bold tracking-wider uppercase px-3 py-1 rounded-md cursor-pointer transition-colors ${boardSegment === "done" ? "bg-white text-green-700 shadow-sm" : "text-[#828282] hover:text-foreground"}`}>
+                    🚀 Live & Done ({liveDone.length})
+                  </button>
+                </div>
+                <span className="text-[10px] text-[#828282]">
+                  {boardSegment === "build" ? "highest priority based on interview evidence" : "shipped and verified"}
+                </span>
               </div>
+              {items.length === 0 ? (
+                <p className="text-xs text-[#828282] text-center py-4">No items</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {items.map(({ feature: f, opportunity: opp, outcome: o }) => (
+                    <button key={f.id} onClick={() => openSolution(o.id, opp.id, f.id)}
+                      className={`text-left p-3 rounded-lg border border-[#ECECEC] hover:shadow-sm transition-all cursor-pointer font-[inherit] ${boardSegment === "build" ? "hover:border-[#A1A1FB]" : "hover:border-green-400"}`}>
+                      <div className="flex justify-between items-start mb-1">
+                        <span className="text-xs font-semibold text-foreground">{f.label}</span>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${statusTw[f.status] || "bg-gray-50 text-gray-600"}`}>{f.status}</span>
+                      </div>
+                      <p className="text-[11px] text-[#828282] leading-snug mb-1">
+                        {opp.title}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-[#ABABAB]">{o.icon} {audienceLabels[o.audience]}</span>
+                        {boardSegment === "build" && opp.interviews.length > 0 && <span className="text-[10px] text-green-600">🎙 {opp.interviews.length}</span>}
+                        {boardSegment === "build" && f.votes != null && <span className="text-[10px] text-e-indigo">🗳 {f.votes}</span>}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           );
         })()}

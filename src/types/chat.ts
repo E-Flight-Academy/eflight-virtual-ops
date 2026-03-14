@@ -208,6 +208,7 @@ export interface FlowStep {
   relatedFaqAnswerNl: string;
   relatedFaqAnswerDe: string;
   relatedFaqUrl: string;
+  relatedFaqLinkLabel: string;
   order: number;
   trigger: string | null;
 }

@@ -148,6 +148,7 @@ export async function fetchFlowsFromNotion(): Promise<KvFlowStep[]> {
     let relatedFaqAnswerNl = "";
     let relatedFaqAnswerDe = "";
     let relatedFaqUrl = "";
+    let relatedFaqLinkLabel = "";
 
     if (p.relatedFaqId) {
       const faqEntry = faqPageMap.get(p.relatedFaqId);
@@ -180,6 +181,7 @@ export async function fetchFlowsFromNotion(): Promise<KvFlowStep[]> {
         relatedFaqAnswerNl = getRichTextMd(faqProps, "Answer (NL)");
         relatedFaqAnswerDe = getRichTextMd(faqProps, "Answer (DE)");
         relatedFaqUrl = getUrl();
+        relatedFaqLinkLabel = getText("Link Label");
       }
     }
 
@@ -203,7 +205,7 @@ export async function fetchFlowsFromNotion(): Promise<KvFlowStep[]> {
     }
 
     if (p.name && (p.message || p.endAction === "Start AI Chat" || p.endAction === "Capability Action" || p.endAction === "Login" || p.trigger)) {
-      steps.push({ name: p.name, message: p.message, messageNl: "", messageDe: "", nextDialogFlow, endAction: p.endAction, contextKey: p.contextKey, endPrompt: p.endPrompt, endPromptNl: "", endPromptDe: "", relatedFaqQuestion, relatedFaqQuestionNl, relatedFaqQuestionDe, relatedFaqAnswer, relatedFaqAnswerNl, relatedFaqAnswerDe, relatedFaqUrl, order: p.order, trigger: p.trigger });
+      steps.push({ name: p.name, message: p.message, messageNl: "", messageDe: "", nextDialogFlow, endAction: p.endAction, contextKey: p.contextKey, endPrompt: p.endPrompt, endPromptNl: "", endPromptDe: "", relatedFaqQuestion, relatedFaqQuestionNl, relatedFaqQuestionDe, relatedFaqAnswer, relatedFaqAnswerNl, relatedFaqAnswerDe, relatedFaqUrl, relatedFaqLinkLabel, order: p.order, trigger: p.trigger });
     }
   }
 

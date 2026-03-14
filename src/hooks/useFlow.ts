@@ -212,8 +212,9 @@ export function useFlow({
         const faqUserMsg: Message = { role: "user", content: faqQuestion || displayLabel };
         const faqUrl = currentFlowStep.relatedFaqUrl;
         const faqTitle = currentFlowStep.relatedFaqQuestion || faqQuestion || displayLabel;
+        const cardLabel = currentFlowStep.relatedFaqLinkLabel || faqTitle;
         const answerWithSource = faqUrl
-          ? `${faqAnswer}\n\n[source: FAQ | ${faqUrl} | ${faqTitle}]`
+          ? `${faqAnswer}\n\n[link: ${faqUrl} | ${cardLabel}]\n[source: FAQ | ${faqUrl} | ${faqTitle}]`
           : `${faqAnswer}\n\n[source: FAQ | ${faqTitle}]`;
         const baseMessages = [...messages, faqUserMsg];
         setMessages(baseMessages);
@@ -267,8 +268,9 @@ export function useFlow({
         const faqUserMsg: Message = { role: "user", content: faqQuestion || displayLabel };
         const faqUrl = nextStep.relatedFaqUrl;
         const faqTitle = nextStep.relatedFaqQuestion || faqQuestion || displayLabel;
+        const cardLabel = nextStep.relatedFaqLinkLabel || faqTitle;
         const answerWithSource = faqUrl
-          ? `${faqAnswer}\n\n[source: FAQ | ${faqUrl} | ${faqTitle}]`
+          ? `${faqAnswer}\n\n[link: ${faqUrl} | ${cardLabel}]\n[source: FAQ | ${faqUrl} | ${faqTitle}]`
           : `${faqAnswer}\n\n[source: FAQ | ${faqTitle}]`;
         const baseMessages = nextMsg
           ? [...messages, userMsg, { role: "assistant" as const, content: nextMsg }, faqUserMsg]

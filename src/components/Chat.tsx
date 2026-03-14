@@ -34,7 +34,7 @@ export default function Chat() {
   const [isLoading, setIsLoading] = useState(false);
   const [sendAnimating, setSendAnimating] = useState(false);
   const [starters, setStarters] = useState<{ question: string; questionNl: string; questionDe: string; answer: string; answerNl: string; answerDe: string }[]>([]);
-  const [faqs, setFaqs] = useState<{ question: string; questionNl: string; questionDe: string; answer: string; answerNl: string; answerDe: string; category: string[]; audience: string[]; url: string; images?: { url: string; caption?: string }[] }[]>([]);
+  const [faqs, setFaqs] = useState<{ question: string; questionNl: string; questionDe: string; answer: string; answerNl: string; answerDe: string; category: string[]; audience: string[]; url: string; linkLabel?: string; images?: { url: string; caption?: string }[] }[]>([]);
   const [showFaqModal, setShowFaqModal] = useState(false);
   const [phIndex, setPhIndex] = useState(0);
   const [phVisible, setPhVisible] = useState(true);
@@ -171,7 +171,7 @@ export default function Chat() {
     onComplete?.();
   }, []);
 
-  const findInstantAnswer = (text: string): { answer: string; url?: string; question: string } | null => {
+  const findInstantAnswer = (text: string): { answer: string; url?: string; linkLabel?: string; question: string } | null => {
     const q = text.trim().toLowerCase();
     const starter = starters.find((s) =>
       s.question.toLowerCase() === q ||
@@ -191,7 +191,7 @@ export default function Chat() {
           const imgMd = faq.images.map((img: { url: string; caption?: string }) => `![${img.caption || ""}](${img.url})`).join("\n\n");
           a = `${a}\n\n${imgMd}`;
         }
-        return { answer: a, url: faq.url || undefined, question: getQ(faq) };
+        return { answer: a, url: faq.url || undefined, linkLabel: faq.linkLabel || undefined, question: getQ(faq) };
       }
     }
     return null;
@@ -382,8 +382,9 @@ export default function Chat() {
     if (!hidden) {
       const instantResult = findInstantAnswer(text);
       if (instantResult) {
-        const answerWithSource = instantResult.url
-          ? `${instantResult.answer}\n\n[source: FAQ | ${instantResult.url} | ${instantResult.question}]`
+        const cardLabel = instantResult.linkLabel || instantResult.question;
+        let answerWithSource = instantResult.url
+          ? `${instantResult.answer}\n\n[link: ${instantResult.url} | ${cardLabel}]\n[source: FAQ | ${instantResult.url} | ${instantResult.question}]`
           : `${instantResult.answer}\n\n[source: FAQ | ${instantResult.question}]`;
         showWithThinkingDelay(displayMessages, answerWithSource, () => logChat(text, answerWithSource));
         return;

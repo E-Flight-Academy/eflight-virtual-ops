@@ -636,6 +636,134 @@ function AuthRoles() {
   );
 }
 
+// ═══════════════════════════════════════════════════════════════════
+//  7. USER INTERACTION PATHS
+// ═══════════════════════════════════════════════════════════════════
+function InteractionPaths() {
+  const [activePath, setActivePath] = useState<"chat" | "flow-faq" | "flow-ai" | "capability">("chat");
+
+  const paths = [
+    { id: "chat" as const, label: "Chat / FAQ", icon: "💬" },
+    { id: "flow-faq" as const, label: "Flow → FAQ", icon: "📋" },
+    { id: "flow-ai" as const, label: "Flow → AI", icon: "✨" },
+    { id: "capability" as const, label: "Action", icon: "⚡" },
+  ];
+
+  return (
+    <div className="space-y-4">
+      {/* Path switcher */}
+      <div className="flex bg-[#F2F2F2] rounded-lg p-0.5 gap-0.5">
+        {paths.map((p) => (
+          <button
+            key={p.id}
+            onClick={() => setActivePath(p.id)}
+            className={`flex-1 text-xs font-medium py-1.5 px-2 rounded-md cursor-pointer transition-colors ${activePath === p.id ? "bg-white text-foreground shadow-sm" : "text-[#828282] hover:text-foreground"}`}
+          >
+            {p.icon} {p.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="grid">
+        {/* Path 1: Chat / FAQ click */}
+        <div className={`col-start-1 row-start-1 ${activePath !== "chat" ? "h-0 overflow-hidden invisible" : ""}`}>
+          <div className="flex flex-col items-start gap-2">
+            <Box label="User types question or clicks FAQ" sub="Free text input or FAQ modal selection" cat="user" icon="💬" small />
+            <Arrow />
+            <Box label="findInstantAnswer()" sub="Exact match against local FAQ list" cat="app" icon="🔍" small />
+            <Arrow />
+            <div className="flex gap-4 flex-wrap">
+              <div className="flex flex-col items-start gap-2 px-3 py-3 rounded-xl bg-[#DAF4EC]/30 border border-[#85D9BF]">
+                <div className="text-xs font-semibold text-[#1B7A57]">Match found</div>
+                <Box label="Show FAQ answer directly" sub="No Gemini call — instant response" cat="internal" icon="✅" small />
+              </div>
+              <div className="flex flex-col items-start gap-2 px-3 py-3 rounded-xl bg-[#ECD3F4]/30 border border-[#DFB6EE]">
+                <div className="text-xs font-semibold text-[#8B2FA8]">No match</div>
+                <Box label="POST /api/chat" sub="Full Gemini flow with context" cat="ai" icon="✨" small />
+              </div>
+            </div>
+            <div className="mt-2 px-3 py-2 rounded-lg bg-[#F7F7F7] border border-[#ECECEC] text-xs text-e-grey">
+              FAQ modal clicks pass the exact question text → always matched instantly. Free-text questions only go through Gemini when no exact FAQ match exists.
+            </div>
+          </div>
+        </div>
+
+        {/* Path 2: Guided Flow → FAQ */}
+        <div className={`col-start-1 row-start-1 ${activePath !== "flow-faq" ? "h-0 overflow-hidden invisible" : ""}`}>
+          <div className="flex flex-col items-start gap-2">
+            <Box label="User clicks flow button" sub="Guided conversation step" cat="user" icon="👆" small />
+            <Arrow />
+            <Box label="Flow step with Related FAQ" sub="Notion relation to FAQ database" cat="data" icon="📝" small />
+            <Arrow />
+            <Box label="relatedFaqAnswer" sub="Pre-fetched FAQ answer from Notion sync" cat="app" icon="📄" small />
+            <Arrow />
+            <Box label="Show answer directly" sub="With [source: FAQ] attribution" cat="internal" icon="✅" small />
+            <div className="mt-2 px-3 py-2 rounded-lg bg-[#DAF4EC]/50 border border-[#85D9BF] text-xs text-[#1B7A57]">
+              ⚡ No Gemini call — FAQ answer is pre-loaded during sync and displayed directly.
+            </div>
+          </div>
+        </div>
+
+        {/* Path 3: Guided Flow → AI Chat */}
+        <div className={`col-start-1 row-start-1 ${activePath !== "flow-ai" ? "h-0 overflow-hidden invisible" : ""}`}>
+          <div className="flex flex-col items-start gap-2">
+            <Box label="User clicks flow button" sub="Guided conversation step" cat="user" icon="👆" small />
+            <Arrow />
+            <Box label="endAction: Start AI Chat" sub="Flow step with endPrompt context" cat="app" icon="🎯" small />
+            <Arrow />
+            <Box label="POST /api/chat (focused)" sub="endPrompt as system context · gemini-2.0-flash" cat="ai" icon="✨" small />
+            <Arrow />
+            <Box label="Streamed AI response" sub="Focused answer with flow context" cat="app" icon="📄" small />
+            <div className="mt-2 px-3 py-2 rounded-lg bg-[#ECD3F4]/30 border border-[#DFB6EE] text-xs text-[#8B2FA8]">
+              💡 Uses focused mode (gemini-2.0-flash) — faster and cheaper than normal chat.
+            </div>
+          </div>
+        </div>
+
+        {/* Path 4: Capability Action */}
+        <div className={`col-start-1 row-start-1 ${activePath !== "capability" ? "h-0 overflow-hidden invisible" : ""}`}>
+          <div className="flex flex-col items-start gap-2">
+            <Box label="User clicks capability button" sub='e.g. "My Schedule", "Document validity"' cat="user" icon="👆" small />
+            <Arrow />
+            <Box label="POST /api/capability-action" sub="{ action, userEmail }" cat="app" icon="⚡" small />
+            <Arrow />
+            <Box label="Wings / Airtable API" sub="Direct data fetch" cat="data" icon="✈️" small />
+            <Arrow />
+            <div className="flex items-center gap-2 flex-wrap">
+              <Box label="Redis Cache" sub="TTL: 30 min" cat="storage" icon="🗄️" small />
+              <span className="text-xs text-e-grey">+</span>
+              <Box label="React Component" sub="ScheduleMessage, BookingDetail, etc." cat="app" icon="⚛️" small />
+            </div>
+            <div className="mt-2 px-3 py-2 rounded-lg bg-[#DAF4EC]/50 border border-[#85D9BF] text-xs text-[#1B7A57]">
+              ⚡ No AI model needed — direct API call rendered as structured React component.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Summary comparison */}
+      <div className="pt-3 border-t border-[#ECECEC]">
+        <p className="text-xs font-semibold text-e-grey uppercase tracking-wide mb-2">Comparison</p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {[
+            { path: "Chat/FAQ", ai: "Only if no match", speed: "Fast → Medium", cost: "Free → ~20K tokens" },
+            { path: "Flow → FAQ", ai: "None", speed: "Instant", cost: "Free" },
+            { path: "Flow → AI", ai: "Focused (2.0-flash)", speed: "Medium", cost: "~15K tokens" },
+            { path: "Capability", ai: "None", speed: "Fast", cost: "Free (API only)" },
+          ].map((c) => (
+            <div key={c.path} className="px-3 py-2.5 rounded-lg bg-[#F7F7F7] border border-[#ECECEC] text-center space-y-1">
+              <div className="text-xs font-semibold text-foreground">{c.path}</div>
+              <div className="text-[10px] text-e-grey">AI: {c.ai}</div>
+              <div className="text-[10px] text-e-grey">Speed: {c.speed}</div>
+              <div className="text-[10px] text-e-grey">Cost: {c.cost}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Navigation bar ─────────────────────────────────────────────────
 function DocsNav({ active }: { active: "architecture" | "patterns" | "discovery" }) {
   const items = [
@@ -737,6 +865,10 @@ export default function ArchitecturePage() {
 
         <Section title="6. Authentication & Roles" description="Shopify OAuth, role resolution, and access control.">
           <AuthRoles />
+        </Section>
+
+        <Section title="7. User Interaction Paths" description="Four ways users interact with Steward — from free chat to direct API actions.">
+          <InteractionPaths />
         </Section>
       </div>
     </div>

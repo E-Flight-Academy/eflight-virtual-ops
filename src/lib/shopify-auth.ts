@@ -330,6 +330,27 @@ export interface ShopifyOrder {
 }
 
 export async function fetchCustomerOrders(accessToken: string): Promise<ShopifyOrder[]> {
+  const gwUrl = process.env.GATEWAY_URL;
+  const gwKey = process.env.GATEWAY_API_KEY;
+
+  // Gateway route
+  if (gwUrl && gwKey) {
+    console.log("[Shopify/Gateway] Fetching orders");
+    const res = await fetch(`${gwUrl}/api/shopify/orders`, {
+      headers: {
+        Authorization: `Bearer ${gwKey}`,
+        "X-Shopify-Access-Token": accessToken,
+      },
+    });
+    if (!res.ok) {
+      throw new Error(`Gateway orders fetch failed: ${res.status}`);
+    }
+    const data = await res.json();
+    return data.orders;
+  }
+
+  // Direct fallback
+  console.log("[Shopify/Direct] Fetching orders");
   const query = `
     query {
       customer {

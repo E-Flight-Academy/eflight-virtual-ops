@@ -248,14 +248,14 @@ export async function fetchFaqsFromNotion(skipImages = false): Promise<KvFaq[]> 
 
   // Fetch images in batches of 3 (Notion rate limit: 3 req/sec)
   // First uses Image property (no API call needed), falls back to page blocks
-  {
+  if (!skipImages) {
     let imageCount = 0;
     for (let i = 0; i < faqs.length; i += 3) {
       const batch = faqs.slice(i, i + 3);
       const results = await Promise.all(
         batch.map((faq) => {
           const propImages = (faq as KvFaq & { _propImages?: { name: string; url: string; type: "file" | "external" }[] })._propImages || [];
-          return extractPageImages(notion, faq.notionPageId!, !skipImages, propImages);
+          return extractPageImages(notion, faq.notionPageId!, true, propImages);
         })
       );
       for (let j = 0; j < batch.length; j++) {
@@ -263,13 +263,17 @@ export async function fetchFaqsFromNotion(skipImages = false): Promise<KvFaq[]> 
           batch[j].images = results[j];
           imageCount += results[j].length;
         }
-        // Clean up temp field
         delete (batch[j] as KvFaq & { _propImages?: unknown })._propImages;
       }
       // Rate limit pause between batches (only needed when fetching page blocks)
       if (i + 3 < faqs.length) await new Promise((r) => setTimeout(r, 1100));
     }
     if (imageCount > 0) logger.info(`FAQ sync: mirrored ${imageCount} images`);
+  } else {
+    // Clean up temp fields
+    for (const faq of faqs) {
+      delete (faq as KvFaq & { _propImages?: unknown })._propImages;
+    }
   }
 
   return faqs;
